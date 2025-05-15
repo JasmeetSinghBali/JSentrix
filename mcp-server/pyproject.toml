@@ -1,0 +1,13 @@
+[project]
+name = "mcp-server"
+version = "1.0.0"
+description = "jsentrix mcp-server"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+    { name = "JasmeetSinghBali", email = "jasmeetbali.dev.2021@gmail.com" }
+]
+dependencies = [
+    "fastapi>=0.115.12",
+    "mcp[cli]>=1.8.1",
+]

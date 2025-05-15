@@ -1,0 +1,14 @@
+[project]
+name = "gateway"
+version = "1.0.0"
+description = "jsentrix mcp-client-gateway to enable interaction between electron app and mcp-server"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+    { name = "JasmeetSinghBali", email = "jasmeetbali.dev.2021@gmail.com" }
+]
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "mcp>=1.8.1",
+    "pyjwt>=2.10.1",
+]
