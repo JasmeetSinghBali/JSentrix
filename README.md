@@ -50,7 +50,7 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 |Track | Milestone                                                                                         |  
 |------|-------------------------------------------------------------------------------------------------- |  
-| 1    | Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.        |✅
+| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~        |
 | 2    | Implement transaction ingestion tool (local DB/CSV), basic fraud detection agent (local LLM).     |
 | 3    | Add A2A workflow (investigation, notification, freeze), integrate vector DB (Qdrant), mem0.       |
 | 4    | Build Next.js dashboard for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
