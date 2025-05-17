@@ -1,0 +1,103 @@
+```bash
+# flow
+knowledge base builder, using:
+
+Docling for PDF → Markdown (and NLP enrichment)
+
+Unstructured.io for Markdown parsing
+
+LangChain + MiniLM for embedding
+
+Neo4j for vector storage
+# steps
+Each PDF is converted to Markdown by Docling.
+
+Unstructured.io parses Markdown into clause blocks.
+
+Each clause is enriched with NLP features (entities, type, etc).
+
+Each clause is embedded with MiniLM and stored in Neo4j as a vector node.
+
+#example
+--- Clause ---
+Cross-border transfers between Country A and Country B must not exceed $10,000 per calendar month.
+Metadata:
+{
+  "category": "NarrativeText",
+  "page_number": 3,
+  "clause_type": "Limit",
+  "num_sentences": 1,
+  "num_nouns": 6,
+  "entities": ["Country A", "Country B", "$10,000", "month"],
+  "source": "compliance_rules.pdf"
+}
+```
+
+```bash
+# batch processing pipeline related project files
+mcp-server/
+├── data/                  # Raw PDFs go here
+├── pipeline/
+│   ├── __init__.py
+│   ├── pdf_to_md.py       # Docling: PDF → Markdown
+│   ├── unstructured_md.py # Unstructured: Markdown → Clauses
+│   ├── enrich.py          # Docling/regex: NLP enrichment
+│   └── load.py            # LangChain+Neo4j: Embedding & storage
+├── run_pipeline.py        # Main batch script
+├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
+├── .env                   # Neo4j credentials
+# deps 
+unstructured[md]
+docling
+langchain
+langchain-community
+fpdf
+neo4j
+sentence-transformers
+python-dotenv
+# for spacy engine to download the small english model needed for tokenization, splitting and nlp enrichment flow
+python -m spacy download en_core_web_sm
+```
+
+> Run model and neo4j locally
+```bash
+# to run qwen3 1.7B model instance locally
+ollama pull qwen3:1.7b
+ollama run qwen3:1.7b
+# http://localhost:11434 local api qwen3
+# to run neo4j docker instance locally
+docker-compose up -d
+```
+
+> 🚀 To run pipeline and prep knowledge base with ./data compliance/rules pdfs to extract clause+metadata and store embeddings in neo4j
+```bash
+# start the neo4j local instance
+docker-compose up -d
+# navigate to mcp-server
+# to generate sample compliance pdf
+python generate_sample.py
+# to run and test the end-to-end pipeline
+python run_pipeline.py
+# inspect stored clause+metadata in neo4j instance
+http://localhost:7474
+# use cypher query to check the stored embeddings node
+# list 5 compliance clauses text and entities
+MATCH (n:ComplianceClause) 
+RETURN n.text AS text, n.entities AS entities 
+LIMIT 5
+# list 5 compliance clauses as text,entities,clause_type, num_sentences and source
+MATCH (n:ComplianceClause) 
+RETURN n.text, n.entities, n.clause_type, n.num_sentences, n.source 
+LIMIT 5
+# metadata structure
+MATCH (c:ComplianceClause) 
+RETURN keys(c) AS properties 
+LIMIT 1
+# visual graph
+MATCH (n) 
+RETURN n
+#
+# to stop and remove volume persistent inside docker container dont use -v if want to persist data in docker container also
+docker-compose down -v
+```
+

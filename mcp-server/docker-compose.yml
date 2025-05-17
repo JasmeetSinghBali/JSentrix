@@ -1,0 +1,18 @@
+services:
+  neo4j:
+    image: neo4j:2025.04.0
+    container_name: neo4jsentrix
+    environment:
+      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD} 
+    ports:
+      - "7474:7474" #http browser
+      - "7687:7687" #bolt
+    volumes:
+      - neo4j_data:/data # this is named volume docker manages the stored data loc on host  for host bind mount and custom managed loc for neo4j data in the host machine use ./neo4j_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above
+  neo4j_data:

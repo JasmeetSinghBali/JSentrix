@@ -49,10 +49,14 @@ Electron app displays the result.
 > 💀 make sure to go through "devContentSecurityPolicy" in package.json and forge.config.ts and setup a/c to requirement and best practices based on use case
 
 >>>>>>>>>> from here
-- add and setup new "streaminges" a ingestion tool for the mcp-server that streams/pulls data and has generalized-adapter-class that supports multiple source csv/database/directstream(maybe websocket or sockets) polish the mcp_server with proper project strucutre
-- setup neo4j cloud + mem0 local remove qdrant 
-- diff-branch setup a batch populator script minimal inside mcp-server dir that from ./data parses and chunks and then embeds compliance pdfs of bank and store in neo4j to prep knowledge base  make sure to add meta data and also vector dim shud match to the qwen3 model 
-- diff-branch setup (fda) frauddetectionagent via OpenAI agent sdk with local LLM connection via liteLLM ollama qwen3 model running locally and this agent constantly subscribe to mcp-server "streaminges" tool for analyzing the transactions feed triggered via electron app and determines if their is voilations or not with examining the stored compliance from neo4j cloud and mem0 local dynamic graph memory
+
+reff: un structured.io (for complex parsing) + nlp metadata docling + langchain document loader
+
+- diff-branch add and setup new "streaminges" and "abortinges" tool for the mcp-server these tools can be invoked by mcp-client by clicking a button in electron app. 
+streaminges when invoked should send out notification to the basic setup for now minimal agent setup of Langchain Agent as fraud detection agent that on recieving this notification starts intaking a mock stream of transactions using https://github.com/joke2k/faker to generate in realtime via reusable function and then this agent analyzes the transactions by embedding them with all-MiniLM-L6-v2 and doing a similarity search or RAG against the stored compliance rules and clauses from neo4j pass the retreived data to qwen3 1.7B model runnning locally to return a analyzed report for each transaction with ouput result as flagged or not and metadata for that transaction.
+
+- diff-branch add mem0 local dynamic graph memory to the setup so that agent can utilize both neo4j and mem0 in the analysis process
+
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret
 
 > ## 🕊️ Streaming, MCP server tool invocation and FDA Agent Flow
@@ -130,7 +134,7 @@ Agent Processing:
 
 As the agent analyzes the stream, it detects notable events (e.g., fraud).
 
-For each event, the agent sends an update back to the MCP server or directly to a notification endpoint.
+For each event, the agent sends an update back to the MCP server or directly to a notification endpoint. reff: https://python.langchain.com/docs/tutorials/agents/#streaming-messages
 
 Real-Time UI Update:
 
