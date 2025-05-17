@@ -9,6 +9,14 @@ authors = [
     { name = "JasmeetSinghBali", email = "jasmeetbali.dev.2021@gmail.com" }
 ]
 dependencies = [
+    "docling>=2.32.0",
     "fastapi>=0.115.12",
+    "fpdf>=1.7.2",
+    "langchain>=0.3.25",
+    "langchain-community>=0.3.21",
     "mcp[cli]>=1.8.1",
+    "neo4j>=5.28.1",
+    "python-dotenv>=1.1.0",
+    "sentence-transformers>=4.1.0",
+    "unstructured[md]>=0.17.2",
 ]
