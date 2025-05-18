@@ -45,10 +45,18 @@ mcp-server/
 │   └── load.py            # LangChain+Neo4j: Embedding & storage
 ├── memory/
 │   ├── __init__.py
-│   └── graph_memory_retriever.py    # For LangChain agents
-│   └── llamaindex_neo4j_retriever.py # For LlamaIndex agents
+│   └── langchain_retriever.py     # For LangChain agents
+│   └── llamaindex_retriever.py    # For LlamaIndex agents
+├── utils/
+│   ├── __init__.py
+│   └── neo4j_utils.py          # Shared Neo4j config and connection helpers
+|   └── logger.py               # Default logger singleton instance and custom logger get_logger new instance file/module level deep logging
+└── tests/
+|    ├── __init__.py
+|    ├── test_langchain_agent.py  # Tests LangChain agent with retriever
+|    └── test_llamaindex_agent.py # Tests LlamaIndex agent with retriever
 | 
-├── run_pipeline.py        # Main batch script
+├── run_pipeline.py        # Main batch script to prep knowledge base
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
 ├── .env                   # Neo4j credentials
 
