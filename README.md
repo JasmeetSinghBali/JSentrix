@@ -1,5 +1,5 @@
 # JSentrix
-# Autonomous Transaction Monitoring & Fraud Response System (Local-Only, Multi-Agent, MCP-Based)
+# Autonomous Transaction Monitoring & Fraud Response System (Local-Only, Multi-Agent, MCP&A2A-Compliant)
 
 ## Overview
 
@@ -51,9 +51,12 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 |Track | Milestone                                                                                         |  
 |------|-------------------------------------------------------------------------------------------------- |  
 | 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~        |
-| 2    | Implement transaction ingestion tool (local DB/CSV), basic fraud detection agent (local LLM).     |
-| 3    | Add A2A workflow (investigation, notification, freeze), integrate vector DB (Qdrant), mem0.       |
-| 4    | Build Next.js dashboard for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
+| 2    | Setup custom neo4j, retriever interface for both llamaindex and langchain agent support
+| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                             |
+| 4    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
+| 5    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
+| 6    | Add A2A workflow (investigation, notification, action)                                            |
+| 7    | Build Next.js dashboard for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
 
 ---
 
@@ -62,8 +65,8 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 - **Electron** (React/TypeScript) - Desktop app & MCP client
 - **Python** - MCP server, agent orchestration via Langchain
 - **Ollama** - Local LLMs for analysis
-- **Qdrant** - Local vector database for embeddings
-- **mem0** - Local agent memory wired with qdrant configs
+- **neo4j** - Local graph database 
+- **customMemory** - Local agent memory wired with custom configs and setup
 - **Next.js** (TypeScript) - Monitoring dashboard
 - **Docker** - Deployment and local orchestration
 
@@ -73,8 +76,7 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 - [MCP Protocol](https://github.com/anthropics/mcp)
 - [Ollama](https://ollama.com/)
-- [Qdrant](https://qdrant.tech/)
-- [mem0](https://github.com/mem0-ai/mem0)
+- [Neo4j](https://neo4j.com/docs/operations-manual/current/docker/introduction/)
 - [Electron](https://www.electronjs.org/)
 - [Next.js](https://nextjs.org/)
 
@@ -83,11 +85,14 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 ## Getting Started
 
 1. **Clone the repo and follow setup instructions for each component.**
-2. **Start the MCP server and supporting services (Ollama, Qdrant, mem0) via Docker.**
+2. **Start the MCP server and supporting services (Ollama, neo4j) via Docker or local a/c to instructions.**
 3. **Run the Electron app locally for IT staff.**
 4. **Access the Next.js dashboard for monitoring.**
 
 ---
 
+## License
+
+[![GPL V3](https://img.shields.io/badge/License-GPL-purple.svg)](https://choosealicense.com/licenses/gpl-3.0/)
 
 

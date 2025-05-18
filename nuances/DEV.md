@@ -50,14 +50,32 @@ Electron app displays the result.
 
 >>>>>>>>>> from here
 
-reff: un structured.io (for complex parsing) + nlp metadata docling + langchain document loader
+- diff-branch add custom memory retriever interface setup as local dynamic graph memory + retriever interface knitted with neo4j setup so that agents can utilize it at the time of agent initialization example BaseAgent(memory=) while creating agents and the agents could look up this memory when needed.
+
+- diff branch setup Neo4jqueryEngine retriever interface via llama index to be reused by langchain or llamaindex agents. 
+
+- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret.
+
+- diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system.
+example-agents fraud detection agent, investigation agent, notification agent, action agent extends these base class to initialize and setup agents in a custom way.
+```bash
+Agent	                     Responsibilities	                                          Suggested Agent Type
+Fraud Detection	Scans incoming transactions using embeddings, rules, or heuristics	🧠 LlamaIndexAgent (for graph/vector querying)
+Investigation	   Explores relationships, historical links, clause violations	         🧠 LlamaIndexAgent (Neo4j graph queries + context-aware)
+Notification	   Sends alerts based on triggers from above agents	                  🔗 LangChainAgent (Tooling + APIs + Webhooks)
+Action Agent	   Takes follow-up actions (e.g., block account, trigger audit)	      🔗 LangChainAgent (Multi-tool + Autonomous capability)
+```
 
 - diff-branch add and setup new "streaminges" and "abortinges" tool for the mcp-server these tools can be invoked by mcp-client by clicking a button in electron app. 
-streaminges when invoked should send out notification to the basic setup for now minimal agent setup of Langchain Agent as fraud detection agent that on recieving this notification starts intaking a mock stream of transactions using https://github.com/joke2k/faker to generate in realtime via reusable function and then this agent analyzes the transactions by embedding them with all-MiniLM-L6-v2 and doing a similarity search or RAG against the stored compliance rules and clauses from neo4j pass the retreived data to qwen3 1.7B model runnning locally to return a analyzed report for each transaction with ouput result as flagged or not and metadata for that transaction.
+streaminges when invoked should send out notification to the (basic setup for now) minimal agent setup of Langchain Agent i.e fraud detection agent that on recieving this notification starts intaking a mock stream of transactions generated via https://github.com/joke2k/faker (a callable function that mocks transaction streams) for now.  
 
-- diff-branch add mem0 local dynamic graph memory to the setup so that agent can utilize both neo4j and mem0 in the analysis process
-
-- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret
+- diff branch polish frauddetectionagent now this agent will analyzes the stream of transactions in real time continuously by embedding them with all-MiniLM-L6-v2 and doing a similarity search or RAG against the stored compliance rules and clauses from neo4j 
+**If fraud is suspected i.e a similar clause match with particular transaction condition met then:**
+   - **A2A workflow:**  
+     - Investigation agent gathers more context (looking into mem0 history) uses retreived data from fraud detection agent to qwen3 1.7B model runnning locally to return a analyzed report for that transaction.
+     - Notification agent drafts alert or send alerts to electron app with analyzed report to mcp client via gateway fastapi.
+     - Action agent autonomously performs freeze(freeze funds or transaction)/escalation(to human) actions.
+ 
 
 > ## 🕊️ Streaming, MCP server tool invocation and FDA Agent Flow
 ```bash

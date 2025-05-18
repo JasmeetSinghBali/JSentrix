@@ -43,9 +43,23 @@ mcp-server/
 │   ├── unstructured_md.py # Unstructured: Markdown → Clauses
 │   ├── enrich.py          # Docling/regex: NLP enrichment
 │   └── load.py            # LangChain+Neo4j: Embedding & storage
-├── run_pipeline.py        # Main batch script
+├── memory/
+│   ├── __init__.py
+│   └── langchain_retriever.py     # For LangChain agents
+│   └── llamaindex_retriever.py    # For LlamaIndex agents
+├── utils/
+│   ├── __init__.py
+│   └── neo4j_utils.py          # Shared Neo4j config and connection helpers
+|   └── logger.py               # Default logger singleton instance and custom logger get_logger new instance file/module level deep logging
+└── tests/
+|    ├── __init__.py
+|    ├── test_langchain_agent.py  # Tests LangChain agent with retriever
+|    └── test_llamaindex_agent.py # Tests LlamaIndex agent with retriever
+| 
+├── run_pipeline.py        # Main batch script to prep knowledge base
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
 ├── .env                   # Neo4j credentials
+
 # deps 
 unstructured[md]
 docling
@@ -55,8 +69,6 @@ fpdf
 neo4j
 sentence-transformers
 python-dotenv
-# for spacy engine to download the small english model needed for tokenization, splitting and nlp enrichment flow
-python -m spacy download en_core_web_sm
 ```
 
 > Run model and neo4j locally
@@ -81,6 +93,15 @@ python run_pipeline.py
 # inspect stored clause+metadata in neo4j instance
 http://localhost:7474
 # use cypher query to check the stored embeddings node
+# syntax
+# CREATE NODE AND DEFINE PROPS
+CREATE (NODENAME:TYPE {...PROPERTIES})
+# CREATE RELATIONSHIPS
+CREATE (NODENAME)-[:RELATIONTYPE]->(NODENAME)
+# MATCH TO RETRIEVE DATA, assign custom variable name to that part of the cypher query which needs to be known
+# example person who likes spongebob
+MATCH (person)-[:LIKES]->(c:CARTOON {title: "Spongebob"})
+RETURN person.name
 # list 5 compliance clauses text and entities
 MATCH (n:ComplianceClause) 
 RETURN n.text AS text, n.entities AS entities 
@@ -101,3 +122,8 @@ RETURN n
 docker-compose down -v
 ```
 
+> To run test
+
+```bash
+pytest ./tests/___.py
+```
