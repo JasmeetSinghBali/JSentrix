@@ -1,5 +1,5 @@
-from langchain_community.vectorstores import Neo4jVector
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_neo4j import Neo4jVector
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from utils.neo4j_utils import get_neo4j_config
 from utils.logger import default_logger

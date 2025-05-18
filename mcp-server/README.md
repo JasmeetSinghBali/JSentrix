@@ -122,3 +122,8 @@ RETURN n
 docker-compose down -v
 ```
 
+> To run test
+
+```bash
+pytest ./tests/___.py
+```

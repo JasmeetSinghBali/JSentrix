@@ -1,6 +1,6 @@
 from typing import Dict, List, Any, Optional
-from langchain_community.vectorstores import Neo4jVector
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_neo4j import Neo4jVector
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from utils.neo4j_utils import get_neo4j_config
 from utils.logger import get_logger
@@ -12,7 +12,7 @@ class GraphMemoryRetriever:
     """
     Langchain compatible retriever using Neo4j vector store
     """
-    def __int__(
+    def __init__(
             self,
             embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
             top_k: int = 5
@@ -31,7 +31,7 @@ class GraphMemoryRetriever:
             embedding_node_property=config["embedding_property"],
         )
 
-    def get_Relevant(
+    def get_relevant(
             self,
             query:str,
             top_k:Optional[int]=None,
@@ -53,11 +53,12 @@ class GraphMemoryRetriever:
             query,
             k=top_k,
             filter=filter_metadata)
-            if isinstance(results,List[Any]):
-                logger.debug(f"Results from Neo4j: {results}")
+            if results is None:
+                return []
             return results
         except Exception as e:
             logger.error(f"ERROR: {str(e)}")
+            return []
     
     def add_memory(self, text:str, metadata:Optional[Dict[str,Any]]=None):
         """
