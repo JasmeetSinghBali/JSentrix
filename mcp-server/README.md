@@ -45,7 +45,9 @@ mcp-server/
 │   └── load.py            # LangChain+Neo4j: Embedding & storage
 ├── memory/
 │   ├── __init__.py
-│   └── mem0.py            # Mem0Retriever class 
+│   └── graph_memory_retriever.py    # For LangChain agents
+│   └── llamaindex_neo4j_retriever.py # For LlamaIndex agents
+| 
 ├── run_pipeline.py        # Main batch script
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
 ├── .env                   # Neo4j credentials
