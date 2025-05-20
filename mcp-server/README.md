@@ -51,11 +51,12 @@ mcp-server/
 ├── utils/
 │   ├── __init__.py
 │   └── neo4j_utils.py          # Shared Neo4j config and connection helpers
+│   └── neo4j_cypher_utils.py   # Shared Neo4j cypher query retrieval utils for graph context
 |   └── logger.py               # Default logger singleton instance and custom logger get_logger new instance file/module level deep logging
 └── tests/
 |    ├── __init__.py
-|    ├── test_langchain_agent.py  # Tests LangChain agent with retriever
-|    └── test_llamaindex_agent.py # Tests LlamaIndex agent with retriever
+|    ├── test_mockagents.py       # Tests mock LangChain & LlamaIndex agent with retriever and cypher utils
+|    └── test_neo4j_cypher_utls.py # Tests cypher retrieval utils custom setup and methods
 | 
 ├── run_pipeline.py        # Main batch script to prep knowledge base
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting

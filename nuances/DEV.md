@@ -51,7 +51,16 @@ Electron app displays the result.
 >>>>>>>>>> from here
 
 - optim langchain and llamaindex retriever with new metadata filter for langchain and custom cypher query utils
-for llamaindex results.
+for llamaindex results. ✅
+```bash
+relationship traversal capability so you can, for example:
+
+Given a retrieved clause, find all clauses it REFERENCES, AMENDS, or OVERRIDES.
+
+Given a clause, find all clauses that reference/amend/override it (reverse traversal).
+
+Traverse multi-hop relationships for advanced compliance impact/explainability.
+```
 
 - mem0 inspired updates and custom setup for :
 ```bash

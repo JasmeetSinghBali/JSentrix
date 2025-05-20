@@ -16,6 +16,28 @@ def get_llamaindex_query_engine():
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     # Ollama served Qwen3:1.7b model at localhost:11434 Ollama class connects to it
     llm=Ollama(model="qwen3:1.7b",request_timeout=120.0)
+    custom_query = """
+    MATCH (n:ComplianceClause)
+    RETURN
+        n.text AS text,
+        n.embedding AS embedding,
+        {
+            id: elementId(n),
+            clause_id: n.clause_id,
+            title: n.title,
+            clause_type: n.clause_type,
+            references: n.references,
+            amends: n.amends,
+            overrides: n.overrides,
+            source: n.source,
+            category: n.category,
+            section_header: n.section_header,
+            num_sentences: n.num_sentences,
+            entities: n.entities,
+            _node_content: n.text,
+            _node_type: 'TextNode'
+        } AS metadata
+    """
     neo4j_vector=Neo4jVectorStore(
         username=config["username"],
         password=config["password"],
@@ -28,19 +50,7 @@ def get_llamaindex_query_engine():
         # 📌 Custom Cypher Query to explicitly map LangChain node properties (text, clause_type, etc.) to the metadata fields LlamaIndex expects (_node_content, _node_type)
         # preserves original metadata clause_type and source for filtering
         # 🎈 make sure this shud always sync with the schema during ingestion pipeline 
-        # custom_query="""
-        # MATCH (n: `ComplianceClause`)
-        # RETURN
-        #     n.text AS text,
-        #     n.embedding AS embedding,
-        #     {
-        #         id: elementId(n),
-        #         _node_content: n.text,
-        #         _node_type: 'TextNode',
-        #         clause_type: n.clause_type,
-        #         source: n.source
-        #     } AS metadata
-        # """
+        custom_query=custom_query
     )
     try:
         index = VectorStoreIndex.from_vector_store(neo4j_vector,embed_model=embed_model)

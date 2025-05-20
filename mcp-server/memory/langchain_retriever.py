@@ -4,6 +4,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from utils.neo4j_utils import get_neo4j_config
 from utils.logger import get_logger
+from utils.neo4j_cypher_utils import run_cypher_query
 
 logger=get_logger(__name__)
 
@@ -11,6 +12,24 @@ logger=get_logger(__name__)
 class GraphMemoryRetriever:
     """
     Langchain compatible retriever using Neo4j vector store
+    <update: 20may-2025> supports metadata filtering and inspection
+
+    Usage:
+        retriever = GraphMemoryRetriever()
+
+        # Get all filterable fields
+        print(retriever.get_filterable_fields())
+
+        # Get all unique clause types
+        print(retriever.get_unique_values_for_field("clause_type"))
+
+        # Retrieve only "Prohibition" type clauses relevant to a query
+        results = retriever.get_relevant(
+            "cross-border payments",
+            filter_metadata={"clause_type": "Prohibition"}
+        )
+        for doc in results:
+            print(doc.metadata)
     """
     def __init__(
             self,
@@ -37,7 +56,11 @@ class GraphMemoryRetriever:
             top_k:Optional[int]=None,
             filter_metadata: Optional[Dict[str,Any]]=None)->List[Document]:
         """
-        Get relevant top_k results from passed query
+        Get relevant top_k results from passed query with optional metadata filtering support
+
+        Usage:
+            filter_metadata = {"clause_type": "Prohibition"}
+            filter_metadata = {"category": "NarrativeText", "source": "data/sample_compliance.md"}
 
         Args:
             query (str): query
@@ -81,3 +104,25 @@ class GraphMemoryRetriever:
             return self.vectorstore.similarity_search("",k=1000)
         except Exception as e:
             logger.error(f"ERROR: {str(e)}")
+    
+    def get_filterable_fields(self)->List[str]:
+        """
+        Returns:
+            List[str]: list of all filterable metadata fields
+        """
+        # 🎈 This should match the schema in neo4j and ingestion pipeline
+        return [
+            "clause_id", "title", "clause_type", "category", "section_header",
+            "references", "amends", "overrides", "source", "num_sentences", "entities"
+        ]
+    def get_unique_values_for_field(self,field:str)->List[Any]:
+        """
+        Returns:
+            List[Any]: List of all uniq values for given metadata field in neo4j
+        """
+        query=f"""
+        MATCH (n:ComplianceClause)
+        RETURN DISTINCT n.{field} AS value
+        """
+        results = run_cypher_query(query)
+        return [r["value"] for r in results if r["value"] is not None]
