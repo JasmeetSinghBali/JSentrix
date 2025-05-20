@@ -2,20 +2,37 @@ from docling.document_converter import DocumentConverter
 import re
 
 def enrich_clause(clause):
+    """
+    Enriches a clause dict with additional metadata.
+    - Adds num_sentences, entities, clause_type to metadata.
+    - Preserves all existing metadata (including relationships).
+
+    Args:
+        clause (List[Dict]): list of Dict of pydantic model Clause
+
+    Returns:
+        List[Clause]: the same list of Dict of pydantic model Clause with enriched metadata
+    """
     # sentence splitting
     converter = DocumentConverter()
     doc = converter.convert_all(clause["text"])
     num_sentences = len(doc.sentences) if hasattr(doc, "sentences") else clause["text"].count('.') + 1
     entities = extract_basic_entities(clause["text"])
     clause_type = determine_clause_type(clause["text"])
+    
+    # merge and syn metadata
+    enriched_metadata={
+        **clause.get("metadata",{}),
+        "num_sentences": num_sentences,
+        "entities": entities,
+        "clause_type": clause_type,
+        "clause_id": clause["id"], # maps relationships in neo4j graph store
+        "title": clause.get("title"),
+    }
+
     return {
         **clause,
-        "metadata": {
-            **clause["metadata"],
-            "num_sentences": num_sentences,
-            "entities": entities,
-            "clause_type": clause_type
-        }
+        "metadata": enriched_metadata
     }
 
 def extract_basic_entities(text):

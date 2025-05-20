@@ -26,5 +26,4 @@ dependencies = [
     "pytest>=8.3.5",
     "python-dotenv>=1.1.0",
     "sentence-transformers>=4.1.0",
-    "unstructured[md]>=0.17.2",
 ]

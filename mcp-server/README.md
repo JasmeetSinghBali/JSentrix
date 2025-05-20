@@ -40,9 +40,10 @@ mcp-server/
 ├── pipeline/
 │   ├── __init__.py
 │   ├── pdf_to_md.py       # Docling: PDF → Markdown
-│   ├── unstructured_md.py # Unstructured: Markdown → Clauses
+│   ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
 │   ├── enrich.py          # Docling/regex: NLP enrichment
 │   └── load.py            # LangChain+Neo4j: Embedding & storage
+│   └── model.py           # Clause and ClauseMetaData pydantic validator model
 ├── memory/
 │   ├── __init__.py
 │   └── langchain_retriever.py     # For LangChain agents
@@ -90,6 +91,20 @@ docker-compose up -d
 python generate_sample.py
 # to run and test the end-to-end pipeline
 python run_pipeline.py
+
+# How the Pipeline Flows Works
+#PDF → Markdown:
+#Each clause is clearly marked and annotated.
+
+#Markdown → Clause dicts:
+#Each clause is parsed with all fields (including #relationships).
+
+#Enrichment:
+#Each clause gets more metadata, but nothing is lost.
+
+#Load:
+#Everything (including relationships) is available for Neo4j ingestion.
+
 # inspect stored clause+metadata in neo4j instance
 http://localhost:7474
 # use cypher query to check the stored embeddings node
@@ -117,7 +132,17 @@ LIMIT 1
 # visual graph
 MATCH (n) 
 RETURN n
-#
+
+# List all clause IDs and titles
+MATCH (c:ComplianceClause) RETURN c.clause_id, c.title;
+
+# Show all relationships for a given clause
+MATCH (a:ComplianceClause {clause_id: 'C4'})-[r]->(b)
+RETURN a.clause_id, type(r), b.clause_id;
+
+# Find all clauses that override any other clause
+MATCH (a)-[:OVERRIDES]->(b) RETURN a.clause_id AS Overrider, b.clause_id AS Overridden;
+
 # to stop and remove volume persistent inside docker container dont use -v if want to persist data in docker container also
 docker-compose down -v
 ```
