@@ -5,6 +5,7 @@ from pipeline.unstructured_md import extract_clauses_from_md
 from pipeline.enrich import enrich_clause
 from pipeline.load import load_to_neo4j
 from dotenv import load_dotenv
+from utils.logger import default_logger
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ def process_pdfs():
         print(f"Processing {pdf}...")
         md_path = pdf.replace(".pdf", ".md")
         pdf_to_markdown(pdf, md_path)
+        default_logger.debug(f"converted and reformatted {pdf} to {md_path}")
         raw_clauses = extract_clauses_from_md(md_path)
         enriched = [enrich_clause(c) for c in raw_clauses]
         all_clauses.extend(enriched)

@@ -50,11 +50,19 @@ Electron app displays the result.
 
 >>>>>>>>>> from here
 
-- diff-branch add custom memory retriever interface setup as local dynamic graph memory + retriever interface knitted with neo4j setup so that agents can utilize it at the time of agent initialization example BaseAgent(memory=) while creating agents and the agents could look up this memory when needed.
+- optim langchain and llamaindex retriever with new metadata filter for langchain and custom cypher query utils
+for llamaindex results.
 
-- diff branch setup Neo4jqueryEngine retriever interface via llama index to be reused by langchain or llamaindex agents. 
+- mem0 inspired updates and custom setup for :
+```bash
+scoring & decay
+summarization
+memory-aware querying
+and vector embedding.
+```
 
-- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret.
+- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
+
 
 - diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system.
 example-agents fraud detection agent, investigation agent, notification agent, action agent extends these base class to initialize and setup agents in a custom way.

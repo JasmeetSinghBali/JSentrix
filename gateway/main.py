@@ -51,6 +51,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     raise HTTPException(status_code=400, detail="Incorrect username or password")
 
 async def mcp_client_call(call_type: str, tool_name: str = None, arguments: dict = None):
+    # might need to update this part if want to run the mcp-server as dockerized container along with gateway
     server_params = StdioServerParameters(
         command="python",
         args=[r"..\mcp-server\mcp_server.py"],  # Adjust path if needed
