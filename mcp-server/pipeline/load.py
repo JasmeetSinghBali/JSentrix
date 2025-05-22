@@ -5,6 +5,7 @@ from utils.neo4j_utils import get_neo4j_config
 from utils.logger import default_logger
 from neo4j import GraphDatabase
 import json
+from datetime import datetime, timezone
 
 def clear_neo4j_database(config):
     default_logger.info("Clearing all nodes and relationships in Neo4j database...")
@@ -23,9 +24,15 @@ def load_to_neo4j(clauses):
     docs=[]
     for cl in clauses:
         metadata=cl.get("metadata",{})
+        # 🕊️ to support scoring and decay custom setup
+        scoring_fields={
+            "score": 0.8, # default to 0.8 for room of reward and penalty
+            "last_accessed_at": datetime.now(timezone.utc).isoformat() # for future decay
+        }
         # 📌 llamaIndex required fields node_content and node_type schema sync during ingestion
         metadata={
             **metadata, # copy existing
+            **scoring_fields,
             "_node_content": json.dumps({"text": cl["text"]}), # llamaindex expects this as json string represent
             "_node_type": "TextNode"
         }

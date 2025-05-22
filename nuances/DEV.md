@@ -64,10 +64,30 @@ Traverse multi-hop relationships for advanced compliance impact/explainability.
 
 - mem0 inspired updates and custom setup for :
 ```bash
-scoring & decay
+scoring & decay ✅
 summarization
 memory-aware querying
-and vector embedding.
+
+memory/langchain_retriever.py
+Add support for scoring and decay:
+
+Track score, created_at, last_accessed in memory.
+
+Implement decay_score() and use it during retrieval.
+
+memory/langchain_retriever.py (or new file)
+Add support for summarization:
+
+Add summarize_memory() that uses a local summarizer (like T5-small).
+
+Store summarized versions into memory.
+
+memory/llamaindex_retriever.py
+Add support for memory-aware querying:
+
+Modify .query() to also retrieve recent/similar memory entries.
+
+Concatenate those into the prompt (or use llamaindex.composability tools).
 ```
 
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
@@ -192,4 +212,221 @@ Use unique session or stream IDs to ensure updates are routed to the correct cli
 UI Handling:
 
 The client UI should subscribe to the appropriate real-time endpoint and update the display as new events arrive.
+```
+
+
+---
+> ## Score and Decay system
+
+```bash
+the score and lastAccessed attributes play pivotal roles in determining the relevance and retrieval priority of stored memories.
+
+Significance of score
+The score attribute quantifies the importance or relevance of a memory. Higher scores indicate that a memory is more significant and should be prioritized during retrieval operations. This scoring mechanism ensures that the most pertinent information is readily accessible, enhancing the AI's contextual understanding and response accuracy.
+
+Significance of lastAccessed
+The lastAccessed attribute records the timestamp of the most recent interaction with a memory. This temporal data is crucial for implementing decay strategies, where memories that haven't been accessed recently may be deprioritized or even removed to optimize memory usage. By tracking access patterns, Mem0 can maintain a dynamic and efficient memory store that reflects the current context and user interactions.
+
+Role in Scoring and Decay System
+Together, score and lastAccessed facilitate a sophisticated scoring and decay system.
+
+Memory Prioritization: Memories with high scores and recent access timestamps are deemed highly relevant, ensuring they are retrieved promptly during AI operations.
+
+Memory Decay: Memories that haven't been accessed for extended periods may experience a reduction in their score, leading to gradual deprioritization. This decay mechanism helps in managing the memory store's size and relevance.
+
+Efficient Retrieval: By balancing score and recency, ensures that the AI retrieves information that is both important and contextually timely, enhancing the overall performance and user experience.
+
+This dynamic interplay between score and lastAccessed allows to maintain a memory system that is both responsive and efficient, adapting to the evolving context and user interactions over time.
+```
+> The math
+```bash
+Formula
+Let’s define:
+
+S₀ = original relevance score (e.g., from cosine similarity, say 0.85)
+
+t₀ = last accessed time (e.g., 2025-05-18 10:00:00)
+
+t = current time (e.g., 2025-05-21 10:00:00)
+
+Δt = t - t₀ = time passed since last access (in seconds/days)
+
+λ = decay rate (e.g., λ = 0.05)
+
+S(t) = S₀ × exp(-λ × Δt)
+
+NOTE- Its exponential because the relevance drops at first fast then slows over time, the sensitivity can be controlled via λ for slower decay smaller valued of λ shud be used
+Units
+must pick a consistent unit for time difference:
+
+If Δt is in days, λ should decay over days.
+
+If Δt is in seconds, use a smaller λ.
+
+Example (in days)
+Let’s compute the decayed score step-by-step:
+
+Original similarity: S₀ = 0.9
+
+Last accessed: May 18, 2025
+
+Current time: May 21, 2025
+
+Δt = 3 days
+
+Decay rate: λ = 0.1
+
+Then:
+
+cpp
+Copy code
+S(t) = 0.9 * exp(-0.1 × 3)
+     = 0.9 * exp(-0.3)
+     ≈ 0.9 * 0.7408
+     ≈ 0.6667
+The document's score decayed from 0.9 → 0.67 in 3 days.
+
+here’s how S(t) changes over time for S₀ = 1.0:
+Days since access	   Score (λ=0.1)	Score (λ=0.01)
+0	                     1.0	         1.0
+1	                     0.9048	      0.9900
+3	                     0.7408	      0.9704
+7	                     0.4966	      0.9324
+14	                     0.2466	      0.8694
+30	                     0.0498	      0.7408
+So, with:
+
+λ = 0.1, things decay fast — ideal for short-term memory
+
+λ = 0.01, things decay slowly — ideal for long-term recall
+```
+
+> Self adjusting temporal aware memory with very low overhead
+```bash
+Initialize score = 0.8 for all docs
+
+When retrieved, bump by +0.1 (up to 1.0) i.e reward
+
+When rejected/irrelevant, decay by ×0.9 i.e penalize
+
+Use decayed_score = score * exp(-λ * Δt) on every read, never store it
+
+This gives a self-adjusting, temporal-aware memory with very low overhead.
+
+
+# When to penalize and when to reward
+1.) Implicit Feedback (Automatic)
+Let the system infer reward/penalty based on agent behavior or pipeline results:
+
+Reward When:
+The document was used in generating a final output.
+
+The document was repeatedly selected across different queries.
+
+The output using that doc received a positive user response (e.g., high LLM confidence, no fallback to other tools).
+
+Penalize When:
+The document was retrieved but not referenced or used.
+
+The agent overrode or ignored it (e.g., reran the query).
+
+The agent explicitly flagged the result as irrelevant.
+
+You can check LangChain’s trace or internal intermediate_steps, or hook into your custom chain/agent logic to inspect this.
+
+2.) Explicit Feedback (Agent-Aware or User-Aware)
+If you're building an interactive agent, let the agent or user explicitly give feedback:
+
+"This is useful" → reward (+0.1)
+
+"This is outdated" or "not relevant" → penalize (×0.9)
+
+This can be done via:
+
+An agent memory feedback tool
+
+A UI thumbs-up/thumbs-down system
+
+A system prompt that tells the LLM:
+“Mark which context was most helpful.”
+
+3.) Confidence-Based Feedback (LLM-Driven)
+Let the LLM tell you how useful a document was:
+
+"On a scale from 0 to 1, how helpful was this document for answering the question?"
+Use that score to reward/penalize:
+
+0.7 → reward
+
+<0.3 → penalize
+
+This works well with Tool-Calling, where the LLM can give a reason field and a score.
+
+4.) Context-Use Tracking (Lightweight Heuristic)
+In simple systems, just track if the retrieved doc made it into the final LLM context:
+
+if doc in final_prompt:
+    reward
+else:
+    penalize
+This assumes if it was used in the final context, it was helpful — decent proxy for now.
+
+```
+
+> Example Interaction Flow Between Agents
+```bash
+LangChain receives a query from the user.
+
+LangChain calls LlamaIndex agent with the query string.
+
+LlamaIndex:
+
+Retrieves nodes from Neo4j,
+
+Applies decayed scoring + reranking,
+
+Returns top-K ranked nodes with updated scores.
+
+LangChain uses retrieved nodes to generate a final answer (maybe calling an LLM).
+
+LangChain decides which documents were used in the answer.
+
+LangChain tells LlamaIndex to reward or penalize those documents.
+
+LlamaIndex updates Neo4j metadata accordingly.
+```
+
+> 🕊️💫 Flow Overview & Relevance
+```bash
+Score Decay: Every clause/document node in Neo4j tracks a score and last_accessed_at. The score decays over time unless the document is accessed/rewarded.
+
+Reward/Penalty: When a node is used in a final answer (LLM output), it’s rewarded (score increases, timestamp updated); otherwise, it’s penalized (score decreases).
+
+Integration:
+
+LangChain: Uses the decayed score for reranking after retrieval.
+
+LlamaIndex: Applies decay/reranking via a custom postprocessor, and uses a wrapper to reward/penalize nodes based on LLM output.
+
+Persistence: All updates are persisted back to Neo4j, keeping the knowledge graph “freshness-aware.”
+
+Testing: End-to-end tests validate the full flow, including metadata updates in Neo4j.
+
+Alignment with Project Goals
+Compliance RAG: This flow ensures that frequently accessed (and thus likely more relevant or up-to-date) clauses are prioritized, while stale or less useful ones fade in ranking.
+
+Explainability: The scoring and decay logic is transparent and can be surfaced in audit logs or explanations.
+
+Adaptability: The system can adapt over time to user behavior and LLM usage patterns.
+
+---
+# POSSIBLE IMPROVEMENTS
+Improvements
+Hybrid Scoring: Consider combining semantic similarity and decayed score, rather than replacing the original score. This would ensure that both recency and relevance are balanced.
+
+Cypher-Level Decay: Move decay calculation into Cypher queries for efficiency (optional, as current approach is already modular and transparent).
+
+Decay Rate Tuning: Make decay rate and reward/penalty amounts configurable per clause type or user.
+
+Analytics: Track how often nodes are rewarded/penalized for dashboarding or further model fine-tuning.
 ```

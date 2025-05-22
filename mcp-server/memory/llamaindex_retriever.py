@@ -4,6 +4,9 @@ from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
 from llama_index.core import VectorStoreIndex
 from utils.neo4j_utils import get_neo4j_config
 from utils.logger import get_logger
+from utils.relevance_scorer import RelevanceScorer
+from utils.llamaindex_postprocessors import CustomRelevancePostprocessor
+from utils.llamaindex_rewarding_wrapper import RewardingQueryEngineWrapper
 
 logger=get_logger(__name__)
 
@@ -54,8 +57,13 @@ def get_llamaindex_query_engine():
     )
     try:
         index = VectorStoreIndex.from_vector_store(neo4j_vector,embed_model=embed_model)
-        # 📌 local qwen3 local llm for synthesis
-        return index.as_query_engine(llm=llm)
+        scorer = RelevanceScorer()
+        postProcessor=CustomRelevancePostprocessor(scorer)
+        raw_query_engine=index.as_query_engine(
+            llm=llm, # 📌 local qwen3 local llm for synthesis
+            node_postprocessors=[postProcessor]
+        )
+        return RewardingQueryEngineWrapper(raw_query_engine,scorer)
     except Exception as e:
         logger.error(f"ERROR: {str(e)}")
         return None
