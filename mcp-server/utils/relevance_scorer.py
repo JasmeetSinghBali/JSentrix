@@ -34,6 +34,7 @@ class RelevanceScorer:
         score = metadata.get("score", self.base_score)
 
         last_accessed_at = metadata.get("last_accessed_at")
+        default_logger.debug(f"Scoring: clause_id={metadata.get('clause_id')}, original_score={score}, last_accessed_at={last_accessed_at}, decay_rate={self.decay_rate}")
         if last_accessed_at:
             try:
                 dt = datetime.fromisoformat(last_accessed_at)
@@ -41,7 +42,7 @@ class RelevanceScorer:
                 score *= math.exp(-self.decay_rate * age_days)
             except Exception as e:
                 default_logger.debug(f"Error in score decay: {str(e)}")
-
+        default_logger.debug(f"decayed_score={score}")
         return min(max(score, 0.0), 1.0)
 
     def reward(self, metadata: Dict[str, Any]) -> None:

@@ -39,6 +39,7 @@ def load_to_neo4j(clauses):
         docs.append(Document(page_content=cl["text"], metadata=metadata))
     if docs:
         default_logger.info(f"Injecting doc to neo4j: \n{docs}")
+        
     Neo4jVector.from_documents(
         docs,
         embedding=embedding,

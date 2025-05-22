@@ -74,6 +74,22 @@ class GraphMemoryRetriever:
                 filter_metadata={"clause_type": "Override"},
                 rescore=True  #  Use RelevanceScorer here
             )
+            💫
+            If you want to use the hybrid scoring (semantic × decay), you must call get_relevant(..., rescore=True).
+
+            If you want only decay-based sorting, call with rescore=False (or omit it, since default is False) and leave apply_decay=True.
+
+            If you want pure vectorstore ranking (no decay), call with apply_decay=False, rescore=False.
+
+            Example:
+                # Hybrid scoring (recommended for most use cases)
+                results = retriever.get_relevant("query", rescore=True)
+
+                # Only decay-based scoring
+                results = retriever.get_relevant("query", apply_decay=True, rescore=False)
+
+                # No decay, just vectorstore similarity
+                results = retriever.get_relevant("query", apply_decay=False, rescore=False)
 
         Args:
             query (str): The search query.
@@ -94,7 +110,6 @@ class GraphMemoryRetriever:
             )
             if results is None:
                 return []
-            results=self._decay_aware_sort(results,apply_decay=apply_decay)
             # optional rescoring
             # custom_score 
             # By default, your Neo4jVector.similarity_search() ranks results based on vector similarity (cosine similarity, etc.). But vector similarity:
@@ -109,11 +124,24 @@ class GraphMemoryRetriever:
             # B	            0.91	        1 day ago	    0.88
             # C	            0.89	        90 days ago	    0.50
             # If sort by custom_score, result B moves above A and C — prioritizing recency, not just vector proximity.
+            # 📌 hybrid scoring = original_score/similarity score*decayed_score
             if rescore:
                 for doc in results:
+                    sim_score = doc.metadata.get("score",0.8)
                     decayed_score=self.scorer.score(doc.metadata)
-                    doc.metadata["score"] = decayed_score
-                results=sorted(results,key=lambda d: d.metadata.get("score", 0),reverse=True)
+                    hybrid_score=sim_score*decayed_score
+                    doc.metadata["hybrid_score"] = hybrid_score
+                    doc.metadata["sim_core"] = sim_score
+                    doc.metadata["decayed_score"] = decayed_score
+                    logger.debug(
+                        f"Doc {doc.metadata.get('clause_id')}: sim_score={sim_score}, decayed_score={decayed_score}, hybrid_score={hybrid_score}"
+                    )
+                # 📌 finally sort by hybrid score
+                results=sorted(results,key=lambda d: d.metadata.get("hybrid_score", 0),reverse=True)
+            elif apply_decay:
+                # only apply decay based sorting
+                results=self._decay_aware_sort(results,apply_decay=True)
+            
             # 📌 NOTE: Do NOT persist `score` to Neo4j — it's a transient value based on current time and decays over time.
             # update last accessed at for each document (if clause_id is available) as this document is just used/retrieved
             for doc in results:

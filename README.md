@@ -50,14 +50,15 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 |Track | Milestone                                                                                         |  
 |------|-------------------------------------------------------------------------------------------------- |  
-| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~        |
-| 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~
-| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                             |
-| 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~
-| 5    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
-| 6    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
-| 7    | Add A2A workflow (investigation, notification, action)                                            |
-| 8    | Build Next.js dashboard for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
+| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~                                                                                                         |
+| 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~       |
+| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                                                                                 |
+| 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
+| 5    | custom flow setup including relevance decay score sort, summarization,memory aware querying                                                                                                   |
+| 6    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
+| 7    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
+| 8    | Add A2A workflow (investigation, notification, action)                                            |
+| 9    | Build Next.js dashboard for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
 
 ---
 
