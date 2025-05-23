@@ -36,6 +36,9 @@ class CustomLogger:
 
     def info(self, msg: str, *args, **kwargs):
         self._log(logging.INFO, msg, *args, **kwargs)
+        
+    def warning (self, msg: str, *args, **kwargs):
+        self._log(logging.WARNING, msg, *args, **kwargs)
 
     def error(self, msg: str, *args, **kwargs):
         self._log(logging.ERROR, msg, *args, **kwargs)

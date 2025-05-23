@@ -10,6 +10,7 @@ authors = [
 ]
 dependencies = [
     "docling>=2.32.0",
+    "faker>=37.3.0",
     "fastapi>=0.115.12",
     "fpdf>=1.7.2",
     "langchain>=0.3.25",
