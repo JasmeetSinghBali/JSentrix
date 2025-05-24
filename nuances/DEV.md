@@ -68,27 +68,7 @@ scoring & decay ✅
 summarization
 memory-aware querying
 
-memory/langchain_retriever.py
-Add support for scoring and decay:
-
-Track score, created_at, last_accessed in memory.
-
-Implement decay_score() and use it during retrieval.
-
-memory/langchain_retriever.py (or new file)
-Add support for summarization:
-
-Add summarize_memory() that uses a local summarizer (like T5-small).
-
-Store summarized versions into memory.
-
-memory/llamaindex_retriever.py
-Add support for memory-aware querying:
-
-Modify .query() to also retrieve recent/similar memory entries.
-
-Concatenate those into the prompt (or use llamaindex.composability tools).
-```
+- diff branch direct mem0 import use mem0 as scratchpad for the agent setup
 
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
 
@@ -429,4 +409,14 @@ Cypher-Level Decay: Move decay calculation into Cypher queries for efficiency (o
 Decay Rate Tuning: Make decay rate and reward/penalty amounts configurable per clause type or user.
 
 Analytics: Track how often nodes are rewarded/penalized for dashboarding or further model fine-tuning.
+```
+
+
+> 🎈 Knowledge Graph Neo4j with llamaindex <often gets malformed via the openai error Settings.llm can help reff: llamaindex_retriever.py>
+```bash
+LlamaIndex’s Neo4jVectorStore (in many versions) does NOT actually use the custom_query argument, or it ignores metadata fields and only returns text and embedding.
+# to make the ollama compatible with graph neo4j llamaindex
+https://docs.llamaindex.ai/en/stable/api_reference/llms/openai_like/
+https://docs.llamaindex.ai/en/stable/examples/index_structs/knowledge_graph/Neo4jKGIndexDemo/
+
 ```

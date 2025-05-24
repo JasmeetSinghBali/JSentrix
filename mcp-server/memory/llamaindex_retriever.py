@@ -1,69 +1,55 @@
-from llama_index.llms.ollama import Ollama
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
+from llama_index.core.schema import Document
 from llama_index.core import VectorStoreIndex
-from utils.neo4j_utils import get_neo4j_config
-from utils.logger import get_logger
+from llama_index.llms.ollama import Ollama
 from utils.relevance_scorer import RelevanceScorer
-from utils.llamaindex_postprocessors import CustomRelevancePostprocessor
+from utils.llamaindex_postprocessors import (
+    CustomRelevancePostprocessor,
+    MetadataInjectionPostprocessor,
+    HybridScorePostprocessor
+)
 from utils.llamaindex_rewarding_wrapper import RewardingQueryEngineWrapper
+from utils.logger import get_logger
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.core.settings import Settings
 
-logger=get_logger(__name__)
+logger = get_logger(__name__)
 
-def get_llamaindex_query_engine():
+def get_llamaindex_query_engine_from_docs(
+    docs,
+    dynamic_metadata_by_clause_id=None,
+    llm=None
+):
     """
-    Returns:
-        queryEngineRetrieverOnly: a LlamaIndex query engine retriever only connected to neo4j vector store
+    Returns a LlamaIndex query engine built from provided docs,
+    with custom postprocessors and reward logic.
     """
-    config = get_neo4j_config()
+    # 1. Set up your custom embedding and LLM (use passed llm if provided)
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    # Ollama served Qwen3:1.7b model at localhost:11434 Ollama class connects to it
-    llm=Ollama(model="qwen3:1.7b",request_timeout=120.0)
-    custom_query = """
-    MATCH (n:ComplianceClause)
-    RETURN
-        n.text AS text,
-        n.embedding AS embedding,
-        {
-            id: elementId(n),
-            clause_id: n.clause_id,
-            title: n.title,
-            clause_type: n.clause_type,
-            references: n.references,
-            amends: n.amends,
-            overrides: n.overrides,
-            source: n.source,
-            category: n.category,
-            section_header: n.section_header,
-            num_sentences: n.num_sentences,
-            entities: n.entities,
-            _node_content: n.text,
-            _node_type: 'TextNode'
-        } AS metadata
-    """
-    neo4j_vector=Neo4jVectorStore(
-        username=config["username"],
-        password=config["password"],
-        url=config["url"],
-        embedding_dimension=384, # must match with dim that used during knowledge base prep i.e inges+index pipeline
-        index_name=config["index_name"],
-        text_node_property=config["text_property"],
-        node_label=config["node_label"],
-        embedding_node_property=config["embedding_property"],
-        # 📌 Custom Cypher Query to explicitly map LangChain node properties (text, clause_type, etc.) to the metadata fields LlamaIndex expects (_node_content, _node_type)
-        # preserves original metadata clause_type and source for filtering
-        # 🎈 make sure this shud always sync with the schema during ingestion pipeline 
-        custom_query=custom_query
+    if llm is None:
+        llm = Ollama(model="qwen3:1.7b", request_timeout=180.0)  # 3 minutes, adjust as needed
+
+    # 2. Set global defaults for LlamaIndex modules
+    Settings.embed_model = embed_model
+    Settings.llm = llm
+
+    # 3. Build scorer and postprocessors
+    scorer = RelevanceScorer()
+    postprocessors = []
+    if dynamic_metadata_by_clause_id:
+        postprocessors.append(MetadataInjectionPostprocessor(dynamic_metadata_by_clause_id))
+        postprocessors.append(HybridScorePostprocessor())
+    postprocessors.append(CustomRelevancePostprocessor(scorer))
+
+    # 4. Build index from docs, passing the explicit embedding model
+    index = VectorStoreIndex.from_documents(docs, embed_model=embed_model)
+
+    # 5. Build query engine with postprocessors and LLM
+    query_engine = index.as_query_engine(
+        llm=llm,
+        node_postprocessors=postprocessors
     )
-    try:
-        index = VectorStoreIndex.from_vector_store(neo4j_vector,embed_model=embed_model)
-        scorer = RelevanceScorer()
-        postProcessor=CustomRelevancePostprocessor(scorer)
-        raw_query_engine=index.as_query_engine(
-            llm=llm, # 📌 local qwen3 local llm for synthesis
-            node_postprocessors=[postProcessor]
-        )
-        return RewardingQueryEngineWrapper(raw_query_engine,scorer)
-    except Exception as e:
-        logger.error(f"ERROR: {str(e)}")
-        return None
+
+    # 6. Wrap for reward/penalty logic
+    query_engine = RewardingQueryEngineWrapper(query_engine, scorer)
+
+    return query_engine
