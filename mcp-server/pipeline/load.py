@@ -2,13 +2,15 @@ from langchain_neo4j import Neo4jVector
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from utils.neo4j_utils import get_neo4j_config
-from utils.logger import default_logger
+from utils.logger import get_logger
 from neo4j import GraphDatabase
 import json
 from datetime import datetime, timezone
 
+logger = get_logger("jsentrix")
+
 def clear_neo4j_database(config):
-    default_logger.info("Clearing all nodes and relationships in Neo4j database...")
+    logger.info("Clearing all nodes and relationships in Neo4j database...")
     driver = GraphDatabase.driver(config["url"], auth=(config["username"], config["password"]))
     with driver.session() as session:
         session.run("MATCH (n) DETACH DELETE n")
@@ -38,7 +40,7 @@ def load_to_neo4j(clauses):
         }
         docs.append(Document(page_content=cl["text"], metadata=metadata))
     if docs:
-        default_logger.info(f"Injecting doc to neo4j: \n{docs}")
+        logger.info(f"Injecting doc to neo4j: \n{docs}")
         
     Neo4jVector.from_documents(
         docs,
@@ -78,7 +80,7 @@ def load_to_neo4j(clauses):
                 for tgt_id in targets:
                     tgt_id=tgt_id.strip()
                     if tgt_id:
-                        default_logger.debug(f"Creating {rel_type} from {src_id} to {tgt_id}")
+                        logger.debug(f"Creating {rel_type} from {src_id} to {tgt_id}")
                         session.run(
                             f"""
                             MATCH (a:ComplianceClause {{clause_id:$src_id}}), (b:ComplianceClause {{clause_id: $tgt_id}})
@@ -93,4 +95,4 @@ def load_to_neo4j(clauses):
             create_relationship("AMENDS",metadata.get("amends",[]))
             create_relationship("OVERRIDES",metadata.get("overrides",[]))
     driver.close()
-    default_logger.info(f"Injested {len(clauses)} clauses with ndes and relationshp into neo4j")
+    logger.info(f"Injested {len(clauses)} clauses with ndes and relationshp into neo4j")

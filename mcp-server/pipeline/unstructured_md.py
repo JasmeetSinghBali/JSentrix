@@ -1,7 +1,9 @@
 import re
 from .model import Clause
 from typing import List
-from utils.logger import default_logger
+from utils.logger import get_logger
+
+logger = get_logger("jsentrix")
 
 # Precompiled regex patterns for performance
 ID_PATTERN = re.compile(r"\*\*ID:\*\*\s*(C\d+)")
@@ -34,7 +36,7 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
         # Extract title and id from the header line
         title_match = TITLE_PATTERN.match("## Clause " + block)
         if not title_match:
-            default_logger.debug(f"Skipped clause due to missing title. Raw: {block[:50]}")
+            logger.debug(f"Skipped clause due to missing title. Raw: {block[:50]}")
             continue
         cid, title = title_match.groups()
 
@@ -63,9 +65,9 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
                 clause = Clause(**clause_data)
                 clauses.append(clause)
             except Exception as e:
-                default_logger.debug(f"Invalid clause skipped: {e}")
+                logger.debug(f"Invalid clause skipped: {e}")
         else:
-            default_logger.debug(
+            logger.debug(
                 f"Skipped clause due to missing fields. Raw: {block[:50]}"
             )
     return [clause.model_dump() for clause in clauses]

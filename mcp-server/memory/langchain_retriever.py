@@ -10,8 +10,8 @@ from datetime import datetime,timezone
 from utils.neo4j_cypher_utils import update_last_accessed
 from utils.relevance_scorer import RelevanceScorer
 
-logger=get_logger(__name__)
 
+logger = get_logger("jsentrix")
 
 class GraphMemoryRetriever:
     """

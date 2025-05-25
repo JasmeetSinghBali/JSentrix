@@ -11,7 +11,8 @@ from utils.logger import get_logger
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.settings import Settings
 
-logger = get_logger(__name__)
+
+logger = get_logger("jsentrix")
 
 def get_llamaindex_query_engine_from_docs(
     docs,

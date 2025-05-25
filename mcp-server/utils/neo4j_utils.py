@@ -1,7 +1,9 @@
 import os
 from typing import Dict
 from dotenv import load_dotenv
-from utils.logger import default_logger
+from utils.logger import get_logger
+
+logger = get_logger("jsentrix")
 
 load_dotenv()
 
@@ -21,7 +23,7 @@ def get_env_var(key: str, default: str = None, required: bool = False) -> str:
 def get_neo4j_config() -> Dict[str, str]:
     global _neo4j_config
     if _neo4j_config is None:
-        default_logger.debug("Initializing Neo4j config...")
+        logger.debug("Initializing Neo4j config...")
         _neo4j_config= {
             "url": get_env_var("NEO4J_URI", required=True),
             "username": get_env_var("NEO4J_USERNAME", required=True),
@@ -41,7 +43,7 @@ def get_neo4j_driver():
     global _neo4j_driver
     if _neo4j_driver is None:
         config = get_neo4j_config()
-        default_logger.debug("Initializing Neo4j driver...")
+        logger.debug("Initializing Neo4j driver...")
         _neo4j_driver = GraphDatabase.driver(
             config["url"],
             auth=(config["username"], config["password"])

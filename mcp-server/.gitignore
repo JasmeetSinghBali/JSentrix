@@ -178,3 +178,6 @@ uv_cache/
 
 # neo4j_data
 neo4j_data/
+
+# test_logs
+tests/logs/

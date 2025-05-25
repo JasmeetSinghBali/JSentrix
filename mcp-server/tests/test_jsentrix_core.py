@@ -19,7 +19,7 @@ from faker import Faker
 from llama_index.core.schema import Document
 from memory.llamaindex_retriever import get_llamaindex_query_engine_from_docs
 
-logger = get_logger(__name__)
+logger = get_logger("jsentrix")
 
 @pytest.fixture(scope="module")
 def langchain_retriever():
