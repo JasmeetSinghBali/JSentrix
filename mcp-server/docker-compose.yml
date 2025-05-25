@@ -3,7 +3,7 @@ services:
     image: neo4j:2025.04.0
     container_name: neo4jsentrix
     environment:
-      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD} 
+      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
     ports:
       - "7474:7474" #http browser
       - "7687:7687" #bolt

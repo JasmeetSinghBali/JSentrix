@@ -401,6 +401,18 @@ wheels = [
 ]
 
 [[package]]
+name = "faker"
+version = "37.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/4b/5354912eaff922876323f2d07e21408b10867f3295d5f917748341cb6f53/faker-37.3.0.tar.gz", hash = "sha256:77b79e7a2228d57175133af0bbcdd26dc623df81db390ee52f5104d46c010f2f", size = 1901376, upload-time = "2025-05-14T15:24:18.039Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/99/045b2dae19a01b9fbb23b9971bc04f4ef808e7f3a213d08c81067304a210/faker-37.3.0-py3-none-any.whl", hash = "sha256:48c94daa16a432f2d2bc803c7ff602509699fca228d13e97e379cd860a7e216e", size = 1942203, upload-time = "2025-05-14T15:24:16.159Z" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.115.12"
 source = { registry = "https://pypi.org/simple" }
@@ -1041,15 +1053,15 @@ wheels = [
 
 [[package]]
 name = "llama-index-llms-openai"
-version = "0.3.40"
+version = "0.3.42"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "llama-index-core" },
     { name = "openai" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/d3/c8b893687b1bba253f2404a7529d58633f5bd4f9809c3a99123c3ff38ad8/llama_index_llms_openai-0.3.40.tar.gz", hash = "sha256:a162fdb89d24be584718c5052c9d4ce480ad3a43486ad1d836a2e6bd0e0bdd89", size = 22788, upload-time = "2025-05-15T15:42:01.547Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/50/4745679d3775f3b41bcce5ec18f072356110a0885dbed69b3508b8f7d7b0/llama_index_llms_openai-0.3.42.tar.gz", hash = "sha256:3b5c8b4b06eda1dd7be370137b6d79388f9d21c6a7eddd872b5e6336e618b235", size = 22774, upload-time = "2025-05-19T21:53:37.284Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/78/9024452bbf33890143c7e28d4bff40dc7b9a9ac006209e90bdbf00f36f15/llama_index_llms_openai-0.3.40-py3-none-any.whl", hash = "sha256:6b3177ebee1151c87e786d5a668ac11fced1f2de1d16e90f3aa39127027d9d4c", size = 23954, upload-time = "2025-05-15T15:42:00.231Z" },
+    { url = "https://files.pythonhosted.org/packages/33/53/947ff0db83047083967bd2e537f06e34c48849dbaf134435cca9dbf1074b/llama_index_llms_openai-0.3.42-py3-none-any.whl", hash = "sha256:e2449d8a33ddc8ca948ce3a0584cd8b9467947449332efb65244d1693c51f181", size = 23949, upload-time = "2025-05-19T21:53:35.635Z" },
 ]
 
 [[package]]
@@ -1265,6 +1277,7 @@ version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "docling" },
+    { name = "faker" },
     { name = "fastapi" },
     { name = "fpdf" },
     { name = "langchain" },
@@ -1286,6 +1299,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "docling", specifier = ">=2.32.0" },
+    { name = "faker", specifier = ">=37.3.0" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "fpdf", specifier = ">=1.7.2" },
     { name = "langchain", specifier = ">=0.3.25" },

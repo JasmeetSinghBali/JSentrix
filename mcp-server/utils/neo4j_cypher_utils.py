@@ -42,6 +42,7 @@
 
 from neo4j import GraphDatabase
 from .neo4j_utils import get_neo4j_config
+from datetime import datetime, timezone
 
 def run_cypher_query(query, parameters=None):
     """
@@ -103,3 +104,36 @@ def traverse_multi_hop(clause_id, rel_type="REFERENCES", hops=2):
         RETURN [n IN nodes(path) | n.clause_id] AS clause_path
     """
     return run_cypher_query(query, {"clause_id": clause_id})
+
+def update_last_accessed(clause_id: str):
+    """
+    Updates the last_accessed_at timestamp for the clause with given clause_id.
+    This shud be called on retrieval to keep the last_accessed_at metadata in sync and fresh for the decay function
+    """
+    config = get_neo4j_config()
+    driver = GraphDatabase.driver(config["url"], auth=(config["username"], config["password"]))
+    query = """
+    MATCH (n:ComplianceClause {clause_id: $clause_id})
+    SET n.last_accessed_at = $timestamp
+    """
+    with driver.session() as session:
+        session.run(query, clause_id=clause_id, timestamp=datetime.now(timezone.utc).isoformat())
+
+def update_clause_metadata(clause_id: str, metadata: dict):
+    """
+    Updates metadata properties on a ComplianceClause node by clause_id.
+    Accepts a dict of property keys and values to update.
+    """
+    config = get_neo4j_config()
+    driver = GraphDatabase.driver(config["url"], auth=(config["username"], config["password"]))
+
+    set_clauses = ", ".join([f"n.{key} = ${key}" for key in metadata.keys()])
+    params = {"clause_id": clause_id, **metadata}
+
+    query = f"""
+    MATCH (n:ComplianceClause {{clause_id: $clause_id}})
+    SET {set_clauses}
+    """
+
+    with driver.session() as session:
+        session.run(query, params)

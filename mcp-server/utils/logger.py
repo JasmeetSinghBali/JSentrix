@@ -1,6 +1,34 @@
 import logging
 import inspect
 import sys
+import re
+import os
+
+SENSITIVE_PATTERNS = [
+    r'[A-Z]:\\\\[^\s]+',           # Windows absolute paths
+    r'[A-Z]:/[^\s]+',              # Windows absolute paths (forward slash)
+    r'/Users/[^\s]+',              # macOS user paths
+    r'/home/[^\s]+',               # Linux user paths
+    r'localhost',                  # Hostname
+    r'127\.0\.0\.1',               # Localhost IP
+    r'\b\d{1,3}(?:\.\d{1,3}){3}\b',# Any IP address
+    r'GB\d{2}[A-Z]{4}\d{14}',      # Example IBAN (tweak as needed)
+    r'password\s*=\s*[^,\s]+',     # password=xxxx
+    r'Authorization:\s*[^\s,]+',   # Authorization: xxxx
+    r'(?i)C:\\Users\\[^\s\\]+'     # Windows user directory
+    # Add more patterns as needed
+]
+
+def mask_sensitive_info(msg):
+    for pattern in SENSITIVE_PATTERNS:
+        msg = re.sub(pattern, '[MASKED]', msg)
+    return msg
+
+class MaskingFilter(logging.Filter):
+    def filter(self, record):
+        record.msg = mask_sensitive_info(str(record.msg))
+        return True
+
 
 class CustomLogger:
     def __init__(self, name: str = __name__, level: int = logging.DEBUG):
@@ -9,12 +37,12 @@ class CustomLogger:
 
         # Prevent adding multiple handlers if already added
         if not self.logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
+            stream_handler = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
                 '%(asctime)s [%(levelname)s] %(message)s (%(filename)s:%(funcName)s:%(lineno)d)'
             )
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
+            stream_handler.setFormatter(formatter)
+            self.logger.addHandler(stream_handler)
 
     def _log(self, level: int, msg: str, *args, **kwargs):
         # Inspect stack to find caller frame (2 steps up from here)
@@ -36,6 +64,9 @@ class CustomLogger:
 
     def info(self, msg: str, *args, **kwargs):
         self._log(logging.INFO, msg, *args, **kwargs)
+        
+    def warning (self, msg: str, *args, **kwargs):
+        self._log(logging.WARNING, msg, *args, **kwargs)
 
     def error(self, msg: str, *args, **kwargs):
         self._log(logging.ERROR, msg, *args, **kwargs)
