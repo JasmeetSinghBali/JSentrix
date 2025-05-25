@@ -65,10 +65,25 @@ Traverse multi-hop relationships for advanced compliance impact/explainability.
 - mem0 inspired updates and custom setup for :
 ```bash
 scoring & decay ✅
+SETUP test for compliance voilations for some actual malformed transaction stream from faker ✅
+SETUP TEST CHECK that the score and decay and reranking actually is working right
 summarization
 memory-aware querying
 
-- diff branch direct mem0 import use mem0 as scratchpad for the agent setup
+
+- diff branch async setup using _async query from the rewarding wrapper and downstream pipeline including llm, neo4j, retrievers everything basically then write a mock test end to end after this async setup to make sure everything works
+```bash
+How Would This Look?
+define main transaction analysis function as async def.
+
+Use await for all LLM, database, and network calls that support async.
+
+Use async-compatible libraries for Neo4j (see ), HTTP/LLM calls, and any other I/O.
+
+agents (mock or Llama) would consume transactions from the stream and process them in parallel using asyncio.gather or similar
+```
+
+- diff branch direct mem0 import use mem0 as scratchpad storing logs,result,analyssis from agent of the transactions etc... for the agent setup with qdrant need more research https://qdrant.tech/documentation/frameworks/mem0/
 
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
 

@@ -1,4 +1,3 @@
-from llama_index.core.schema import Document
 from llama_index.core import VectorStoreIndex
 from llama_index.llms.ollama import Ollama
 from utils.relevance_scorer import RelevanceScorer
@@ -26,7 +25,9 @@ def get_llamaindex_query_engine_from_docs(
     # 1. Set up your custom embedding and LLM (use passed llm if provided)
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     if llm is None:
-        llm = Ollama(model="qwen3:1.7b", request_timeout=180.0)  # 3 minutes, adjust as needed
+        llm = Ollama(
+            model="qwen3:1.7b", 
+            request_timeout=180.0)  # 3 minutes, adjust as needed
 
     # 2. Set global defaults for LlamaIndex modules
     Settings.embed_model = embed_model

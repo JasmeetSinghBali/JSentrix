@@ -1,4 +1,5 @@
-# pytest .\tests\test_jsentrix_core.py -v -s --log-cli-level=INFO
+# pytest .\tests\test_jsentrix_core.py -v -s --log-cli-level=INFO for general info logs
+# pytest .\tests\test_jsentrix_core.py -v -s --log-cli-level=DEBUG for cache check
 import pytest
 from utils.logger import get_logger
 from memory.langchain_retriever import GraphMemoryRetriever
@@ -27,13 +28,28 @@ def build_compliance_query(transaction):
     """
 
 def test_jsentrix_rag_pipeline(langchain_retriever, faker):
-    transactions = [{
+    from utils.neo4j_utils import get_neo4j_config
+    # Should only log once per test run
+    logger.info("Neo4j config (should cache): %s", get_neo4j_config())
+
+    # 1. Intentionally violating transaction (C2)
+    violating_transaction = {
+        "amount": "$12,000.00",
+        "sender": "SANCTIONED_ENTITY_X",   # This should match C2
+        "receiver": "GB00FAKE12345678901234",
+        "currency": "USD",
+        "timestamp": "2025-05-24T10:00:00"
+    }
+    # 2. Three normal transactions
+    normal_transactions = [{
         "amount": faker.pricetag(),
         "sender": faker.swift11(),
         "receiver": faker.iban(),
         "currency": faker.currency_code(),
         "timestamp": faker.iso8601()
     } for _ in range(3)]
+
+    transactions = [violating_transaction] + normal_transactions
 
     for idx, txn in enumerate(transactions):
         logger.info(f"\n === Processing Transaction {idx+1} ===")
@@ -81,10 +97,15 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         logger.info(f"- Retrieved Nodes: {len(getattr(response, 'source_nodes', []))}")
         logger.info("\n[LLM Analysis]")
         logger.info(getattr(response, 'response', response))
+        logger.info(f"LLM Answer for Transaction {idx+1}: {str(response)}")
 
         # ---6. Compliance assertions ---
-        assert "YES" in str(response).upper() or "NO" in str(response).upper(), \
-            "LLM failed to provide YES/NO compliance decision"
+        if idx == 0:
+            # The first transaction should be a violation (YES)
+            assert "YES" in str(response).upper(), "LLM failed to detect compliance violation for transaction 1"
+        else:
+            # The rest should be NO
+            assert "NO" in str(response).upper(), f"LLM incorrectly detected violation for transaction {idx+1}"
 
         # ---7. Verify metadata propagation ---
         for node in getattr(response, 'source_nodes', []):

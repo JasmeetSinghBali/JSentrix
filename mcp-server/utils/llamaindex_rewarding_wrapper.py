@@ -4,6 +4,7 @@ from typing import Any, Dict
 from difflib import SequenceMatcher
 from .relevance_scorer import RelevanceScorer
 from .logger import get_logger
+from .retry import retry
 
 logger = get_logger(__name__)
 
@@ -55,7 +56,9 @@ class RewardingQueryEngineWrapper(BaseQueryEngine):
         if hasattr(self._query_engine, "_get_prompt_modules"):
             return self._query_engine._get_prompt_modules()
         return None
+    
     #  override the public query and aquery methods
+    @retry(max_retries=3, delay=1.0, exceptions=(TimeoutError,))
     def query(self, query_str: str, **kwargs: Any) -> Any:
         return self._query(query_str, **kwargs)
     async def aquery(self, query_str: str, **kwargs: Any) -> Any:
