@@ -1,5 +1,16 @@
 # pytest .\tests\test_jsentrix_core.py -v -s --log-cli-level=INFO for general info logs
+# USE FOR:
+# Most test runs
+# Seeing important info, warnings, and errors
+# Verifying that your pipeline works end-to-end
+# Confirming compliance detection, score propagation, and general flow
+
 # pytest .\tests\test_jsentrix_core.py -v -s --log-cli-level=DEBUG for cache check
+# USE FOR
+# Diagnosing issues with config caching, connection pooling, or postprocessor logic
+# Verifying that your Neo4j config and driver are only initialized once
+# Inspecting detailed step-by-step flow, variable values, and all debug logs
+# Verifying scoring, decay, reranking, caching
 import pytest
 from utils.logger import get_logger
 from memory.langchain_retriever import GraphMemoryRetriever
@@ -112,5 +123,34 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
             print("Node metadata after all postprocessors:", node.metadata)
             assert "hybrid_score" in node.metadata, "Hybrid score missing in node metadata"
             assert "clause_id" in node.metadata, "Clause ID missing in node metadata"
+        
+        # ---8. Postprocessor scoring checks ---
+        # Interpret the Scores
+        # score / sim_core: Original similarity or relevance score from retrieval.
+        # decayed_score: Score after applying any time-based or usage-based decay.
+        # hybrid_score: Final score used for reranking; typically incorporates both similarity and decay.
+        # Order of nodes: Nodes with higher hybrid scores are ranked higher and passed to the LLM.
+        for node in getattr(response, 'source_nodes', []):
+            meta = node.metadata
+            original_score = meta.get('sim_core', meta.get('score'))
+            logger.info(f"Node {meta.get('clause_id')} scores: "
+                        f"original_score={original_score}, "
+                        f"score={meta.get('score')}, "
+                        f"decayed_score={meta.get('decayed_score')}, "
+                        f"hybrid_score={meta.get('hybrid_score')}")
+            # Assert all scores are present and are floats
+            assert isinstance(original_score, (float, int)), "original_score missing or not a number"
+            assert isinstance(meta.get('decayed_score'), (float, int)), "decayed_score missing or not a number"
+            assert isinstance(meta.get('hybrid_score'), (float, int)), "hybrid_score missing or not a number"
+            # Assert hybrid_score is less than or equal to original score (decay/rerank applied)
+            assert meta['hybrid_score'] <= original_score, "hybrid_score should be <= original score"
+            # Assert decayed_score is less than or equal to original score
+            assert meta['decayed_score'] <= original_score, "decayed_score should be <= original score"
+
+        # ---9. (Optional) Check reranking order ---
+        hybrid_scores = [node.metadata['hybrid_score'] for node in getattr(response, 'source_nodes', [])]
+        logger.info(f"Hybrid scores order: {hybrid_scores}")
+        # expect reranking, check that scores are in descending order
+        assert hybrid_scores == sorted(hybrid_scores, reverse=True), "Nodes not reranked by hybrid_score"
 
         logger.info(f" === End Transaction {idx+1} Processing ===\n")

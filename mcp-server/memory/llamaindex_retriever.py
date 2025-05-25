@@ -36,10 +36,20 @@ def get_llamaindex_query_engine_from_docs(
     # 3. Build scorer and postprocessors
     scorer = RelevanceScorer()
     postprocessors = []
+    # Postprocessor Order
+    # MetadataInjectionPostprocessor should come first (injects external scores/metadata).
+    # CustomRelevancePostprocessor should come after (applies decay to the injected or original scores).
+    # HybridScorePostprocessor (if you want to use a hybrid score for reranking) should come after CustomRelevancePostprocessor and should set node.score from hybrid_score in metadata.
+    # If you use both, the typical order is:
+    # MetadataInjectionPostprocessor
+    # CustomRelevancePostprocessor
+    # HybridScorePostprocessor
     if dynamic_metadata_by_clause_id:
         postprocessors.append(MetadataInjectionPostprocessor(dynamic_metadata_by_clause_id))
+        postprocessors.append(CustomRelevancePostprocessor(scorer))
         postprocessors.append(HybridScorePostprocessor())
-    postprocessors.append(CustomRelevancePostprocessor(scorer))
+    else:
+        postprocessors.append(CustomRelevancePostprocessor(scorer)) # decay always get applied
 
     # 4. Build index from docs, passing the explicit embedding model
     index = VectorStoreIndex.from_documents(docs, embed_model=embed_model)

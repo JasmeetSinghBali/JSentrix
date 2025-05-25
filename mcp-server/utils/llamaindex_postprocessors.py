@@ -10,13 +10,9 @@ logger = get_logger(__name__)
 class CustomRelevancePostprocessor(BaseNodePostprocessor):
     """
     Applies RelevanceScorer decay logic to each node and re-ranks results using decayed score.
-    NodeWithScore is the internal LlamaIndex class used to hold results and scores.
-    This postprocessor:
-
-    - Reads node.metadata (from Neo4j custom query).
-    - Applies RelevanceScorer.
-    - Replaces the .score with custom_score.
-    - Sorts accordingly.
+    - Reads node.metadata['score'] (original similarity).
+    - Applies decay, writes to node.metadata['decayed_score'].
+    - Updates node.score to decayed_score for ranking.
     """
     _scorer: RelevanceScorer = PrivateAttr()
 
@@ -31,11 +27,12 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
         query_str = query_bundle.query_str if query_bundle else ""
         logger.debug(f"Applying decay to nodes for query: {query_str}")
         for node in nodes:
-            custom_score = self._scorer.score(node.metadata)
-            logger.debug(f"Node {node.metadata.get('clause_id')} | "
-                        f"Original: {node.score:.3f} → Decayed: {custom_score:.3f}")
+            original_score = node.metadata.get('score', node.score)
+            decayed_score = self._scorer.score(node.metadata)
+            node.metadata['decayed_score'] = decayed_score
+            logger.debug(f"Node {node.metadata.get('clause_id')} | Original: {original_score:.3f} → Decayed: {decayed_score:.3f}")
             # 📌 LlamaIndex expects the score attribute of NodeWithScore to represent the current ranking metric (e.g., similarity, rerank, or your custom decay/hybrid score
-            node.score = custom_score  # Overwrite default similarity score
+            node.score = decayed_score  # Overwrite default similarity score
             # The LlamaIndex response synthesis and subsequent pipeline steps will use the updated .score for sorting, filtering, or context selection.
         return sorted(nodes, key=lambda x: x.score, reverse=True)
 

@@ -66,9 +66,9 @@ Traverse multi-hop relationships for advanced compliance impact/explainability.
 ```bash
 scoring & decay ✅
 SETUP test for compliance voilations for some actual malformed transaction stream from faker ✅
-SETUP TEST CHECK that the score and decay and reranking actually is working right
-summarization
-memory-aware querying
+SETUP TEST CHECK that the score and decay and reranking actually is working right ✅
+summarization diff branch
+memory-aware querying diff branch
 
 
 - diff branch async setup using _async query from the rewarding wrapper and downstream pipeline including llm, neo4j, retrievers everything basically then write a mock test end to end after this async setup to make sure everything works
