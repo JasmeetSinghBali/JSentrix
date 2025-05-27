@@ -9,6 +9,7 @@ import math
 from datetime import datetime,timezone
 from utils.neo4j_cypher_utils import update_last_accessed
 from utils.relevance_scorer import RelevanceScorer
+from utils.summarizer import T5Summarizer
 
 
 logger = get_logger("jsentrix")
@@ -43,6 +44,7 @@ class GraphMemoryRetriever:
         ):
         config=get_neo4j_config()
         self.scorer = scorer or RelevanceScorer()
+        self.summarizer = T5Summarizer()
         self.embedding=HuggingFaceEmbeddings(model_name=embedding_model_name)
         self.top_k = top_k
 
@@ -165,6 +167,12 @@ class GraphMemoryRetriever:
             metadata (Optional[[str,Any]], optional): metadata for the extracted text. Defaults to None.
         """
         try:
+            if metadata is None:
+                metadata={}
+            if "summary" not in metadata:
+                summary = self.summarizer.summarize(text)
+                metadata["summary"] = summary
+                logger.debug(f"Generated summary for new document: {summary}")
             doc=Document(page_content=text,metadata=metadata or {})
             if doc:
                 logger.debug(f"Adding new doc to Neo4j: {str(doc)}")

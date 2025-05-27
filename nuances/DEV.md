@@ -67,7 +67,7 @@ Traverse multi-hop relationships for advanced compliance impact/explainability.
 scoring & decay ✅
 SETUP test for compliance voilations for some actual malformed transaction stream from faker ✅
 SETUP TEST CHECK that the score and decay and reranking actually is working right ✅
-summarization diff branch
+summarization diff branch ✅ misc: added lifecycle callback shutdown centralized setup
 memory-aware querying diff branch
 
 

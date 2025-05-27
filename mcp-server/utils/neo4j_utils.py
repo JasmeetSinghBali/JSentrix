@@ -1,7 +1,8 @@
 import os
 from typing import Dict
 from dotenv import load_dotenv
-from utils.logger import get_logger
+from .logger import get_logger
+from .lifecycle import register_shutdown_callback
 
 logger = get_logger("jsentrix")
 
@@ -48,4 +49,9 @@ def get_neo4j_driver():
             config["url"],
             auth=(config["username"], config["password"])
         )
+        # Register shutdown callback for neo4j once
+        def close_driver():
+            logger.info("Closing Neo4j driver...")
+            _neo4j_driver.close()
+        register_shutdown_callback(close_driver)
     return _neo4j_driver

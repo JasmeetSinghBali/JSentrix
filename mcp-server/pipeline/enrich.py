@@ -1,10 +1,13 @@
 from docling.document_converter import DocumentConverter
 import re
+from utils.summarizer import T5Summarizer
+
+summarizer = T5Summarizer()
 
 def enrich_clause(clause):
     """
     Enriches a clause dict with additional metadata.
-    - Adds num_sentences, entities, clause_type to metadata.
+    - Adds num_sentences, entities, clause_type, summary to metadata.
     - Preserves all existing metadata (including relationships).
 
     Args:
@@ -19,6 +22,9 @@ def enrich_clause(clause):
     num_sentences = len(doc.sentences) if hasattr(doc, "sentences") else clause["text"].count('.') + 1
     entities = extract_basic_entities(clause["text"])
     clause_type = determine_clause_type(clause["text"])
+
+    # --- summarize the clause text ---
+    summary = summarizer.summarize(clause["text"])
     
     # merge and syn metadata
     enriched_metadata={
@@ -28,6 +34,7 @@ def enrich_clause(clause):
         "clause_type": clause_type,
         "clause_id": clause["id"], # maps relationships in neo4j graph store
         "title": clause.get("title"),
+        "summary": summary,
     }
 
     return {
