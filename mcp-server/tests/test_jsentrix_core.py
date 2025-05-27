@@ -123,6 +123,8 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
             print("Node metadata after all postprocessors:", node.metadata)
             assert "hybrid_score" in node.metadata, "Hybrid score missing in node metadata"
             assert "clause_id" in node.metadata, "Clause ID missing in node metadata"
+            assert "summary" in node.metadata, "Summary missing in node metadata"
+            assert isinstance(node.metadata["summary"], str) and node.metadata["summary"].strip(), "Summary is empty or not a string"
         
         # ---8. Postprocessor scoring checks ---
         # Interpret the Scores

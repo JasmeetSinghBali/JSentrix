@@ -10,7 +10,7 @@ from utils.llamaindex_rewarding_wrapper import RewardingQueryEngineWrapper
 from utils.logger import get_logger
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.settings import Settings
-
+from utils.summarizer import T5Summarizer
 
 logger = get_logger("jsentrix")
 
@@ -34,6 +34,16 @@ def get_llamaindex_query_engine_from_docs(
     Settings.embed_model = embed_model
     Settings.llm = llm
 
+    # enrich docs with summaries
+    summarizer = T5Summarizer()
+    for doc in docs:
+        # LlamaIndex docs typically have .text or .get_content()
+        text = getattr(doc, "text", None) or getattr(doc, "get_content", lambda: None)()
+        if text and ("summary" not in doc.metadata or not doc.metadata["summary"]):
+            summary = summarizer.summarize(text)
+            doc.metadata["summary"] = summary
+            logger.debug(f"Summary added to doc: {summary}")
+
     # 3. Build scorer and postprocessors
     scorer = RelevanceScorer()
     postprocessors = []
@@ -51,6 +61,7 @@ def get_llamaindex_query_engine_from_docs(
         postprocessors.append(HybridScorePostprocessor())
     else:
         postprocessors.append(CustomRelevancePostprocessor(scorer)) # decay always get applied
+    
 
     # 4. Build index from docs, passing the explicit embedding model
     index = VectorStoreIndex.from_documents(docs, embed_model=embed_model)

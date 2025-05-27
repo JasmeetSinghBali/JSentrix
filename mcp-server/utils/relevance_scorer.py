@@ -3,7 +3,7 @@ from typing import Dict, Any
 from datetime import datetime, timezone
 from neo4j import GraphDatabase
 from utils.logger import get_logger
-from utils.neo4j_utils import get_neo4j_config 
+from utils.neo4j_utils import get_neo4j_config, get_neo4j_driver 
 
 logger = get_logger("jsentrix")
 
@@ -23,10 +23,7 @@ class RelevanceScorer:
 
         # Use env config if not provided explicitly
         self.neo4j_config = neo4j_config or get_neo4j_config()
-        self.neo4j_driver = GraphDatabase.driver(
-            self.neo4j_config["url"],
-            auth=(self.neo4j_config["username"], self.neo4j_config["password"])
-        )
+        self.neo4j_driver = get_neo4j_driver()
 
     def score(self, metadata: Dict[str, Any]) -> float:
         """
@@ -71,6 +68,7 @@ class RelevanceScorer:
         """
         Persists updated score and access timestamp back to Neo4j.
         """
+        label=self.neo4j_config['node_label']
         clause_id = metadata.get("clause_id")
         score = metadata.get("score")
         last_accessed_at = metadata.get("last_accessed_at")
@@ -83,7 +81,7 @@ class RelevanceScorer:
             with self.neo4j_driver.session() as session:
                 session.run(
                     f"""
-                    MATCH (n:{self.neo4j_config['node_label']} {{clause_id: $clause_id}})
+                    MATCH (n:{label} {{clause_id: $clause_id}})
                     SET n.score = $score,
                         n.last_accessed_at = $last_accessed_at
                     """,
