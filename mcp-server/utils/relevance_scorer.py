@@ -12,14 +12,16 @@ from datetime import datetime, timezone
 from neo4j import Driver
 
 from .logger import get_logger
-from .neo4j_utils import get_neo4j_config, get_neo4j_driver 
+from .neo4j_utils import get_neo4j_config, get_neo4j_driver
 
 logger = get_logger("jsentrix")
+
 
 class RelevanceScorer:
     """
     Handles scoring, rewarding, and penalizing of document nodes, with persistence to Neo4j.
     """
+
     def __init__(
         self,
         base_score: float = 0.8,
@@ -45,7 +47,9 @@ class RelevanceScorer:
         score = metadata.get("score", self.base_score)
 
         last_accessed_at = metadata.get("last_accessed_at")
-        logger.debug(f"Scoring: clause_id={metadata.get('clause_id')}, original_score={score}, last_accessed_at={last_accessed_at}, decay_rate={self.decay_rate}")
+        logger.debug(
+            f"Scoring: clause_id={metadata.get('clause_id')}, original_score={score}, last_accessed_at={last_accessed_at}, decay_rate={self.decay_rate}"
+        )
         if last_accessed_at:
             try:
                 dt = datetime.fromisoformat(last_accessed_at)
@@ -65,7 +69,9 @@ class RelevanceScorer:
         score = min(score + self.reward_amount, 1.0)
         metadata["score"] = score
         metadata["last_accessed_at"] = datetime.now(timezone.utc).isoformat()
-        logger.debug(f"Document {metadata.get('clause_id')} rewarded. New score: {score}")
+        logger.debug(
+            f"Document {metadata.get('clause_id')} rewarded. New score: {score}"
+        )
         self._persist_metadata(metadata)
 
     def penalize(self, metadata: Dict[str, Any]) -> None:
@@ -75,14 +81,16 @@ class RelevanceScorer:
         score = metadata.get("score", self.base_score)
         score = max(score - self.penalty_amount, 0.0)
         metadata["score"] = score
-        logger.debug(f"Document {metadata.get('clause_id')} penalized. New score: {score}")
+        logger.debug(
+            f"Document {metadata.get('clause_id')} penalized. New score: {score}"
+        )
         self._persist_metadata(metadata)
 
     def _persist_metadata(self, metadata: Dict[str, Any]) -> None:
         """
         Persists updated score and access timestamp back to Neo4j.
         """
-        label=self.neo4j_config['node_label']
+        label = self.neo4j_config["node_label"]
         clause_id = metadata.get("clause_id")
         score = metadata.get("score")
         last_accessed_at = metadata.get("last_accessed_at")
@@ -101,7 +109,7 @@ class RelevanceScorer:
                     """,
                     clause_id=clause_id,
                     score=score,
-                    last_accessed_at=last_accessed_at
+                    last_accessed_at=last_accessed_at,
                 )
             logger.debug(f"Updated clause {clause_id} in Neo4j.")
         except Exception as e:

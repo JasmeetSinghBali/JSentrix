@@ -46,7 +46,7 @@ Is it a generic helper? → utils/
 
 We use `uv` as our package manager. You can install uv by following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/).
 
-Please DO NOT use pip or conda to install the dependencies. Instead, use uv:
+Please DO NOT use pip ,conda or poetry to install the dependencies. Instead, use uv:
 
 ```bash
 
@@ -57,7 +57,10 @@ Please DO NOT use pip or conda to install the dependencies. Instead, use uv:
 To ensure our standards, make sure to install pre-commit reff: [here](https://pre-commit.com/#install) before starting to contribute.
 
 ```bash
+# navigate to mcp-server or gateway
 uv --cache-dir ./pathtoloca/uv_cache add "pre-commit"
+pre-commit install
+pre-commit run --all-files
 ```
 
 ### 🧪 Testing
@@ -65,7 +68,8 @@ uv --cache-dir ./pathtoloca/uv_cache add "pre-commit"
 We use `pytest` to test our code. You can run the tests by running the following command:
 
 ```bash
-
+# navigate to mcp-server or gateway
+pytest ./tests/
 ```
 Make sure that all tests pass before submitting a pull request.
 

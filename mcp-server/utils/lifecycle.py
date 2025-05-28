@@ -16,19 +16,22 @@ Usage:
     # Later, on shutdown:
     shutdown_all()
 """
+
 from typing import Callable, List, Literal
 from .logger import get_logger
 
 logger = get_logger("lifecycle")
 
-_shutdown_callbacks: List[Callable[[],None]] = []
+_shutdown_callbacks: List[Callable[[], None]] = []
 
-def register_shutdown_callback(callback: Callable[[],None]):
+
+def register_shutdown_callback(callback: Callable[[], None]):
     """
     Register a shutdown callback to be called when app stops.
     """
     logger.debug(f"Registered shutdown callback: {callback.__name__}")
     _shutdown_callbacks.append(callback)
+
 
 def shutdown_all(order: Literal["fifo", "lifo"] = "fifo"):
     """
@@ -47,7 +50,6 @@ def shutdown_all(order: Literal["fifo", "lifo"] = "fifo"):
             callback()
             logger.info(f"Executed: {getattr(callback, '__name__', str(callback))}")
         except Exception as e:
-            logger.error(f"Error during shutdown of {getattr(callback, '__name__', str(callback))}: {e}")
-
-    
-        
+            logger.error(
+                f"Error during shutdown of {getattr(callback, '__name__', str(callback))}: {e}"
+            )

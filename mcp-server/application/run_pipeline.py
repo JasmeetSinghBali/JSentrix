@@ -10,10 +10,11 @@ Batch ingestion pipeline for compliance clauses:
 Usage:
     python -m application.run_pipeline
 """
+
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 
 from glob import glob
@@ -32,7 +33,8 @@ load_dotenv()
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def process_pdfs(data_dir: str = None)->None:
+
+def process_pdfs(data_dir: str = None) -> None:
     """
     Processes all PDF files in the specified directory and loads extracted clauses into Neo4j.
 
@@ -60,6 +62,7 @@ def process_pdfs(data_dir: str = None)->None:
         logger.info(f"Successfully loaded {len(all_clauses)} clauses into Neo4j.")
     else:
         logger.warning("No clauses found to load.")
+
 
 if __name__ == "__main__":
     process_pdfs()

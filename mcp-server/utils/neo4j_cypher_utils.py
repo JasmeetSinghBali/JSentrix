@@ -39,6 +39,7 @@
 
 
 """
+
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
@@ -49,11 +50,14 @@ from .logger import get_logger
 
 logger = get_logger("jsentrix")
 
-def run_cypher_query(query: str, parameters: Optional[Dict[str, Any]] = None)-> List[Dict[str, Any]]:
+
+def run_cypher_query(
+    query: str, parameters: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
     """
     Runs an arbitrary Cypher query and returns a list of dict results.
     """
-    driver=get_neo4j_driver()
+    driver = get_neo4j_driver()
     try:
         with driver.session() as session:
             result = session.run(query, parameters or {})
@@ -64,7 +68,8 @@ def run_cypher_query(query: str, parameters: Optional[Dict[str, Any]] = None)-> 
         logger.error(f"Cypher query failed: {e}")
         return []
 
-def get_clauses_by_type(clause_type:str)-> List[Dict[str, Any]]:
+
+def get_clauses_by_type(clause_type: str) -> List[Dict[str, Any]]:
     """
     Returns all clauses semantic filter of a given clause_type.
     """
@@ -73,6 +78,7 @@ def get_clauses_by_type(clause_type:str)-> List[Dict[str, Any]]:
     RETURN c.clause_id AS clause_id, c.title AS title, c.text AS text
     """
     return run_cypher_query(query, {"clause_type": clause_type})
+
 
 def get_clause_details(clause_id: str) -> List[Dict[str, Any]]:
     """
@@ -84,7 +90,10 @@ def get_clause_details(clause_id: str) -> List[Dict[str, Any]]:
     """
     return run_cypher_query(query, {"clause_id": clause_id})
 
-def get_related_clauses(clause_id: str, rel_type: str = "REFERENCES", direction: str = "out") -> List[Dict[str, Any]]:
+
+def get_related_clauses(
+    clause_id: str, rel_type: str = "REFERENCES", direction: str = "out"
+) -> List[Dict[str, Any]]:
     """
     Traverse relationships from a clause.
     direction: "out" (default) for outgoing, "in" for incoming.
@@ -102,7 +111,10 @@ def get_related_clauses(clause_id: str, rel_type: str = "REFERENCES", direction:
         """
     return run_cypher_query(query, {"clause_id": clause_id})
 
-def traverse_multi_hop(clause_id: str, rel_type: str = "REFERENCES", hops: int = 2) -> List[Dict[str, Any]]:
+
+def traverse_multi_hop(
+    clause_id: str, rel_type: str = "REFERENCES", hops: int = 2
+) -> List[Dict[str, Any]]:
     """
     Traverse multiple hops of a given relationship type from a clause.
     """
@@ -112,6 +124,7 @@ def traverse_multi_hop(clause_id: str, rel_type: str = "REFERENCES", hops: int =
         RETURN [n IN nodes(path) | n.clause_id] AS clause_path
     """
     return run_cypher_query(query, {"clause_id": clause_id})
+
 
 def update_last_accessed(clause_id: str) -> None:
     """
@@ -124,10 +137,15 @@ def update_last_accessed(clause_id: str) -> None:
     """
     try:
         with driver.session() as session:
-            session.run(query, clause_id=clause_id, timestamp=datetime.now(timezone.utc).isoformat())
+            session.run(
+                query,
+                clause_id=clause_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
         logger.debug(f"Updated last_accessed_at for clause {clause_id}")
     except Neo4jError as e:
         logger.error(f"Failed to update last_accessed_at for {clause_id}: {e}")
+
 
 def update_clause_metadata(clause_id: str, metadata: Dict[str, Any]) -> None:
     """

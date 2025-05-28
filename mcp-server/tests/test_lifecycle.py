@@ -1,6 +1,7 @@
 import pytest
 from utils.lifecycle import register_shutdown_callback, shutdown_all
 
+
 def test_shutdown_callbacks_are_called(monkeypatch):
     called = []
 
@@ -17,6 +18,7 @@ def test_shutdown_callbacks_are_called(monkeypatch):
 
     assert "cb1" in called, "Callback 1 was not called"
     assert "cb2" in called, "Callback 2 was not called"
+
 
 def test_shutdown_callbacks_handle_exceptions(caplog):
     called = []

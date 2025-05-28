@@ -9,15 +9,17 @@ Usage:
     from infrastructure.enrich import enrich_clause
     enriched_clause = enrich_clause(clause)
 """
+
 from docling.document_converter import DocumentConverter
 from typing import Dict, Any
 import re
 from utils.summarizer import T5Summarizer
-from domain.models import ClauseMetaData,Clause
+from domain.models import ClauseMetaData, Clause
 
 summarizer = T5Summarizer()
 
-def enrich_clause(clause: Dict[str,Any])->Dict[str,Any]:
+
+def enrich_clause(clause: Dict[str, Any]) -> Dict[str, Any]:
     """
     Enriches a clause dict with additional metadata.
     - Adds num_sentences, entities, clause_type, summary to metadata.
@@ -32,30 +34,32 @@ def enrich_clause(clause: Dict[str,Any])->Dict[str,Any]:
     # sentence splitting
     converter = DocumentConverter()
     doc = converter.convert_all(clause["text"])
-    num_sentences = len(doc.sentences) if hasattr(doc, "sentences") else clause["text"].count('.') + 1
+    num_sentences = (
+        len(doc.sentences)
+        if hasattr(doc, "sentences")
+        else clause["text"].count(".") + 1
+    )
     entities = extract_basic_entities(clause["text"])
     clause_type = determine_clause_type(clause["text"])
 
     # --- summarize the clause text ---
     summary = summarizer.summarize(clause["text"])
-    
+
     # merge and syn metadata
-    enriched_metadata={
-        **clause.get("metadata",{}),
+    enriched_metadata = {
+        **clause.get("metadata", {}),
         "num_sentences": num_sentences,
         "entities": entities,
         "clause_type": clause_type,
-        "clause_id": clause["id"], # maps relationships in neo4j graph store
+        "clause_id": clause["id"],  # maps relationships in neo4j graph store
         "title": clause.get("title"),
         "summary": summary,
     }
 
-    return {
-        **clause,
-        "metadata": enriched_metadata
-    }
+    return {**clause, "metadata": enriched_metadata}
 
-def extract_basic_entities(text: str)->list[str]:
+
+def extract_basic_entities(text: str) -> list[str]:
     """
     Extracts basic entities (countries, amounts, temporal references) from text.
 
@@ -65,12 +69,13 @@ def extract_basic_entities(text: str)->list[str]:
     Returns:
         list[str]: List of detected entities.
     """
-    countries = re.findall(r'Country [A-Z]', text)
-    amounts = re.findall(r'\$\d+(?:,\d{3})*(?:\.\d{2})?', text)
-    months = re.findall(r'(month|year|quarter|calendar month)', text, re.I)
+    countries = re.findall(r"Country [A-Z]", text)
+    amounts = re.findall(r"\$\d+(?:,\d{3})*(?:\.\d{2})?", text)
+    months = re.findall(r"(month|year|quarter|calendar month)", text, re.I)
     return list(set(countries + amounts + months))
 
-def determine_clause_type(text: str)->str:
+
+def determine_clause_type(text: str) -> str:
     """
     Determines the clause type based on keywords in the text.
 

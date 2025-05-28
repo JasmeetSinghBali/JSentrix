@@ -8,33 +8,38 @@ Entry point for the MCP server (FastMCP).
 Usage:
     python -m interface.mcp_server
 """
+
 import sys
 import os
 import signal
 import atexit
 import threading
 
-# the project root set via sys.path as this runs as subprocess by gateway without this python assumes interface as the parent dir and cannot find utils 
+# the project root set via sys.path as this runs as subprocess by gateway without this python assumes interface as the parent dir and cannot find utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from mcp.server.fastmcp import FastMCP
 from utils.logger import get_logger
 from utils.lifecycle import shutdown_all
 
-logger=get_logger("jsentrix")
+logger = get_logger("jsentrix")
 mcp = FastMCP("TransactionMonitorMCP")
+
 
 @mcp.tool()
 def ping() -> str:
     """Health check endpoint."""
     return "pong"
 
+
 @mcp.tool()
 def add(a: int, b: int) -> int:
     return a + b
 
+
 _cleanup_lock = threading.Lock()
 _cleanup_called = False
+
 
 def cleanup():
     global _cleanup_called
@@ -42,20 +47,24 @@ def cleanup():
         if not _cleanup_called:
             logger.info("MCP server: Running server cleanup before shuttingdown...")
             shutdown_all()
-            _cleanup_called=True
+            _cleanup_called = True
         else:
             logger.info("MCP server: Cleanup already performed")
 
-def signal_handler(signum,frame):
+
+def signal_handler(signum, frame):
     logger.info(f"MCP server: Recieved signal {signum}, shutting down")
     cleanup()
     sys.exit(0)
 
-atexit.register(cleanup) # ensures cleanup is called when sys.exit() is called or script completes
-#📌 external signal interuptions signal handlers for diff cases
-signal.signal(signal.SIGTERM, signal_handler) # kill or system shutdown
-signal.signal(signal.SIGINT, signal_handler) #force console based
-    
+
+atexit.register(
+    cleanup
+)  # ensures cleanup is called when sys.exit() is called or script completes
+# 📌 external signal interuptions signal handlers for diff cases
+signal.signal(signal.SIGTERM, signal_handler)  # kill or system shutdown
+signal.signal(signal.SIGINT, signal_handler)  # force console based
+
 
 if __name__ == "__main__":
     logger.info("Starting MCP server (FastMCP)...")

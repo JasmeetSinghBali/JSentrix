@@ -10,6 +10,7 @@ Usage:
 
     clauses = extract_clauses_from_md("path/to/clauses.md")
 """
+
 import re
 from domain.models import Clause, ClauseMetaData
 from typing import List
@@ -25,6 +26,7 @@ REF_PATTERN = re.compile(r"\*\*References:\*\*\s*([C\d, ]*)")
 AMENDS_PATTERN = re.compile(r"\*\*Amends:\*\*\s*([C\d, ]*)")
 OVERRIDES_PATTERN = re.compile(r"\*\*Overrides:\*\*\s*([C\d, ]*)")
 
+
 def _extract_relationships(text: str, pattern: re.Pattern) -> List[str]:
     """
     Helper to extract comma-separated relationships from a clause block.
@@ -38,6 +40,7 @@ def _extract_relationships(text: str, pattern: re.Pattern) -> List[str]:
     """
     match = pattern.search(text)
     return [c.strip() for c in match.group(1).split(",") if c.strip()] if match else []
+
 
 def extract_clauses_from_md(md_path) -> List[Clause]:
     """
@@ -70,15 +73,15 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
         overrides = _extract_relationships(block, OVERRIDES_PATTERN)
 
         # clause meta data
-        metadata=ClauseMetaData(
-            category="NarrativeText",   # Default, since plain Markdown doesn't have this
-            section_header=None,        # Not available in plain Markdown
+        metadata = ClauseMetaData(
+            category="NarrativeText",  # Default, since plain Markdown doesn't have this
+            section_header=None,  # Not available in plain Markdown
             references=refs,
             amends=amends,
             overrides=overrides,
             source=md_path,
             title=title.strip() if title else None,
-            clause_id=cid
+            clause_id=cid,
         )
 
         # build clause
@@ -86,7 +89,7 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
             "id": id_match.group(1) if id_match else None,
             "title": title.strip(),
             "text": text_match.group(1).strip() if text_match else None,
-            "metadata": metadata
+            "metadata": metadata,
         }
         if clause_data["id"] and clause_data["text"]:
             try:
@@ -95,7 +98,5 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
             except Exception as e:
                 logger.debug(f"Invalid clause skipped: {e}")
         else:
-            logger.debug(
-                f"Skipped clause due to missing fields. Raw: {block[:50]}"
-            )
+            logger.debug(f"Skipped clause due to missing fields. Raw: {block[:50]}")
     return [clause.model_dump() for clause in clauses]

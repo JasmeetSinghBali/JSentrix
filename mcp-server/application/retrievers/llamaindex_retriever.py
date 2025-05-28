@@ -3,6 +3,7 @@ application/retrievers/llamaindex_retriever.py
 
 Builds a LlamaIndex query engine with custom postprocessors and reward logic.
 """
+
 from typing import List, Optional, Dict, Any
 
 from llama_index.core import VectorStoreIndex
@@ -14,9 +15,11 @@ from llama_index.core.settings import Settings
 from application.postprocessors.llamaindex_postprocessors import (
     CustomRelevancePostprocessor,
     MetadataInjectionPostprocessor,
-    HybridScorePostprocessor
+    HybridScorePostprocessor,
 )
-from application.query_engines.llamaindex_rewarding_wrapper import RewardingQueryEngineWrapper
+from application.query_engines.llamaindex_rewarding_wrapper import (
+    RewardingQueryEngineWrapper,
+)
 
 from utils.logger import get_logger
 from utils.relevance_scorer import RelevanceScorer
@@ -24,13 +27,14 @@ from utils.summarizer import T5Summarizer
 
 logger = get_logger("jsentrix")
 
+
 def get_llamaindex_query_engine_from_docs(
     docs: List[Any],
     dynamic_metadata_by_clause_id: Optional[Dict[str, Dict]] = None,
     llm: Optional[Any] = None,
     embed_model: Optional[Any] = None,
     summarizer: Optional[T5Summarizer] = None,
-)->Any:
+) -> Any:
     """
     Returns a LlamaIndex query engine built from provided docs,
     with custom postprocessors and reward logic.
@@ -46,11 +50,13 @@ def get_llamaindex_query_engine_from_docs(
         A LlamaIndex query engine wrapped with reward/penalty logic.
     """
     # 1. Set up your custom embedding and LLM (use passed llm if provided)
-    embed_model = embed_model or HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embed_model = embed_model or HuggingFaceEmbedding(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
     if llm is None:
         llm = Ollama(
-            model="qwen3:1.7b", 
-            request_timeout=180.0)  # 3 minutes, adjust as needed
+            model="qwen3:1.7b", request_timeout=180.0
+        )  # 3 minutes, adjust as needed
 
     # 2. Set global defaults for LlamaIndex modules
     Settings.embed_model = embed_model
@@ -78,21 +84,21 @@ def get_llamaindex_query_engine_from_docs(
     # CustomRelevancePostprocessor
     # HybridScorePostprocessor
     if dynamic_metadata_by_clause_id:
-        postprocessors.append(MetadataInjectionPostprocessor(dynamic_metadata_by_clause_id))
+        postprocessors.append(
+            MetadataInjectionPostprocessor(dynamic_metadata_by_clause_id)
+        )
         postprocessors.append(CustomRelevancePostprocessor(scorer))
         postprocessors.append(HybridScorePostprocessor())
     else:
-        postprocessors.append(CustomRelevancePostprocessor(scorer)) # decay always get applied
-    
+        postprocessors.append(
+            CustomRelevancePostprocessor(scorer)
+        )  # decay always get applied
 
     # 5. Build index from docs, passing the explicit embedding model
     index = VectorStoreIndex.from_documents(docs, embed_model=embed_model)
 
     # 6. Build query engine with postprocessors and LLM
-    query_engine = index.as_query_engine(
-        llm=llm,
-        node_postprocessors=postprocessors
-    )
+    query_engine = index.as_query_engine(llm=llm, node_postprocessors=postprocessors)
 
     # 7. Wrap for reward/penalty logic
     query_engine = RewardingQueryEngineWrapper(query_engine, scorer)
