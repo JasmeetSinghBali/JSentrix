@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import time
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from contextlib import asynccontextmanager
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -18,18 +19,24 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup event
+    # startup: launch mcp server event
     mcp_server_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py"))
     print(f"[gateway] Starting MCP server: {mcp_server_path}")
     mcp_process = subprocess.Popen([sys.executable, mcp_server_path])
     print(f"[gateway] MCP server started with PID {mcp_process.pid}")
     app.state.mcp_process = mcp_process
+    # 📌 yield as lifespan checkpoint b.w startup and shutdown event
     yield
-    # shutdown event
+    # shutdow: send SIGTERM, wati for 5 sec and then kill event
     print("[gateway] Shutting down MCP server...")
     mcp_process.terminate()
-    mcp_process.wait()
-    print("[gateway] MCP server stopped.")
+    try:
+        mcp_process.wait(timeout=5)
+        print("[gateway] MCP server exited gracefully")
+    except subprocess.TimeoutExpired:
+        print("[gateway] MCP server did not exit in time. Killing...")
+        mcp_process.kill()
+        print("[gateway] MCP server killed")
 
 # https://fastapi.tiangolo.com/advanced/events/#lifespan
 app = FastAPI(lifespan=lifespan)

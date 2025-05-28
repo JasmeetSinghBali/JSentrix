@@ -10,6 +10,9 @@ Usage:
 """
 import sys
 import os
+import signal
+import atexit
+import threading
 
 # the project root set via sys.path as this runs as subprocess by gateway without this python assumes interface as the parent dir and cannot find utils 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -19,7 +22,6 @@ from utils.logger import get_logger
 from utils.lifecycle import shutdown_all
 
 logger=get_logger("jsentrix")
-
 mcp = FastMCP("TransactionMonitorMCP")
 
 @mcp.tool()
@@ -31,12 +33,29 @@ def ping() -> str:
 def add(a: int, b: int) -> int:
     return a + b
 
-# 🎈 need to find alternative in FastMCP for lifespan management like fastAPI
-# @mcp.on_event("shutdown")
-# def on_shutdown():
-#     """Handles graceful shutdown of the MCP server."""
-#     logger.info("Shutting down MCP server...")
-#     shutdown_all()
+_cleanup_lock = threading.Lock()
+_cleanup_called = False
+
+def cleanup():
+    global _cleanup_called
+    with _cleanup_lock:
+        if not _cleanup_called:
+            logger.info("MCP server: Running server cleanup before shuttingdown...")
+            shutdown_all()
+            _cleanup_called=True
+        else:
+            logger.info("MCP server: Cleanup already performed")
+
+def signal_handler(signum,frame):
+    logger.info(f"MCP server: Recieved signal {signum}, shutting down")
+    cleanup()
+    sys.exit(0)
+
+atexit.register(cleanup) # ensures cleanup is called when sys.exit() is called or script completes
+#📌 external signal interuptions signal handlers for diff cases
+signal.signal(signal.SIGTERM, signal_handler) # kill or system shutdown
+signal.signal(signal.SIGINT, signal_handler) #force console based
+    
 
 if __name__ == "__main__":
     logger.info("Starting MCP server (FastMCP)...")
