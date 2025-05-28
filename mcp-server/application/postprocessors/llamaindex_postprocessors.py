@@ -1,9 +1,17 @@
+"""
+application/postprocessors/llamaindex_postprocessors.py
+
+Custom LlamaIndex node postprocessors for advanced scoring and metadata injection.
+"""
+from typing import List, Optional, Dict
+from pydantic import PrivateAttr
+
 from llama_index.core.schema import NodeWithScore, QueryBundle
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
-from typing import List,Optional,Any, Dict
-from .relevance_scorer import RelevanceScorer
-from .logger import get_logger
-from pydantic import PrivateAttr
+
+from utils.relevance_scorer import RelevanceScorer
+from utils.logger import get_logger
+
 
 logger = get_logger(__name__)
 
@@ -17,12 +25,14 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
     _scorer: RelevanceScorer = PrivateAttr()
 
     def __init__(self, scorer: RelevanceScorer):
-        print("INIT CALLED", scorer)
         super().__init__()
         self._scorer = scorer
 
-    def _postprocess_nodes(self, nodes: list[NodeWithScore], query_bundle: Optional[QueryBundle]=None) -> list[NodeWithScore]:
-        print("SCORER IS", self._scorer)
+    def _postprocess_nodes(
+            self, 
+            nodes: List[NodeWithScore], 
+            query_bundle: Optional[QueryBundle]=None
+    ) -> List[NodeWithScore]:
         # Use query_bundle if needed for scoring logic
         query_str = query_bundle.query_str if query_bundle else ""
         logger.debug(f"Applying decay to nodes for query: {query_str}")
@@ -45,12 +55,13 @@ class MarkUsedDocsPostprocessor(BaseNodePostprocessor):
     _scorer: RelevanceScorer = PrivateAttr()
 
     def __init__(self, scorer: RelevanceScorer):
-        print("INIT CALLED", scorer)
         super().__init__()
         self._scorer = scorer
 
     def _postprocess_nodes(
-        self, nodes: List[NodeWithScore], query_bundle: Optional[QueryBundle] = None
+        self, 
+        nodes: List[NodeWithScore],
+        query_bundle: Optional[QueryBundle] = None
     ) -> List[NodeWithScore]:
         for node in nodes:
             node.metadata["was_used"] = False  # Default
@@ -73,12 +84,13 @@ class MetadataInjectionPostprocessor(BaseNodePostprocessor):
             query_bundle: Optional[QueryBundle]=None
     ) -> List[NodeWithScore]:
         for node in nodes:
-            print("Raw node metadata from Neo4j (in postprocessor):", node.metadata)
-            print("Before injection:", node.metadata)
+            logger.debug("Raw node metadata from Neo4j (in postprocessor):", node.metadata)
+            logger.debug("Before injection:", node.metadata)
             clause_id=node.metadata.get("clause_id")
             if clause_id and clause_id in self._dynamic_metadata:
                 node.metadata.update(self._dynamic_metadata[clause_id])
-                print("After injection:", node.metadata)
+                logger.debug("After injection:", node.metadata)
+                logger.debug(f"Injected metadata for clause_id {clause_id}: {self._dynamic_metadata[clause_id]}")
         return nodes
 
 class HybridScorePostprocessor(BaseNodePostprocessor):

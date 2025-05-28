@@ -38,11 +38,13 @@ Metadata:
 mcp-server/
 ├── data/                  # Raw PDFs go here
 ├── infrastructure/
-│   ├── __init__.py
-│   ├── pdf_to_md.py       # Docling: PDF → Markdown
-│   ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
-│   ├── enrich.py          # Docling/regex: NLP enrichment
-│   └── load.py            # LangChain+Neo4j: Embedding & storage
+│     |
+|     |── ingestion
+|       ├── __init__.py
+│       ├── pdf_to_md.py       # Docling: PDF → Markdown
+│       ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
+│       ├── enrich.py          # Docling/regex: NLP enrichment
+│       └── load.py            # LangChain+Neo4j: Embedding & storage
 │   
 |── domain/
 │   ├── __init__.py
@@ -50,29 +52,37 @@ mcp-server/
 |
 |── application/
 │   ├── __init__.py
-|   └── run_pipeline.py           # Main batch script to prep knowledge base
+|   └── run_pipeline.py 
+|   |── postprocessors
+│     ├── __init__.py
+|     ├── llamaindex_postprocessors.py # LlamaIndex node postprocessors for advanced scoring & metadata injec.
+|   |── query_engines
+│     ├── __init__.py
+|     └── llamaindex_rewarding_wrapper.py # Wraps a LlamaIndex QueryEngine to apply rew/pen to source nodes
+|   ├── retrievers/
+│   ├── __init__.py
+│   └── langchain_retriever.py     # For LangChain agents
+│   └── llamaindex_retriever.py    # For LlamaIndex agents
 |
-├── interface/              # The interface layer is responsible for adapting your application to the outside world (API, CLI, etc.).
+├── interface/      # The interface layer adapting application to the outside world (API, CLI, etc.).
 │   ├── __init__.py
 │   └── mcp_server.py      # main entry point for mcp-server
 |
 ├── utils/
 │   ├── __init__.py
-|   ├── lifecycle.py       # Lifecycle utility for registering and running shutdown callbacks.
-│   └── neo4j_utils.py          # Shared Neo4j config and connection helpers
-│   └── neo4j_cypher_utils.py   # Shared Neo4j cypher query retrieval utils for graph context
-|   └── logger.py               # Default logger singleton instance and custom logger get_logger new instance file/module level deep logging
+|   ├── lifecycle.py          # Lifecycle utility for registering and running shutdown callbacks. 
+|   ├── retry.py              # Generic retry decorator for functions that may fail transiently.. 
+│   └── neo4j_utils.py        # Shared Neo4j config and connection helpers 
+│   └── neo4j_cypher_utils.py # Shared Neo4j cypher query retrieval utils for graph context 
+|   └── logger.py             # logger singleton instance and custom logger get_logger new instance  
+|   └── relevance_scorer.py   # Default logger singleton instance and custom logger get_logger new instance
+|   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
 |
-├── memory/
-│   ├── __init__.py
-│   └── langchain_retriever.py     # For LangChain agents
-│   └── llamaindex_retriever.py    # For LlamaIndex agents
-└── tests/
+└── tests/                    # test dir
 |    ├── __init__.py
-|    ├── test_mockagents.py       # Tests mock LangChain & LlamaIndex agent with retriever and cypher utils
-|    └── test_neo4j_cypher_utls.py # Tests cypher retrieval utils custom setup and methods
 | 
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
+├── docker-compose.yml     # startup neo4j docker continer
 ├── .env                   # Neo4j credentials
 
 # deps 

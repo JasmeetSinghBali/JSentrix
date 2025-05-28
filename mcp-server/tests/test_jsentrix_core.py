@@ -12,12 +12,14 @@
 # Inspecting detailed step-by-step flow, variable values, and all debug logs
 # Verifying scoring, decay, reranking, caching
 import pytest
-from utils.logger import get_logger
-from memory.langchain_retriever import GraphMemoryRetriever
 from faker import Faker
+from utils.logger import get_logger
 
+# Update these imports to match your new structure!
+from application.retrievers.langchain_retriever import GraphMemoryRetriever
+from application.retrievers.llamaindex_retriever import get_llamaindex_query_engine_from_docs
 from llama_index.core.schema import Document
-from memory.llamaindex_retriever import get_llamaindex_query_engine_from_docs
+from utils.neo4j_utils import get_neo4j_config
 
 logger = get_logger("jsentrix")
 
@@ -39,8 +41,6 @@ def build_compliance_query(transaction):
     """
 
 def test_jsentrix_rag_pipeline(langchain_retriever, faker):
-    from utils.neo4j_utils import get_neo4j_config
-    # Should only log once per test run
     logger.info("Neo4j config (should cache): %s", get_neo4j_config())
 
     # 1. Intentionally violating transaction (C2)
@@ -73,7 +73,7 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
 
         logger.info(f"[LangChain] Retrieved {len(langchain_docs)} documents:")
         for doc in langchain_docs:
-            logger.info(f"💫 {doc.metadata.get('clause_id')} | Hybrid: {doc.metadata['hybrid_score']:.2f}")
+            logger.info(f"💫 {doc.metadata.get('clause_id')} | Hybrid: {doc.metadata.get('hybrid_score', 0):.2f}")
 
         # ---2. Build dynamic metadata mapping for injection ---
         dynamic_metadata_by_clause_id = {
@@ -120,21 +120,16 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
 
         # ---7. Verify metadata propagation ---
         for node in getattr(response, 'source_nodes', []):
-            print("Node metadata after all postprocessors:", node.metadata)
+            logger.info(f"Node metadata after all postprocessors: {node.metadata}")
             assert "hybrid_score" in node.metadata, "Hybrid score missing in node metadata"
             assert "clause_id" in node.metadata, "Clause ID missing in node metadata"
             assert "summary" in node.metadata, "Summary missing in node metadata"
             assert isinstance(node.metadata["summary"], str) and node.metadata["summary"].strip(), "Summary is empty or not a string"
         
         # ---8. Postprocessor scoring checks ---
-        # Interpret the Scores
-        # score / sim_core: Original similarity or relevance score from retrieval.
-        # decayed_score: Score after applying any time-based or usage-based decay.
-        # hybrid_score: Final score used for reranking; typically incorporates both similarity and decay.
-        # Order of nodes: Nodes with higher hybrid scores are ranked higher and passed to the LLM.
         for node in getattr(response, 'source_nodes', []):
             meta = node.metadata
-            original_score = meta.get('sim_core', meta.get('score'))
+            original_score = meta.get('sim_score', meta.get('score'))
             logger.info(f"Node {meta.get('clause_id')} scores: "
                         f"original_score={original_score}, "
                         f"score={meta.get('score')}, "
@@ -152,7 +147,6 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         # ---9. (Optional) Check reranking order ---
         hybrid_scores = [node.metadata['hybrid_score'] for node in getattr(response, 'source_nodes', [])]
         logger.info(f"Hybrid scores order: {hybrid_scores}")
-        # expect reranking, check that scores are in descending order
         assert hybrid_scores == sorted(hybrid_scores, reverse=True), "Nodes not reranked by hybrid_score"
 
         logger.info(f" === End Transaction {idx+1} Processing ===\n")

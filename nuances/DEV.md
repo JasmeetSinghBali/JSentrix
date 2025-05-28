@@ -70,7 +70,7 @@ SETUP TEST CHECK that the score and decay and reranking actually is working righ
 summarization diff branch ✅ misc: added lifecycle callback shutdown centralized setup
 
 
-clean architecture + cqrs  make sure test_jsentrix_core and test_lifecycle test passes
+clean architecture  make sure test_jsentrix_core and test_lifecycle test passes ✅
 - memory-aware querying diff branch
 ```bash
 Current retrieval (LangChain/LlamaIndex/Neo4j):

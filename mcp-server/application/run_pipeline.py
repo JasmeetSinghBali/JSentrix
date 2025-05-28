@@ -10,16 +10,20 @@ Batch ingestion pipeline for compliance clauses:
 Usage:
     python -m application.run_pipeline
 """
-
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+
+
 from glob import glob
 from dotenv import load_dotenv
 from utils.logger import get_logger
 
-from infrastructure.pdf_to_md import pdf_to_markdown
-from infrastructure.unstructured_md import extract_clauses_from_md
-from infrastructure.enrich import enrich_clause
-from infrastructure.load import load_to_neo4j
+from infrastructure.ingestion.pdf_to_md import pdf_to_markdown
+from infrastructure.ingestion.unstructured_md import extract_clauses_from_md
+from infrastructure.ingestion.enrich import enrich_clause
+from infrastructure.ingestion.load import load_to_neo4j
 
 
 logger = get_logger("jsentrix")

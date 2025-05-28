@@ -1,16 +1,23 @@
+"""
+application/retrievers/langchain_retriever.py
+
+LangChain-compatible retriever using Neo4j vector store and custom scoring.
+"""
+
 from typing import Dict, List, Any, Optional
+import math
+from datetime import datetime,timezone
+
 from langchain_neo4j import Neo4jVector
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
-from utils.neo4j_utils import get_neo4j_config
-from utils.logger import get_logger
-from utils.neo4j_cypher_utils import run_cypher_query
-import math
-from datetime import datetime,timezone
+
 from utils.neo4j_cypher_utils import update_last_accessed
 from utils.relevance_scorer import RelevanceScorer
 from utils.summarizer import T5Summarizer
-
+from utils.neo4j_utils import get_neo4j_config
+from utils.logger import get_logger
+from utils.neo4j_cypher_utils import run_cypher_query
 
 logger = get_logger("jsentrix")
 
@@ -40,11 +47,12 @@ class GraphMemoryRetriever:
             self,
             embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
             top_k: int = 5,
-            scorer: Optional[RelevanceScorer] = None
+            scorer: Optional[RelevanceScorer] = None,
+            summarizer: Optional[T5Summarizer] = None,
         ):
         config=get_neo4j_config()
         self.scorer = scorer or RelevanceScorer()
-        self.summarizer = T5Summarizer()
+        self.summarizer = summarizer or T5Summarizer()
         self.embedding=HuggingFaceEmbeddings(model_name=embedding_model_name)
         self.top_k = top_k
 
@@ -133,7 +141,7 @@ class GraphMemoryRetriever:
                     decayed_score=self.scorer.score(doc.metadata)
                     hybrid_score=sim_score*decayed_score
                     doc.metadata["hybrid_score"] = hybrid_score
-                    doc.metadata["sim_core"] = sim_score
+                    doc.metadata["sim_score"] = sim_score
                     doc.metadata["decayed_score"] = decayed_score
                     logger.debug(
                         f"Doc {doc.metadata.get('clause_id')}: sim_score={sim_score}, decayed_score={decayed_score}, hybrid_score={hybrid_score}"

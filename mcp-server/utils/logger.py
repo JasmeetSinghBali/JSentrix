@@ -1,8 +1,13 @@
+"""
+utils/logger.py
+
+Custom logger with sensitive info masking and caller location.
+"""
+
 import logging
 import inspect
 import sys
 import re
-import os
 
 SENSITIVE_PATTERNS = [
     r'[A-Z]:\\\\[^\s]+',           # Windows absolute paths
@@ -31,6 +36,9 @@ class MaskingFilter(logging.Filter):
 
 
 class CustomLogger:
+    """
+    Custom logger that masks sensitive info and adds caller location.
+    """
     def __init__(self, name: str = __name__, level: int = logging.DEBUG):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
@@ -42,7 +50,13 @@ class CustomLogger:
                 '%(asctime)s [%(levelname)s] %(message)s (%(filename)s:%(funcName)s:%(lineno)d)'
             )
             stream_handler.setFormatter(formatter)
+            stream_handler.addFilter(MaskingFilter())
             self.logger.addHandler(stream_handler)
+        else:
+            # Ensure all handlers have the masking filter
+            for handler in self.logger.handlers:
+                if not any(isinstance(f, MaskingFilter) for f in handler.filters):
+                    handler.addFilter(MaskingFilter())
 
     def _log(self, level: int, msg: str, *args, **kwargs):
         # Inspect stack to find caller frame (2 steps up from here)
@@ -70,6 +84,9 @@ class CustomLogger:
 
     def error(self, msg: str, *args, **kwargs):
         self._log(logging.ERROR, msg, *args, **kwargs)
+    
+    def critical(self, msg: str, *args, **kwargs):
+        self._log(logging.CRITICAL, msg, *args, **kwargs)
 
 
 # Singleton logger instance for easy import

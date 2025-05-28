@@ -1,6 +1,14 @@
+"""
+utils/neo4j_utils.py
+
+Neo4j configuration and driver pooling utilities.
+"""
+
 import os
 from typing import Dict
+
 from dotenv import load_dotenv
+
 from .logger import get_logger
 from .lifecycle import register_shutdown_callback
 
@@ -16,12 +24,18 @@ DEFAULT_EMBEDDING_PROPERTY = "embedding"
 _neo4j_config = None
 
 def get_env_var(key: str, default: str = None, required: bool = False) -> str:
+    """
+    Fetches an environment variable, with support for defaults and required flag.
+    """
     value = os.getenv(key, default)
     if required and not value:
         raise EnvironmentError(f"Missing required environment variable: {key}")
     return value
 
 def get_neo4j_config() -> Dict[str, str]:
+    """
+    Loads and caches Neo4j configuration from environment variables.
+    """
     global _neo4j_config
     if _neo4j_config is None:
         logger.debug("Initializing Neo4j config...")
@@ -37,10 +51,14 @@ def get_neo4j_config() -> Dict[str, str]:
     return _neo4j_config
 
 # --- for driver pooling ---
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, Driver
 _neo4j_driver = None
 
-def get_neo4j_driver():
+def get_neo4j_driver()->Driver:
+    """
+    Returns a singleton Neo4j driver instance, initializing if necessary.
+    Registers a shutdown callback to close the driver on app exit.
+    """
     global _neo4j_driver
     if _neo4j_driver is None:
         config = get_neo4j_config()
@@ -51,7 +69,18 @@ def get_neo4j_driver():
         )
         # Register shutdown callback for neo4j once
         def close_driver():
-            logger.info("Closing Neo4j driver...")
-            _neo4j_driver.close()
+            if _neo4j_driver is not None:
+                logger.info("Closing Neo4j driver...")
+                _neo4j_driver.close()
         register_shutdown_callback(close_driver)
     return _neo4j_driver
+
+def close_neo4j_driver():
+    """
+    Explicitly closes the Neo4j driver (for testing or script use).
+    """
+    global _neo4j_driver
+    if _neo4j_driver is not None:
+        logger.info("Explicitly closing Neo4j driver...")
+        _neo4j_driver.close()
+        _neo4j_driver = None

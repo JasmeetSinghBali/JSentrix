@@ -1,20 +1,33 @@
+"""
+utils/relevance_scorer.py
+
+RelevanceScorer: Applies reward/penalty and decayed scoring logic to document nodes,
+and persists updates to Neo4j.
+"""
+
 import math
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from neo4j import GraphDatabase
-from utils.logger import get_logger
-from utils.neo4j_utils import get_neo4j_config, get_neo4j_driver 
+
+from neo4j import Driver
+
+from .logger import get_logger
+from .neo4j_utils import get_neo4j_config, get_neo4j_driver 
 
 logger = get_logger("jsentrix")
 
 class RelevanceScorer:
+    """
+    Handles scoring, rewarding, and penalizing of document nodes, with persistence to Neo4j.
+    """
     def __init__(
         self,
         base_score: float = 0.8,
         decay_rate: float = 0.05,
         reward_amount: float = 0.1,
         penalty_amount: float = 0.05,
-        neo4j_config: Dict[str, str] = None
+        neo4j_config: Dict[str, str] = None,
+        neo4j_driver: Optional[Driver] = None,
     ):
         self.base_score = base_score
         self.decay_rate = decay_rate
@@ -23,7 +36,7 @@ class RelevanceScorer:
 
         # Use env config if not provided explicitly
         self.neo4j_config = neo4j_config or get_neo4j_config()
-        self.neo4j_driver = get_neo4j_driver()
+        self.neo4j_driver = neo4j_driver or get_neo4j_driver()
 
     def score(self, metadata: Dict[str, Any]) -> float:
         """
@@ -37,6 +50,7 @@ class RelevanceScorer:
             try:
                 dt = datetime.fromisoformat(last_accessed_at)
                 age_days = (datetime.now(timezone.utc) - dt).days
+                age_days = max(age_days, 0)  # Prevent negative decay
                 score *= math.exp(-self.decay_rate * age_days)
             except Exception as e:
                 logger.debug(f"Error in score decay: {str(e)}")

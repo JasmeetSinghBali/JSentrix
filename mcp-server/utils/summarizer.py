@@ -1,8 +1,15 @@
-from transformers import pipeline
-from typing import Optional
-import logging
+"""
+utils/summarizer.py
 
-logger = logging.getLogger("jsentrix")
+Lightweight summarizer using T5-small for CPU-only environments.
+Handles long texts via chunking and recursive summarization.
+"""
+
+from transformers import pipeline
+from typing import Optional, List
+from utils.logger import get_logger
+
+logger = get_logger("jsentrix")
 
 class T5Summarizer:
     """
@@ -17,6 +24,9 @@ class T5Summarizer:
         min_summary_length: int = 30,
         device: int = -1  # -1 = CPU
     ):
+        """
+        Initializes the summarization pipeline.
+        """
         self.summarizer = pipeline(
             "summarization",
             model=model_name,
@@ -28,6 +38,9 @@ class T5Summarizer:
         self.min_summary_length = min_summary_length
 
     def summarize(self, text: str) -> Optional[str]:
+        """
+        Summarizes the given text. Handles long texts via chunking and recursion.
+        """
         try:
             if not text or not text.strip():
                 return None
@@ -46,12 +59,14 @@ class T5Summarizer:
             return None
 
     def _summarize_long_text(self, text: str) -> str:
-        """Handles texts longer than max_input_length via chunking"""
+        """
+        Handles texts longer than max_input_length via chunking and recursive summarization.
+        """
         chunks = [
             text[i:i+self.max_input_length]
             for i in range(0, len(text), self.max_input_length)
         ]
-        summaries = []
+        summaries: List[str] = []
         for chunk in chunks:
             summary = self.summarize(chunk)
             if summary:
