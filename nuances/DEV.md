@@ -68,7 +68,40 @@ scoring & decay ✅
 SETUP test for compliance voilations for some actual malformed transaction stream from faker ✅
 SETUP TEST CHECK that the score and decay and reranking actually is working right ✅
 summarization diff branch ✅ misc: added lifecycle callback shutdown centralized setup
-memory-aware querying diff branch
+
+clean architecture + cqrs  make sure test_jsentrix_core and test_lifecycle test passes
+- memory-aware querying diff branch
+```bash
+Current retrieval (LangChain/LlamaIndex/Neo4j):
+These layers are focused on retrieving relevant information (clauses, documents, facts) to answer a query, using metadata filters, vector search, or scoring/decay logic. They are not designed to "remember" the results of past analyses, decisions, or user interactions across sessions unless you explicitly store that information.
+
+Memory-aware querying (Mem0-style):
+This is an extension layer. After you analyze a transaction (e.g., using LlamaIndex retrieval and Qwen3/Ollama inference), you can store the entire "experience"—including the initial prompt, the LLM's answer, relevant clauses, scores, and any other context—into a memory store. This memory can then be:
+
+Queried later to provide context for future transactions or conversations.
+
+Used for audit trails, self-improvement, or personalization.
+
+Accessed by agents to recall past actions, decisions, or user preferences.
+
+No Redundancy—It’s Complementary:
+This setup does not overwrite or duplicate your existing retrieval, scoring, or filtering logic. Instead, it adds a new dimension: the ability to persist and retrieve the "history" of interactions, decisions, and context, which is not covered by standard retrieval pipelines.
+
+🕊️ in Practice
+After analysis:
+Store the prompt, LLM response, relevant clause IDs, agent metadata, and any other context as a “memory event” in Qdrant.
+
+For future queries:
+Retrieve the most relevant memories (by vector similarity and/or metadata) in qdrant local docker instance and inject them as context for the agent or LLM.
+
+For audit/self-improvement:
+Query the memory store for all events related to a user, session, or decision, reconstructing history or enabling learning.
+
+Repository/Adapter + Event Sourcing + Context Provider
+
+AIM: to support advanced agent features, auditability, and contextual intelligence with this approach.
+
+```
 
 
 - diff branch async setup using _async query from the rewarding wrapper and downstream pipeline including llm, neo4j, retrievers everything basically then write a mock test end to end after this async setup to make sure everything works

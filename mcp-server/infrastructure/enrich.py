@@ -1,20 +1,33 @@
+"""
+infrastructure/enrich.py
+
+Clause enrichment utilities for the ingestion pipeline.
+Adds NLP-derived metadata (sentence count, entities, clause type, summary)
+to Clause domain models.
+
+Usage:
+    from infrastructure.enrich import enrich_clause
+    enriched_clause = enrich_clause(clause)
+"""
 from docling.document_converter import DocumentConverter
+from typing import Dict, Any
 import re
 from utils.summarizer import T5Summarizer
+from domain.models import ClauseMetaData,Clause
 
 summarizer = T5Summarizer()
 
-def enrich_clause(clause):
+def enrich_clause(clause: Dict[str,Any])->Dict[str,Any]:
     """
     Enriches a clause dict with additional metadata.
     - Adds num_sentences, entities, clause_type, summary to metadata.
     - Preserves all existing metadata (including relationships).
 
     Args:
-        clause (List[Dict]): list of Dict of pydantic model Clause
+        clause (Dict[str, Any]): Dict representation of a Clause.
 
     Returns:
-        List[Clause]: the same list of Dict of pydantic model Clause with enriched metadata
+        Dict[str, Any]: The same clause dict, with enriched metadata.
     """
     # sentence splitting
     converter = DocumentConverter()
@@ -42,13 +55,31 @@ def enrich_clause(clause):
         "metadata": enriched_metadata
     }
 
-def extract_basic_entities(text):
+def extract_basic_entities(text: str)->list[str]:
+    """
+    Extracts basic entities (countries, amounts, temporal references) from text.
+
+    Args:
+        text (str): The clause text.
+
+    Returns:
+        list[str]: List of detected entities.
+    """
     countries = re.findall(r'Country [A-Z]', text)
     amounts = re.findall(r'\$\d+(?:,\d{3})*(?:\.\d{2})?', text)
     months = re.findall(r'(month|year|quarter|calendar month)', text, re.I)
     return list(set(countries + amounts + months))
 
-def determine_clause_type(text):
+def determine_clause_type(text: str)->str:
+    """
+    Determines the clause type based on keywords in the text.
+
+    Args:
+        text (str): The clause text.
+
+    Returns:
+        str: The clause type (e.g., 'Prohibition', 'Limit', 'Rule').
+    """
     t = text.lower()
     if "prohibit" in t or "prohibited" in t:
         return "Prohibition"

@@ -1,5 +1,17 @@
+"""
+infrastructure/unstructured_md.py
+
+Markdown parser for extracting compliance clauses and their metadata.
+This utility reads a markdown file, parses clauses using regular expressions,
+and returns a list of validated Clause domain models.
+
+Usage:
+    from infrastructure.unstructured_md import extract_clauses_from_md
+
+    clauses = extract_clauses_from_md("path/to/clauses.md")
+"""
 import re
-from .model import Clause
+from domain.models import Clause, ClauseMetaData
 from typing import List
 from utils.logger import get_logger
 
@@ -14,6 +26,16 @@ AMENDS_PATTERN = re.compile(r"\*\*Amends:\*\*\s*([C\d, ]*)")
 OVERRIDES_PATTERN = re.compile(r"\*\*Overrides:\*\*\s*([C\d, ]*)")
 
 def _extract_relationships(text: str, pattern: re.Pattern) -> List[str]:
+    """
+    Helper to extract comma-separated relationships from a clause block.
+
+    Args:
+        text (str): The clause block text.
+        pattern (re.Pattern): Compiled regex pattern for the relationship.
+
+    Returns:
+        List[str]: List of extracted relationship IDs.
+    """
     match = pattern.search(text)
     return [c.strip() for c in match.group(1).split(",") if c.strip()] if match else []
 
@@ -47,18 +69,24 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
         amends = _extract_relationships(block, AMENDS_PATTERN)
         overrides = _extract_relationships(block, OVERRIDES_PATTERN)
 
+        # clause meta data
+        metadata=ClauseMetaData(
+            category="NarrativeText",   # Default, since plain Markdown doesn't have this
+            section_header=None,        # Not available in plain Markdown
+            references=refs,
+            amends=amends,
+            overrides=overrides,
+            source=md_path,
+            title=title.strip() if title else None,
+            clause_id=cid
+        )
+
+        # build clause
         clause_data = {
             "id": id_match.group(1) if id_match else None,
             "title": title.strip(),
             "text": text_match.group(1).strip() if text_match else None,
-            "metadata": {
-                "category": "NarrativeText",  # Default, since plain Markdown doesn't have this
-                "section_header": None,       # Not available in plain Markdown
-                "references": refs,
-                "amends": amends,
-                "overrides": overrides,
-                "source": md_path
-            }
+            "metadata": metadata
         }
         if clause_data["id"] and clause_data["text"]:
             try:

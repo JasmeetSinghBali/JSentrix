@@ -1,7 +1,18 @@
+# infrastructure/pdf_to_md
+
 from docling.document_converter import DocumentConverter
 import re
 
 def reformat_clauses_markdown(md_path):
+    """
+    Post-processes a Markdown file to standardize clause formatting and metadata.
+
+    Args:
+        md_path (str): Path to the Markdown file to reformat.
+
+    Returns:
+        None. The file is overwritten in place.
+    """
     # raw markdown
     with open(md_path,"r",encoding="utf-8") as f:
         lines = f.readlines()
@@ -53,6 +64,16 @@ def reformat_clauses_markdown(md_path):
 
 
 def pdf_to_markdown(pdf_path, md_path):
+    """
+    Converts a PDF file to Markdown format and reformats it for clause extraction.
+
+    Args:
+        pdf_path (str): Path to the source PDF file.
+        md_path (str): Path to save the output Markdown file.
+
+    Returns:
+        str: Path to the reformatted Markdown file.
+    """
     converter=DocumentConverter()
     docling_doc=converter.convert(pdf_path)
     md_text=docling_doc.document.export_to_markdown()

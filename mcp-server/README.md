@@ -37,13 +37,21 @@ Metadata:
 # batch processing pipeline related project files
 mcp-server/
 ├── data/                  # Raw PDFs go here
-├── pipeline/
+├── infrastructure/
 │   ├── __init__.py
 │   ├── pdf_to_md.py       # Docling: PDF → Markdown
 │   ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
 │   ├── enrich.py          # Docling/regex: NLP enrichment
 │   └── load.py            # LangChain+Neo4j: Embedding & storage
-│   └── model.py           # Clause and ClauseMetaData pydantic validator model
+│   
+|── domain/
+│   ├── __init__.py
+|   └── models.py           # Clause and ClauseMetaData pydantic validator model
+|
+|── application/
+│   ├── __init__.py
+|   └── run_pipeline.py           # Main batch script to prep knowledge base
+|
 ├── memory/
 │   ├── __init__.py
 │   └── langchain_retriever.py     # For LangChain agents
@@ -58,7 +66,6 @@ mcp-server/
 |    ├── test_mockagents.py       # Tests mock LangChain & LlamaIndex agent with retriever and cypher utils
 |    └── test_neo4j_cypher_utls.py # Tests cypher retrieval utils custom setup and methods
 | 
-├── run_pipeline.py        # Main batch script to prep knowledge base
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
 ├── .env                   # Neo4j credentials
 
