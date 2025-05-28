@@ -1,10 +1,13 @@
+import os
+import sys
+import subprocess
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+from contextlib import asynccontextmanager
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import jwt
 from datetime import datetime, timezone, timedelta
-import asyncio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -13,7 +16,24 @@ SECRET_KEY = "super-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup event
+    mcp_server_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py"))
+    print(f"[gateway] Starting MCP server: {mcp_server_path}")
+    mcp_process = subprocess.Popen([sys.executable, mcp_server_path])
+    print(f"[gateway] MCP server started with PID {mcp_process.pid}")
+    app.state.mcp_process = mcp_process
+    yield
+    # shutdown event
+    print("[gateway] Shutting down MCP server...")
+    mcp_process.terminate()
+    mcp_process.wait()
+    print("[gateway] MCP server stopped.")
+
+# https://fastapi.tiangolo.com/advanced/events/#lifespan
+app = FastAPI(lifespan=lifespan)
+mcp_process = None  # Global reference to the MCP subprocess
 
 # CORS for local Electron app
 app.add_middleware(
@@ -43,6 +63,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return username
 
+
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if form_data.username == fake_user["username"] and form_data.password == fake_user["password"]:
@@ -51,10 +72,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     raise HTTPException(status_code=400, detail="Incorrect username or password")
 
 async def mcp_client_call(call_type: str, tool_name: str = None, arguments: dict = None):
-    # might need to update this part if want to run the mcp-server as dockerized container along with gateway
+    # Use the same path as above for the MCP server subprocess
     server_params = StdioServerParameters(
-        command="python",
-        args=[r"..\mcp-server\mcp_server.py"],  # Adjust path if needed
+        command=sys.executable,
+        args=[os.path.abspath(os.path.join(os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py"))],
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
