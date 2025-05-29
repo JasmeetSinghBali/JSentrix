@@ -34,7 +34,7 @@ Metadata:
 ```
 
 ```bash
-# batch processing pipeline related project files
+
 mcp-server/
 ├── data/                  # Raw PDFs go here
 ├── infrastructure/
@@ -85,15 +85,6 @@ mcp-server/
 ├── docker-compose.yml     # startup neo4j docker continer
 ├── .env                   # Neo4j credentials
 
-# deps 
-unstructured[md]
-docling
-langchain
-langchain-community
-fpdf
-neo4j
-sentence-transformers
-python-dotenv
 ```
 
 > Run model and neo4j locally

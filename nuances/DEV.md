@@ -71,6 +71,8 @@ summarization diff branch ✅ misc: added lifecycle callback shutdown centralize
 
 
 clean architecture  make sure test_jsentrix_core and test_lifecycle test passes ✅
+pre-commit hooks setup ✅
+
 - memory-aware querying diff branch
 ```bash
 Current retrieval (LangChain/LlamaIndex/Neo4j):
