@@ -49,6 +49,9 @@ mcp-server/
 |── domain/
 │   ├── __init__.py
 |   └── models.py           # Clause and ClauseMetaData pydantic validator model
+|── agents/
+│   ├── __init__.py
+|   └── message_a2aserializer.py           # Base class for robust agent-to-agent (A2A) message serialization
 |
 |── application/
 │   ├── __init__.py
@@ -160,6 +163,9 @@ MATCH (a)-[:OVERRIDES]->(b) RETURN a.clause_id AS Overrider, b.clause_id AS Over
 
 # to stop and remove volume persistent inside docker container dont use -v if want to persist data in docker container also
 docker-compose down -v
+
+# qdrant ui
+http://localhost:6333/
 ```
 
 > To run test

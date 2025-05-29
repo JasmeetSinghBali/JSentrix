@@ -104,6 +104,35 @@ Repository/Adapter + Event Sourcing + Context Provider
 
 AIM: to support advanced agent features, auditability, and contextual intelligence with this approach.
 
+
+---- here
+Memory-Aware Querying Setup: Step-by-Step Plan
+Step 1: Install and Connect Qdrant Python Client
+Install the qdrant-client Python package in your environment. ✅
+
+Step 2: Define Memory Event Schema
+Design a Python class (e.g., MemoryEvent) that captures everything you want to persist:
+
+Prompt, LLM response, relevant clause IDs, scores, agent/user/session metadata, etc.
+
+Decide on the vector representation for each memory event (e.g., embedding of the prompt, response, or concatenated context).
+
+Step 3: Create a Qdrant Collection for Memory Events
+Use the Qdrant client to create a collection dedicated to memory events.
+
+Set the vector size and distance metric according to your embedding model.
+
+Step 4: Store Memory Events in Qdrant
+After each analysis/transaction, serialize and upsert the memory event (vector + metadata) into Qdrant.
+
+Step 5: Query Memory Events from Qdrant
+For new transactions, query Qdrant for relevant past memory events using vector similarity and/or metadata filters.
+
+Inject retrieved memory into the agent/LLM context as needed.
+
+Step 6: (Optional) Build Audit and History Tools
+Implement queries to reconstruct the history for a user/session/decision for audit, learning, or debugging.
+
 ```
 
 

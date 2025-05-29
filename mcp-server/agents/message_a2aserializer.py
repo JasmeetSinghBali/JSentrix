@@ -5,6 +5,7 @@ from typing import Any, Type, TypeVar, Dict
 # T can be any type unless its subclass of A2AMessageSerializable or itself as this generalized type is bounded to the same
 T = TypeVar("T", bound="A2AMessageSerializable")
 
+
 class A2AMessageSerializable:
     """
     Base class for robust agent-to-agent (A2A) message serialization.
