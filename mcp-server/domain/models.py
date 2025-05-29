@@ -9,8 +9,10 @@ Usage:
     from domain.models import Clause, ClauseMetaData
 """
 
-from typing import List, Optional, Any
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+from datetime import datetime, timezone
+import uuid
 
 
 class ClauseMetaData(BaseModel):
@@ -71,4 +73,41 @@ class Clause(BaseModel):
     text: str = Field(..., description="Full text of the clause")
     metadata: ClauseMetaData = Field(
         ..., description="Associated metadata for the clause"
+    )
+
+
+class MemoryEvent(BaseModel):
+    """
+    Usage:
+        event = MemoryEvent(
+            user_id="alice",
+            agent_name="LlamaIndexAgent",
+            prompt="What is AML?",
+            llm_response="AML stands for Anti-Money Laundering...",
+            relevant_clause_ids=["C1", "C2"],
+            scores={"similarity": 0.92},
+            extra_context={"source": "neo4j"}
+        )
+        print(event.json(indent=2))
+    """
+
+    event_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()), description="Unique event ID"
+    )
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        description="Event timestamp (ISO)",
+    )
+    user_id: Optional[str] = Field(default=None, description="User or session ID")
+    agent_name: str = Field(..., description="Name of the agent")
+    prompt: str = Field(..., description="Prompt or query")
+    llm_response: str = Field(..., description="LLM or agent response")
+    relevant_clause_ids: List[str] = Field(
+        default_factory=list, description="Relevant clause/document IDs"
+    )
+    scores: Dict[str, Any] = Field(
+        default_factory=dict, description="Scoring or metadata"
+    )
+    extra_context: Dict[str, Any] = Field(
+        default_factory=dict, description="Any extra context or metadata"
     )

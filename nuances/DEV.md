@@ -50,74 +50,20 @@ Electron app displays the result.
 
 >>>>>>>>>> from here
 
-- optim langchain and llamaindex retriever with new metadata filter for langchain and custom cypher query utils
-for llamaindex results. ✅
-```bash
-relationship traversal capability so you can, for example:
-
-Given a retrieved clause, find all clauses it REFERENCES, AMENDS, or OVERRIDES.
-
-Given a clause, find all clauses that reference/amend/override it (reverse traversal).
-
-Traverse multi-hop relationships for advanced compliance impact/explainability.
-```
-
-- mem0 inspired updates and custom setup for :
-```bash
-scoring & decay ✅
-SETUP test for compliance voilations for some actual malformed transaction stream from faker ✅
-SETUP TEST CHECK that the score and decay and reranking actually is working right ✅
-summarization diff branch ✅ misc: added lifecycle callback shutdown centralized setup
-
-
-clean architecture  make sure test_jsentrix_core and test_lifecycle test passes ✅
-pre-commit hooks setup ✅
-
 - memory-aware querying diff branch
 ```bash
-Current retrieval (LangChain/LlamaIndex/Neo4j):
-These layers are focused on retrieving relevant information (clauses, documents, facts) to answer a query, using metadata filters, vector search, or scoring/decay logic. They are not designed to "remember" the results of past analyses, decisions, or user interactions across sessions unless you explicitly store that information.
-
-Memory-aware querying (Mem0-style):
-This is an extension layer. After you analyze a transaction (e.g., using LlamaIndex retrieval and Qwen3/Ollama inference), you can store the entire "experience"—including the initial prompt, the LLM's answer, relevant clauses, scores, and any other context—into a memory store. This memory can then be:
-
-Queried later to provide context for future transactions or conversations.
-
-Used for audit trails, self-improvement, or personalization.
-
-Accessed by agents to recall past actions, decisions, or user preferences.
-
-No Redundancy—It’s Complementary:
-This setup does not overwrite or duplicate your existing retrieval, scoring, or filtering logic. Instead, it adds a new dimension: the ability to persist and retrieve the "history" of interactions, decisions, and context, which is not covered by standard retrieval pipelines.
-
-🕊️ in Practice
-After analysis:
-Store the prompt, LLM response, relevant clause IDs, agent metadata, and any other context as a “memory event” in Qdrant.
-
-For future queries:
-Retrieve the most relevant memories (by vector similarity and/or metadata) in qdrant local docker instance and inject them as context for the agent or LLM.
-
-For audit/self-improvement:
-Query the memory store for all events related to a user, session, or decision, reconstructing history or enabling learning.
-
-Repository/Adapter + Event Sourcing + Context Provider
-
-AIM: to support advanced agent features, auditability, and contextual intelligence with this approach.
-
-
----- here
 Memory-Aware Querying Setup: Step-by-Step Plan
 Step 1: Install and Connect Qdrant Python Client
 Install the qdrant-client Python package in your environment. ✅
 
-Step 2: Define Memory Event Schema
+Step 2: Define Memory Event Schema ✅
 Design a Python class (e.g., MemoryEvent) that captures everything you want to persist:
 
 Prompt, LLM response, relevant clause IDs, scores, agent/user/session metadata, etc.
 
 Decide on the vector representation for each memory event (e.g., embedding of the prompt, response, or concatenated context).
 
-Step 3: Create a Qdrant Collection for Memory Events
+Step 3: Create a Qdrant Collection for Memory Events ✅
 Use the Qdrant client to create a collection dedicated to memory events.
 
 Set the vector size and distance metric according to your embedding model.
@@ -135,7 +81,6 @@ Implement queries to reconstruct the history for a user/session/decision for aud
 
 ```
 
-
 - diff branch async setup using _async query from the rewarding wrapper and downstream pipeline including llm, neo4j, retrievers everything basically then write a mock test end to end after this async setup to make sure everything works
 ```bash
 How Would This Look?
@@ -148,9 +93,85 @@ Use async-compatible libraries for Neo4j (see ), HTTP/LLM calls, and any other I
 agents (mock or Llama) would consume transactions from the stream and process them in parallel using asyncio.gather or similar
 ```
 
-- diff branch direct mem0 import use mem0 as scratchpad storing logs,result,analyssis from agent of the transactions etc... for the agent setup with qdrant need more research https://qdrant.tech/documentation/frameworks/mem0/
-
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
+
+```bash
+CORE FLOW JSENTRIX 
+
+Abstracted Triage Agent Flow with Agent Roles
+1. Intake & Preprocessing (Intake Agent)
+Role: Ingest and validate transactions from the Electron app.
+
+Responsibilities:
+
+Stream or batch ingest transactions.
+
+Enrich with user risk settings, timestamps, and attach prior memory events from Qdrant if needed.
+
+Pass enriched transactions to the Assessment Agent.
+
+2. Assessment & Prioritization (LangChain Agent)
+Role: Prioritize and filter transactions for analysis.
+
+Why LangChain?
+LangChain is ideal for orchestrating complex workflows, integrating multiple data sources (Qdrant, Neo4j), and applying custom logic for scoring, sorting, and prioritization.
+
+Responsibilities:
+
+Score transactions using user risk levels, business rules, and historical context.
+
+Apply dynamic scoring, decay, and sorting.
+
+Select and forward only high-priority transactions to the Action Agent.
+
+3. Analysis (LlamaIndex Agent)
+Role: Deep retrieval-augmented analysis and LLM inference.
+
+Why LlamaIndex?
+LlamaIndex is optimized for fast, accurate retrieval and semantic search, making it ideal for fetching relevant clauses, facts, and supporting RAG-based LLM analysis on the prioritized transactions.
+
+Responsibilities:
+
+Retrieve relevant clauses/facts for each transaction.
+
+Inject dynamic metadata (scores, decay, summaries).
+
+Run LLM for compliance/risk assessment.
+
+Postprocess results, ensuring all metadata (hybrid score, decayed score, summary, clause IDs, etc.) is attached.
+
+4. Notification & Reporting
+Role: Notify users and stream results back to the Electron app.
+
+Responsibilities:
+
+Alert users only for high-risk or violated transactions.
+
+Stream results and metadata for user review.
+
+5. Memory Event Storage
+Role: Persist the full event (transaction, analysis, scores, summaries, etc.) in Qdrant for future context, audit, and learning.
+
+6. Audit, Feedback, and Self-Improvement (Optional)
+Role: Enable querying and analysis of memory events for audit trails, user feedback, or improving triage logic.
+
+Summary Table with Agent Roles
+Step	                    Agent/Component	        Main Technology	            Responsibility
+Intake & Preprocessing	    Intake Agent	         FastAPI/Python	    Ingest, enrich, attach memory, pass to assessment
+Assessment & Prioritization	Assessment Agent	       LangChain	Score, decay, sort, select high-priority transactions
+Analysis (LLM/RAG)	        Action Agent	           LlamaIndex	    Retrieval, LLM analysis, metadata propagation
+Notification & Reporting	Notification Svc	      Python/email	Notify users, stream results to Electron app
+Memory Event Storage	    Memory Store	            Qdrant	        Persist full event for context/audit
+Audit/Feedback (Optional)	Audit Tools	              Python/Qdrant	Analyze memory events for audit/self-improvement
+
+This plan ensures:
+
+LangChain handles prioritization, scoring, and orchestration.
+
+LlamaIndex handles retrieval and LLM-powered analysis.
+
+All advanced scoring, decay, and metadata logic is preserved and propagated.
+```
 
 
 - diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system.

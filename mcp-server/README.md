@@ -45,7 +45,8 @@ mcp-server/
 │       ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
 │       ├── enrich.py          # Docling/regex: NLP enrichment
 │       └── load.py            # LangChain+Neo4j: Embedding & storage
-│   
+│     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
+|
 |── domain/
 │   ├── __init__.py
 |   └── models.py           # Clause and ClauseMetaData pydantic validator model
@@ -165,7 +166,7 @@ MATCH (a)-[:OVERRIDES]->(b) RETURN a.clause_id AS Overrider, b.clause_id AS Over
 docker-compose down -v
 
 # qdrant ui
-http://localhost:6333/
+http://localhost:6333/dashboard
 ```
 
 > To run test
