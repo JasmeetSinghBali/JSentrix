@@ -45,14 +45,16 @@ export default React.memo((props: any)=>{
     };
 
     useEffect(() => {
-        listTools(at);
-        invokeTool(at,'ping');
-        invokeTool(at,'add',{
-            arguments: {
-                a: 2,
-                b: 3
-            }
-        })
+        if(at){
+            listTools(at);
+            invokeTool(at,'ping');
+            invokeTool(at,'add',{
+                arguments: {
+                    a: 2,
+                    b: 3
+                }
+            })
+        }
     }, [at]);
 
     useEffect(()=>{

@@ -24,8 +24,16 @@ dependencies = [
     "llama-index-vector-stores-neo4jvector>=0.3.0",
     "mcp[cli]>=1.8.1",
     "neo4j>=5.28.1",
+    "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "python-dotenv>=1.1.0",
+    "qdrant-client>=1.12.1",
     "sentence-transformers>=4.1.0",
     "transformers[torch]>=4.51.3",
 ]
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+

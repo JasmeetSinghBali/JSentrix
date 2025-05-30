@@ -50,26 +50,36 @@ Electron app displays the result.
 
 >>>>>>>>>> from here
 
-- optim langchain and llamaindex retriever with new metadata filter for langchain and custom cypher query utils
-for llamaindex results. ✅
+- memory-aware querying diff branch
 ```bash
-relationship traversal capability so you can, for example:
+Memory-Aware Querying Setup: Step-by-Step Plan
+Step 1: Install and Connect Qdrant Python Client
+Install the qdrant-client Python package in your environment. ✅
 
-Given a retrieved clause, find all clauses it REFERENCES, AMENDS, or OVERRIDES.
+Step 2: Define Memory Event Schema ✅
+Design a Python class (e.g., MemoryEvent) that captures everything you want to persist:
 
-Given a clause, find all clauses that reference/amend/override it (reverse traversal).
+Prompt, LLM response, relevant clause IDs, scores, agent/user/session metadata, etc.
 
-Traverse multi-hop relationships for advanced compliance impact/explainability.
+Decide on the vector representation for each memory event (e.g., embedding of the prompt, response, or concatenated context).
+
+Step 3: Create a Qdrant Collection for Memory Events ✅
+Use the Qdrant client to create a collection dedicated to memory events.
+
+Set the vector size and distance metric according to your embedding model.
+
+Step 4: Store Memory Events in Qdrant ✅
+After each analysis/transaction, serialize and upsert the memory event (vector + metadata) into Qdrant.
+
+Step 5: Query Memory Events from Qdrant ✅
+For new transactions, query Qdrant for relevant past memory events using vector similarity and/or metadata filters.
+
+Inject retrieved memory into the agent/LLM context as needed.
+
+Step 6: (Optional) Build Audit and History Tools ✅
+Implement queries to reconstruct the history for a user/session/decision for audit, learning, or debugging.
+
 ```
-
-- mem0 inspired updates and custom setup for :
-```bash
-scoring & decay ✅
-SETUP test for compliance voilations for some actual malformed transaction stream from faker ✅
-SETUP TEST CHECK that the score and decay and reranking actually is working right ✅
-summarization diff branch ✅ misc: added lifecycle callback shutdown centralized setup
-memory-aware querying diff branch
-
 
 - diff branch async setup using _async query from the rewarding wrapper and downstream pipeline including llm, neo4j, retrievers everything basically then write a mock test end to end after this async setup to make sure everything works
 ```bash
@@ -83,11 +93,115 @@ Use async-compatible libraries for Neo4j (see ), HTTP/LLM calls, and any other I
 agents (mock or Llama) would consume transactions from the stream and process them in parallel using asyncio.gather or similar
 ```
 
-- diff branch direct mem0 import use mem0 as scratchpad storing logs,result,analyssis from agent of the transactions etc... for the agent setup with qdrant need more research https://qdrant.tech/documentation/frameworks/mem0/
-
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
 
+> ## CORE TRIAGE FLOW
+```bash
+End-to-End Triage Flow (Bird’s-Eye View)
+1. Intake & Preprocessing (Intake Agent)
+Role: Ingest transactions from the Electron app (real-time or batch).
 
+Responsibilities:
+
+Validate and enrich transactions with metadata (user, risk settings, timestamps).
+
+Optionally, attach prior memory events from Qdrant for context.
+
+Pass enriched transactions to the Assessment Agent.
+
+2. Assessment & Prioritization (LangChain Agent)
+Role: Score and prioritize transactions for analysis.
+
+Responsibilities:
+
+Integrate multiple data sources (Qdrant for memory, Neo4j for graph context).
+
+Score each transaction using user risk levels, business rules, and historical memory.
+
+Apply dynamic scoring, decay, and sorting.
+
+Select and forward only high-priority transactions to the Action Agent.
+
+3. Analysis/Action (LlamaIndex Agent)
+Role: Deep analysis and compliance/risk assessment via LLM.
+
+Responsibilities:
+
+Retrieve relevant clauses/facts (RAG) for each prioritized transaction.
+
+Inject dynamic metadata (scores, decay, summaries, clause IDs).
+
+Run LLM for compliance/risk analysis.
+
+Postprocess results, attaching all relevant metadata.
+
+4. Notification & Reporting
+Role: Communicate results to users.
+
+Responsibilities:
+
+Notify users (via Electron app, email, etc.) only for high-risk or violated transactions.
+
+Stream results and metadata for user review.
+
+5. Memory Event Storage (Dedicated Agent/Service)
+Role: Persist analysis outcomes as memory events in Qdrant.
+
+Responsibilities:
+
+After each LLM analysis, construct a MemoryEvent (prompt, response, scores, user/session info, etc.).
+
+Generate embedding vector for the event.
+
+Offload the storage task to a dedicated Memory Event Agent/Service to ensure non-blocking, scalable operation.
+
+Store (vector + metadata) in Qdrant for future retrieval.
+
+6. Audit, Feedback, Self-Improvement (Optional)
+Role: Enable querying and analysis of memory events for audit, learning, and continuous improvement.
+
+Responsibilities:
+
+Provide tools for reconstructing user/session/decision history.
+
+Support compliance audits, feedback loops, and model retraining or tuning.
+
+🟢 Key Insights
+First Run:
+No memory events exist. After LLM analysis, events are created and stored.
+
+Subsequent Runs:
+New transactions can leverage prior memory events for context-aware triage and scoring.
+
+Memory Event Storage:
+Offloading to a dedicated agent/service is a best practice for scalability and reliability, ensuring the main analysis flow is not blocked by I/O or DB operations.
+
+Audit/History:
+All memory events are queryable for audit, debugging, and learning—enabling a transparent, explainable triage system.
+
+Electron App
+    │
+    ▼
+[Intake Agent]
+    │
+    ▼
+[Assessment Agent (LangChain)]
+    │
+    ▼
+[Action/Analysis Agent (LlamaIndex)]
+    │
+    ├─────────────► [Notification/Reporting]
+    │
+    ▼
+[Memory Event Storage Agent/Service]
+    │
+    ▼
+[Qdrant Vector DB]
+    │
+    ▼
+[Audit/History/Feedback Tools]
+
+```
 - diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system.
 example-agents fraud detection agent, investigation agent, notification agent, action agent extends these base class to initialize and setup agents in a custom way.
 ```bash

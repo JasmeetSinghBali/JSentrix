@@ -34,43 +34,64 @@ Metadata:
 ```
 
 ```bash
-# batch processing pipeline related project files
+
 mcp-server/
 ├── data/                  # Raw PDFs go here
-├── pipeline/
+├── infrastructure/
+│     |
+|     |── ingestion
+|       ├── __init__.py
+│       ├── pdf_to_md.py       # Docling: PDF → Markdown
+│       ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
+│       ├── enrich.py          # Docling/regex: NLP enrichment
+│       └── load.py            # LangChain+Neo4j: Embedding & storage
+│     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
+│     |── memory_event_repository.py   # Handles low-level Qdrant persistence for MemoryEvent domain objects.
+|
+|── domain/
 │   ├── __init__.py
-│   ├── pdf_to_md.py       # Docling: PDF → Markdown
-│   ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
-│   ├── enrich.py          # Docling/regex: NLP enrichment
-│   └── load.py            # LangChain+Neo4j: Embedding & storage
-│   └── model.py           # Clause and ClauseMetaData pydantic validator model
-├── memory/
+|   └── models.py           # Clause and ClauseMetaData pydantic validator model
+|── agents/
+│   ├── __init__.py
+|   └── message_a2aserializer.py           # Base class for robust agent-to-agent (A2A) message serialization
+|
+|── application/
+│   ├── __init__.py
+|   └── run_pipeline.py 
+|   |── postprocessors
+│     ├── __init__.py
+|     ├── llamaindex_postprocessors.py # LlamaIndex node postprocessors for advanced scoring & metadata injec.
+|   |── query_engines
+│     ├── __init__.py
+|     └── llamaindex_rewarding_wrapper.py # Wraps a LlamaIndex QueryEngine to apply rew/pen to source nodes
+|   ├── retrievers/
 │   ├── __init__.py
 │   └── langchain_retriever.py     # For LangChain agents
 │   └── llamaindex_retriever.py    # For LlamaIndex agents
+│   └── memory_event_retriever.py  # Supports audit/history for memory event queries+pagination+metadata+vector
+|
+├── interface/      # The interface layer adapting application to the outside world (API, CLI, etc.).
+│   ├── __init__.py
+│   └── mcp_server.py      # main entry point for mcp-server
+|
 ├── utils/
 │   ├── __init__.py
-│   └── neo4j_utils.py          # Shared Neo4j config and connection helpers
-│   └── neo4j_cypher_utils.py   # Shared Neo4j cypher query retrieval utils for graph context
-|   └── logger.py               # Default logger singleton instance and custom logger get_logger new instance file/module level deep logging
-└── tests/
+|   ├── lifecycle.py          # Lifecycle utility for registering and running shutdown callbacks. 
+|   ├── retry.py              # Generic retry decorator for functions that may fail transiently.. 
+│   └── neo4j_utils.py        # Shared Neo4j config and connection helpers 
+│   └── neo4j_cypher_utils.py # Shared Neo4j cypher query retrieval utils for graph context 
+|   └── logger.py             # logger singleton instance and custom logger get_logger new instance  
+|   └── relevance_scorer.py   # Default logger singleton instance and custom logger get_logger new instance
+|   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
+|   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
+|
+└── tests/                    # test dir
 |    ├── __init__.py
-|    ├── test_mockagents.py       # Tests mock LangChain & LlamaIndex agent with retriever and cypher utils
-|    └── test_neo4j_cypher_utls.py # Tests cypher retrieval utils custom setup and methods
 | 
-├── run_pipeline.py        # Main batch script to prep knowledge base
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
+├── docker-compose.yml     # startup neo4j docker continer
 ├── .env                   # Neo4j credentials
 
-# deps 
-unstructured[md]
-docling
-langchain
-langchain-community
-fpdf
-neo4j
-sentence-transformers
-python-dotenv
 ```
 
 > Run model and neo4j locally
@@ -146,6 +167,9 @@ MATCH (a)-[:OVERRIDES]->(b) RETURN a.clause_id AS Overrider, b.clause_id AS Over
 
 # to stop and remove volume persistent inside docker container dont use -v if want to persist data in docker container also
 docker-compose down -v
+
+# qdrant ui
+http://localhost:6333/dashboard
 ```
 
 > To run test

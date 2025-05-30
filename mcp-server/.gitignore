@@ -181,3 +181,6 @@ neo4j_data/
 
 # test_logs
 tests/logs/
+
+#qdrant host bind data
+qdrant_data/

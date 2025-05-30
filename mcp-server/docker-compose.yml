@@ -13,6 +13,19 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 2G
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrantjsentrix
+    restart: unless-stopped
+    ports:
+      - "6333:6333"  # REST API & Web UI
+      - "6334:6334"  # gRPC API
+    volumes:
+      - ./qdrant_data:/qdrant/storage # host bind
+    deploy:
+      resources:
+        limits:
+          memory: 2G  # Qdrant limited to 2GB RAM
 volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above
   neo4j_data:
