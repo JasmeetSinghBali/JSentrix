@@ -95,85 +95,113 @@ agents (mock or Llama) would consume transactions from the stream and process th
 
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
 
+> ## CORE TRIAGE FLOW
 ```bash
-CORE FLOW JSENTRIX 
-
-Abstracted Triage Agent Flow with Agent Roles
+End-to-End Triage Flow (Bird’s-Eye View)
 1. Intake & Preprocessing (Intake Agent)
-Role: Ingest and validate transactions from the Electron app.
+Role: Ingest transactions from the Electron app (real-time or batch).
 
 Responsibilities:
 
-Stream or batch ingest transactions.
+Validate and enrich transactions with metadata (user, risk settings, timestamps).
 
-Enrich with user risk settings, timestamps, and attach prior memory events from Qdrant if needed.
+Optionally, attach prior memory events from Qdrant for context.
 
 Pass enriched transactions to the Assessment Agent.
 
 2. Assessment & Prioritization (LangChain Agent)
-Role: Prioritize and filter transactions for analysis.
-
-Why LangChain?
-LangChain is ideal for orchestrating complex workflows, integrating multiple data sources (Qdrant, Neo4j), and applying custom logic for scoring, sorting, and prioritization.
+Role: Score and prioritize transactions for analysis.
 
 Responsibilities:
 
-Score transactions using user risk levels, business rules, and historical context.
+Integrate multiple data sources (Qdrant for memory, Neo4j for graph context).
+
+Score each transaction using user risk levels, business rules, and historical memory.
 
 Apply dynamic scoring, decay, and sorting.
 
 Select and forward only high-priority transactions to the Action Agent.
 
-3. Analysis (LlamaIndex Agent)
-Role: Deep retrieval-augmented analysis and LLM inference.
-
-Why LlamaIndex?
-LlamaIndex is optimized for fast, accurate retrieval and semantic search, making it ideal for fetching relevant clauses, facts, and supporting RAG-based LLM analysis on the prioritized transactions.
+3. Analysis/Action (LlamaIndex Agent)
+Role: Deep analysis and compliance/risk assessment via LLM.
 
 Responsibilities:
 
-Retrieve relevant clauses/facts for each transaction.
+Retrieve relevant clauses/facts (RAG) for each prioritized transaction.
 
-Inject dynamic metadata (scores, decay, summaries).
+Inject dynamic metadata (scores, decay, summaries, clause IDs).
 
-Run LLM for compliance/risk assessment.
+Run LLM for compliance/risk analysis.
 
-Postprocess results, ensuring all metadata (hybrid score, decayed score, summary, clause IDs, etc.) is attached.
+Postprocess results, attaching all relevant metadata.
 
 4. Notification & Reporting
-Role: Notify users and stream results back to the Electron app.
+Role: Communicate results to users.
 
 Responsibilities:
 
-Alert users only for high-risk or violated transactions.
+Notify users (via Electron app, email, etc.) only for high-risk or violated transactions.
 
 Stream results and metadata for user review.
 
-5. Memory Event Storage
-Role: Persist the full event (transaction, analysis, scores, summaries, etc.) in Qdrant for future context, audit, and learning.
+5. Memory Event Storage (Dedicated Agent/Service)
+Role: Persist analysis outcomes as memory events in Qdrant.
 
-6. Audit, Feedback, and Self-Improvement (Optional)
-Role: Enable querying and analysis of memory events for audit trails, user feedback, or improving triage logic.
+Responsibilities:
 
-Summary Table with Agent Roles
-Step	                    Agent/Component	        Main Technology	            Responsibility
-Intake & Preprocessing	    Intake Agent	         FastAPI/Python	    Ingest, enrich, attach memory, pass to assessment
-Assessment & Prioritization	Assessment Agent	       LangChain	Score, decay, sort, select high-priority transactions
-Analysis (LLM/RAG)	        Action Agent	           LlamaIndex	    Retrieval, LLM analysis, metadata propagation
-Notification & Reporting	Notification Svc	      Python/email	Notify users, stream results to Electron app
-Memory Event Storage	    Memory Store	            Qdrant	        Persist full event for context/audit
-Audit/Feedback (Optional)	Audit Tools	              Python/Qdrant	Analyze memory events for audit/self-improvement
+After each LLM analysis, construct a MemoryEvent (prompt, response, scores, user/session info, etc.).
 
-This plan ensures:
+Generate embedding vector for the event.
 
-LangChain handles prioritization, scoring, and orchestration.
+Offload the storage task to a dedicated Memory Event Agent/Service to ensure non-blocking, scalable operation.
 
-LlamaIndex handles retrieval and LLM-powered analysis.
+Store (vector + metadata) in Qdrant for future retrieval.
 
-All advanced scoring, decay, and metadata logic is preserved and propagated.
+6. Audit, Feedback, Self-Improvement (Optional)
+Role: Enable querying and analysis of memory events for audit, learning, and continuous improvement.
+
+Responsibilities:
+
+Provide tools for reconstructing user/session/decision history.
+
+Support compliance audits, feedback loops, and model retraining or tuning.
+
+🟢 Key Insights
+First Run:
+No memory events exist. After LLM analysis, events are created and stored.
+
+Subsequent Runs:
+New transactions can leverage prior memory events for context-aware triage and scoring.
+
+Memory Event Storage:
+Offloading to a dedicated agent/service is a best practice for scalability and reliability, ensuring the main analysis flow is not blocked by I/O or DB operations.
+
+Audit/History:
+All memory events are queryable for audit, debugging, and learning—enabling a transparent, explainable triage system.
+
+Electron App
+    │
+    ▼
+[Intake Agent]
+    │
+    ▼
+[Assessment Agent (LangChain)]
+    │
+    ▼
+[Action/Analysis Agent (LlamaIndex)]
+    │
+    ├─────────────► [Notification/Reporting]
+    │
+    ▼
+[Memory Event Storage Agent/Service]
+    │
+    ▼
+[Qdrant Vector DB]
+    │
+    ▼
+[Audit/History/Feedback Tools]
+
 ```
-
-
 - diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system.
 example-agents fraud detection agent, investigation agent, notification agent, action agent extends these base class to initialize and setup agents in a custom way.
 ```bash
