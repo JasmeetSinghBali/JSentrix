@@ -46,6 +46,7 @@ mcp-server/
 │       ├── enrich.py          # Docling/regex: NLP enrichment
 │       └── load.py            # LangChain+Neo4j: Embedding & storage
 │     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
+│     |── memory_event_repository.py   # Handles low-level Qdrant persistence for MemoryEvent domain objects.
 |
 |── domain/
 │   ├── __init__.py
@@ -67,6 +68,7 @@ mcp-server/
 │   ├── __init__.py
 │   └── langchain_retriever.py     # For LangChain agents
 │   └── llamaindex_retriever.py    # For LlamaIndex agents
+│   └── memory_event_retriever.py  # Supports audit/history for memory event queries+pagination+metadata+vector
 |
 ├── interface/      # The interface layer adapting application to the outside world (API, CLI, etc.).
 │   ├── __init__.py
@@ -81,6 +83,7 @@ mcp-server/
 |   └── logger.py             # logger singleton instance and custom logger get_logger new instance  
 |   └── relevance_scorer.py   # Default logger singleton instance and custom logger get_logger new instance
 |   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
+|   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
 |
 └── tests/                    # test dir
 |    ├── __init__.py
