@@ -68,15 +68,15 @@ Use the Qdrant client to create a collection dedicated to memory events.
 
 Set the vector size and distance metric according to your embedding model.
 
-Step 4: Store Memory Events in Qdrant
+Step 4: Store Memory Events in Qdrant ✅
 After each analysis/transaction, serialize and upsert the memory event (vector + metadata) into Qdrant.
 
-Step 5: Query Memory Events from Qdrant
+Step 5: Query Memory Events from Qdrant ✅
 For new transactions, query Qdrant for relevant past memory events using vector similarity and/or metadata filters.
 
 Inject retrieved memory into the agent/LLM context as needed.
 
-Step 6: (Optional) Build Audit and History Tools
+Step 6: (Optional) Build Audit and History Tools ✅
 Implement queries to reconstruct the history for a user/session/decision for audit, learning, or debugging.
 
 ```

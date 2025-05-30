@@ -8,7 +8,6 @@ from typing import List, Optional, Dict, Any
 
 from llama_index.core import VectorStoreIndex
 from llama_index.llms.ollama import Ollama
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.settings import Settings
 
 
@@ -21,6 +20,7 @@ from application.query_engines.llamaindex_rewarding_wrapper import (
     RewardingQueryEngineWrapper,
 )
 
+from utils.embedding_utils import get_llamaindex_embedding_model
 from utils.logger import get_logger
 from utils.relevance_scorer import RelevanceScorer
 from utils.summarizer import T5Summarizer
@@ -50,9 +50,7 @@ def get_llamaindex_query_engine_from_docs(
         A LlamaIndex query engine wrapped with reward/penalty logic.
     """
     # 1. Set up your custom embedding and LLM (use passed llm if provided)
-    embed_model = embed_model or HuggingFaceEmbedding(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
+    embed_model = embed_model or get_llamaindex_embedding_model()
     if llm is None:
         llm = Ollama(
             model="qwen3:1.7b", request_timeout=180.0

@@ -9,9 +9,9 @@ import math
 from datetime import datetime, timezone
 
 from langchain_neo4j import Neo4jVector
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 
+from utils.embedding_utils import get_langchain_embedding_model
 from utils.neo4j_cypher_utils import update_last_accessed
 from utils.relevance_scorer import RelevanceScorer
 from utils.summarizer import T5Summarizer
@@ -47,15 +47,15 @@ class GraphMemoryRetriever:
 
     def __init__(
         self,
-        embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         top_k: int = 5,
         scorer: Optional[RelevanceScorer] = None,
+        embedding: Optional[Any] = None,
         summarizer: Optional[T5Summarizer] = None,
     ):
         config = get_neo4j_config()
         self.scorer = scorer or RelevanceScorer()
         self.summarizer = summarizer or T5Summarizer()
-        self.embedding = HuggingFaceEmbeddings(model_name=embedding_model_name)
+        self.embedding = embedding or get_langchain_embedding_model()
         self.top_k = top_k
 
         self.vectorstore = Neo4jVector(

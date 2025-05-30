@@ -13,10 +13,12 @@ Usage:
 """
 
 from langchain_neo4j import Neo4jVector
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+
+from utils.embedding_utils import get_langchain_embedding_model
 from utils.neo4j_utils import get_neo4j_config
 from utils.logger import get_logger
+
 from neo4j import GraphDatabase
 
 import json
@@ -57,9 +59,7 @@ def load_to_neo4j(clauses: List[Dict[str, Any]]) -> None:
     """
     config = get_neo4j_config()
     clear_neo4j_database(config)
-    embedding = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )  # 384d, CPU-friendly
+    embedding = get_langchain_embedding_model()
 
     # pre docs for vector ingestion(nodes)
     docs = []
