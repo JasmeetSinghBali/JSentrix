@@ -105,8 +105,12 @@ class ToolInvokeRequest(BaseModel):
 
 @app.post("/tools/{tool_name}/invoke")
 async def invoke_tool(tool_name: str, req: ToolInvokeRequest, user: str = Depends(get_current_user)):
-    result = await mcp_client_call("call_tool", tool_name=tool_name, arguments=req.arguments)
-    return {"result": result}
+    try:
+        result = await mcp_client_call("call_tool", tool_name=tool_name, arguments=req.arguments)
+        return {"result": result}
+    except Exception as e:
+        print(f"Tool invocation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Tool invocation failed")
 
 if __name__ == "__main__":
     import uvicorn

@@ -111,3 +111,6 @@ class MemoryEvent(BaseModel):
     extra_context: Dict[str, Any] = Field(
         default_factory=dict, description="Any extra context or metadata"
     )
+    summary: Optional[str] = Field(
+        default=None, description="Summary of the memory event"
+    )

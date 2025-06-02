@@ -1,11 +1,12 @@
 """
 utils/neo4j_utils.py
 
-Neo4j configuration and driver pooling utilities.
+Neo4j configuration and driver pooling utilities with async support.
 """
 
 import os
-from typing import Dict
+import asyncio
+from typing import Dict, Optional
 
 from dotenv import load_dotenv
 
@@ -21,7 +22,7 @@ DEFAULT_NODE_LABEL = "ComplianceClause"
 DEFAULT_TEXT_PROPERTY = "text"
 DEFAULT_EMBEDDING_PROPERTY = "embedding"
 
-_neo4j_config = None
+_neo4j_config: Optional[Dict[str, str]] = None
 
 
 def get_env_var(key: str, default: str = None, required: bool = False) -> str:
@@ -55,10 +56,10 @@ def get_neo4j_config() -> Dict[str, str]:
     return _neo4j_config
 
 
-# --- for driver pooling ---
+# --- for Sync driver pooling ---
 from neo4j import GraphDatabase, Driver
 
-_neo4j_driver = None
+_neo4j_driver: Optional[Driver] = None
 
 
 def get_neo4j_driver() -> Driver:
@@ -76,9 +77,11 @@ def get_neo4j_driver() -> Driver:
 
         # Register shutdown callback for neo4j once
         def close_driver():
+            global _neo4j_driver
             if _neo4j_driver is not None:
                 logger.info("Closing Neo4j driver...")
                 _neo4j_driver.close()
+                _neo4j_driver = None
 
         register_shutdown_callback(close_driver)
     return _neo4j_driver
@@ -93,3 +96,60 @@ def close_neo4j_driver():
         logger.info("Explicitly closing Neo4j driver...")
         _neo4j_driver.close()
         _neo4j_driver = None
+
+
+# --- Async Driver Pooling ---
+try:
+    from neo4j import AsyncDriver, AsyncGraphDatabase
+except ImportError:
+    AsyncDriver = None
+    AsyncGraphDatabase = None
+
+# forward refferences "AsyncDriver" in case import error
+# reff: https://peps.python.org/pep-0484/#forward-references
+_neo4j_async_driver: Optional["AsyncDriver"] = None
+
+
+def get_async_neo4j_driver() -> "AsyncDriver":
+    """
+    Returns a singleton async Neo4j driver instance, initializing if necessary.
+    Registers a shutdown callback to close the driver on app exit.
+    """
+    global _neo4j_async_driver
+    if AsyncGraphDatabase is None:
+        raise ImportError(
+            "neo4j[async] is not installed. Please install the async extra."
+        )
+    if _neo4j_async_driver is None:
+        config = get_neo4j_config()
+        logger.debug("Initializing async Neo4j driver...")
+        _neo4j_async_driver = AsyncGraphDatabase.driver(
+            config["url"],
+            auth=(config["username"], config["password"]),
+            max_connection_pool_size=20,  # Tune as needed
+            connection_acquisition_timeout=30,
+        )
+
+        async def close_async_driver():
+            global _neo4j_async_driver
+            if _neo4j_async_driver is not None:
+                logger.info("Closing async Neo4j driver...")
+                try:
+                    await _neo4j_async_driver.close()
+                except Exception as e:
+                    logger.error(f"Error closing async driver: {str(e)}")
+                _neo4j_async_driver = None
+
+        register_shutdown_callback(close_async_driver)
+    return _neo4j_async_driver
+
+
+def close_async_neo4j_driver():
+    """
+    Explicitly closes the async Neo4j driver (for testing or script use).
+    """
+    global _neo4j_async_driver
+    if _neo4j_async_driver is not None:
+        logger.info("Explicitly closing async Neo4j driver...")
+        asyncio.run(_neo4j_async_driver.close())
+        _neo4j_async_driver = None

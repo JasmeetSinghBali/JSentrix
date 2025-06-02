@@ -2,7 +2,18 @@
 application/retrievers/langchain_retriever.py
 
 LangChain-compatible retriever using Neo4j vector store and custom scoring.
+
+Usage:
+    #sync
+    retriever = GraphMemoryRetriever()
+    results = retriever.get_relevant("query text", top_k=5)
+
+    #async
+    retriever = GraphMemoryRetriever()
+    results = await retriever.async_get_relevant("query text", top_k=5)
 """
+
+import asyncio
 
 from typing import Dict, List, Any, Optional
 import math
@@ -172,6 +183,28 @@ class GraphMemoryRetriever:
             logger.error(f"ERROR: {str(e)}")
             return []
 
+    async def async_get_relevant(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+        filter_metadata: Optional[Dict[str, Any]] = None,
+        apply_decay: bool = True,
+        rescore: bool = False,
+    ) -> List[Document]:
+        """
+        Async version of get_relevant. Runs the sync method in a thread pool to avoid blocking the event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            self.get_relevant,
+            query,
+            top_k,
+            filter_metadata,
+            apply_decay,
+            rescore,
+        )
+
     def add_memory(self, text: str, metadata: Optional[Dict[str, Any]] = None):
         """
         Adds {text and metadata} as a new Document to the vector store memory
@@ -194,11 +227,32 @@ class GraphMemoryRetriever:
         except Exception as e:
             logger.error(f"ERROR: {str(e)}")
 
+    async def async_add_memory(
+        self, text: str, metadata: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Async version of add_memory. Runs the sync method in a thread pool.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            self.add_memory,
+            text,
+            metadata,
+        )
+
     def get_all(self) -> List[Document]:
         try:
             return self.vectorstore.similarity_search("", k=1000)
         except Exception as e:
             logger.error(f"ERROR: {str(e)}")
+
+    async def async_get_all(self) -> List[Document]:
+        """
+        Async version of get_all. Runs the sync method in a thread pool.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.get_all)
 
     def get_filterable_fields(self) -> List[str]:
         """
@@ -231,6 +285,13 @@ class GraphMemoryRetriever:
         """
         results = run_cypher_query(query)
         return [r["value"] for r in results if r["value"] is not None]
+
+    async def async_get_unique_values_for_field(self, field: str) -> List[Any]:
+        """
+        Async version of get_unique_values_for_field. Runs the sync method in a thread pool.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.get_unique_values_for_field, field)
 
     def _apply_time_decay(
         self, score: float, last_accessed_at: str, decay_rate: float = 0.01

@@ -3,11 +3,26 @@ utils/summarizer.py
 
 Lightweight summarizer using T5-small for CPU-only environments.
 Handles long texts via chunking and recursive summarization.
+Supports both synchronous and asynchronous summarization for scalable pipelines.
+
+Usage:
+    #sync
+    summarizer = T5Summarizer()
+    summary = summarizer.summarize(long_text)
+
+    #async
+    summarizer = T5Summarizer()
+    summary = await summarizer.async_summarize(long_text)
+    # or for very long text:
+    summary = await summarizer.async_summarize_long_text(long_text)
+
+
 """
 
 from transformers import pipeline
 from typing import Optional, List
 from utils.logger import get_logger
+import asyncio
 
 logger = get_logger("jsentrix")
 
@@ -16,6 +31,7 @@ class T5Summarizer:
     """
     Lightweight summarizer using T5-small for CPU-only environments.
     Handles long texts via chunking and recursive summarization.
+    Supports both sync and async summarization.
     """
 
     def __init__(
@@ -41,12 +57,12 @@ class T5Summarizer:
 
     def summarize(self, text: str) -> Optional[str]:
         """
-        Summarizes the given text. Handles long texts via chunking and recursion.
+        Synchronously summarizes the given text.
+        Handles long texts via chunking and recursion.
         """
         try:
             if not text or not text.strip():
                 return None
-            # Handle long texts by chunking if needed
             if len(text) > self.max_input_length:
                 return self._summarize_long_text(text)
             result = self.summarizer(
@@ -76,4 +92,35 @@ class T5Summarizer:
         combined = " ".join(summaries)
         if len(combined) > self.max_input_length:
             return self.summarize(combined)  # Recursive summarization
+        return combined
+
+    async def async_summarize(self, text: str) -> Optional[str]:
+        """
+        Asynchronously summarizes the given text.
+        Runs the sync summarization in a thread pool to avoid blocking the event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.summarize, text)
+
+    async def async_summarize_long_text(self, text: str) -> Optional[str]:
+        """
+        Asynchronously handles long texts via chunking and recursive summarization.
+        Runs chunk summarization in a thread pool for each chunk.
+        """
+        if not text or not text.strip():
+            return None
+        if len(text) <= self.max_input_length:
+            return await self.async_summarize(text)
+
+        chunks = [
+            text[i : i + self.max_input_length]
+            for i in range(0, len(text), self.max_input_length)
+        ]
+        # Run chunk summarization concurrently
+        summaries = await asyncio.gather(
+            *(self.async_summarize(chunk) for chunk in chunks)
+        )
+        combined = " ".join(filter(None, summaries))
+        if len(combined) > self.max_input_length:
+            return await self.async_summarize(combined)  # Recursive
         return combined

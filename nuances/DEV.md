@@ -48,52 +48,17 @@ Electron app displays the result.
 
 > 💀 make sure to go through "devContentSecurityPolicy" in package.json and forge.config.ts and setup a/c to requirement and best practices based on use case
 
+```bash
+# 💫💫 asyncio resources
+https://docs.python.org/3/library/asyncio.html
+https://www.lambdatest.com/blog/python-asyncio/
+https://realpython.com/async-io-python/
+https://www.elastic.co/blog/async-patterns-building-python-service
+```
+
 >>>>>>>>>> from here
 
-- memory-aware querying diff branch
-```bash
-Memory-Aware Querying Setup: Step-by-Step Plan
-Step 1: Install and Connect Qdrant Python Client
-Install the qdrant-client Python package in your environment. ✅
-
-Step 2: Define Memory Event Schema ✅
-Design a Python class (e.g., MemoryEvent) that captures everything you want to persist:
-
-Prompt, LLM response, relevant clause IDs, scores, agent/user/session metadata, etc.
-
-Decide on the vector representation for each memory event (e.g., embedding of the prompt, response, or concatenated context).
-
-Step 3: Create a Qdrant Collection for Memory Events ✅
-Use the Qdrant client to create a collection dedicated to memory events.
-
-Set the vector size and distance metric according to your embedding model.
-
-Step 4: Store Memory Events in Qdrant ✅
-After each analysis/transaction, serialize and upsert the memory event (vector + metadata) into Qdrant.
-
-Step 5: Query Memory Events from Qdrant ✅
-For new transactions, query Qdrant for relevant past memory events using vector similarity and/or metadata filters.
-
-Inject retrieved memory into the agent/LLM context as needed.
-
-Step 6: (Optional) Build Audit and History Tools ✅
-Implement queries to reconstruct the history for a user/session/decision for audit, learning, or debugging.
-
-```
-
-- diff branch async setup using _async query from the rewarding wrapper and downstream pipeline including llm, neo4j, retrievers everything basically then write a mock test end to end after this async setup to make sure everything works
-```bash
-How Would This Look?
-define main transaction analysis function as async def.
-
-Use await for all LLM, database, and network calls that support async.
-
-Use async-compatible libraries for Neo4j (see ), HTTP/LLM calls, and any other I/O.
-
-agents (mock or Llama) would consume transactions from the stream and process them in parallel using asyncio.gather or similar
-```
-
-- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j local with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
+- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j and qdrant locally with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
 
 > ## CORE TRIAGE FLOW
 ```bash

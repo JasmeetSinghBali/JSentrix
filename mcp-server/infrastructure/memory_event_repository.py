@@ -4,12 +4,15 @@ infrastructure/memory_event_repository
 MemoryEventRepository
 
 Handles low-level Qdrant persistence for MemoryEvent domain objects.
-
+Supports both sync and async usage (async via thread pool, since qdrant client is synchronous blocking by default only)
 Usage:
     from infrastructure.memory_event_repository import MemoryEventRepository
     repo = MemoryEventRepository()
     repo.store(event, vector)
-    results = repo.query(query_vector, top_k=5, filters={"user_id": "alice"})
+    events, _ = repo.query(query_vector, top_k=5, filters={"user_id": "alice"})
+
+    # Async usage (in FastAPI etc.):
+    events, _ = await repo.async_query(query_vector, top_k=5, filters={"user_id": "alice"})
 """
 
 from typing import List, Optional, Dict, Any, Tuple
@@ -18,6 +21,7 @@ from domain.models import MemoryEvent
 from utils.qdrant_utils import get_qdrant_client
 from utils.embedding_utils import get_langchain_embedding_model
 from utils.logger import get_logger
+import asyncio
 
 logger = get_logger("jsentrix")
 
@@ -25,6 +29,11 @@ COLLECTION_NAME = "memory_events"
 
 
 class MemoryEventRepository:
+    """
+    Repository for storing and retrieving MemoryEvent objects in Qdrant.
+    Sync and async methods are provided (async uses thread pool).
+    """
+
     def __init__(
         self, vector_size: int = 384, host: str = "localhost", port: int = 6333
     ):
@@ -77,8 +86,8 @@ class MemoryEventRepository:
                 with_vectors=False,
             )
             points = response.points
-            logger.info(f"DEBUG: points type: {type(points)}")
-            logger.info(f"DEBUG: points value: {points}")
+            logger.info(f"DEBUG Qdrant query: points type: {type(points)}")
+            logger.info(f"DEBUG Qdrant query: points value: {points}")
             return [MemoryEvent.model_validate(hit.payload) for hit in points], None
         else:
             # reff: https://qdrant.tech/documentation/concepts/filtering/
@@ -98,6 +107,26 @@ class MemoryEventRepository:
             return [
                 MemoryEvent.model_validate(hit.payload) for hit in points
             ], next_offset
+
+    async def async_query(
+        self,
+        query_vector: Optional[List[float]] = None,
+        top_k: int = 5,
+        filters: Optional[Dict[str, Any]] = None,
+        offset: Optional[Any] = None,
+    ) -> Tuple[List[MemoryEvent], Optional[Any]]:
+        """
+        Async wrapper for query() using thread pool to avoid blocking event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            self.query,
+            query_vector,
+            top_k,
+            filters,
+            offset,
+        )
 
     def fetch_all_events_with_pagination(
         self,
@@ -144,3 +173,19 @@ class MemoryEventRepository:
 
         # Convert to MemoryEvent objects
         return [MemoryEvent.model_validate(point.payload) for point in all_points]
+
+    async def async_fetch_all_events_with_pagination(
+        self,
+        filters: Optional[Dict[str, Any]] = None,
+        batch_size: int = 100,
+    ) -> List[MemoryEvent]:
+        """
+        Async wrapper for fetch_all_events_with_pagination() using thread pool.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            self.fetch_all_events_with_pagination,
+            filters,
+            batch_size,
+        )
