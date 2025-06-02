@@ -63,13 +63,35 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
         logger.debug(f"Applying decay to nodes for query: {query_str}")
         return self._process_nodes(nodes)
 
+    async def _aprocess_nodes(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
+        """Full async processing when supported by scorer"""
+        processed = []
+        for node in nodes:
+            metadata = node.metadata.copy()
+
+            # Async score calculation
+            if hasattr(self._scorer, "ascore"):
+                metadata["decayed_score"] = await self._scorer.ascore(metadata)
+            else:
+                metadata["decayed_score"] = self._scorer.score(metadata)
+
+            node.score = metadata["decayed_score"]
+            node.metadata = metadata
+            processed.append(node)
+
+        return sorted(processed, key=lambda x: x.score, reverse=True)
+
     async def _apostprocess_nodes(
         self, nodes: List[NodeWithScore], query_bundle: Optional[QueryBundle] = None
     ) -> List[NodeWithScore]:
         """Async: Apply score decay and rerank nodes."""
         query_str = query_bundle.query_str if query_bundle else ""
         logger.debug(f"[Async] Applying decay to node for query: {query_str}")
-        # run this function in seprate thred
+
+        # If scorer has async capabilities, use them
+        if hasattr(self._scorer, "ascore"):
+            return await self._aprocess_nodes(nodes)
+        # Fallback to threadpool for sync scoring
         return await asyncio.to_thread(self._process_nodes, nodes)
 
 
