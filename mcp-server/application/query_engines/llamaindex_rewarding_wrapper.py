@@ -1,11 +1,11 @@
 """
 application/query_engines/llamaindex_rewarding_wrapper.py
 
-Wraps a LlamaIndex QueryEngine to apply reward/penalty to source nodes based on their
-usage in the final response.
+Async and sync wrapper for a LlamaIndex QueryEngine that rewards/penalizes source nodes
+based on their usage in the final response.
 """
 
-from typing import Any
+from typing import Any, List
 from difflib import SequenceMatcher
 
 from llama_index.core.schema import NodeWithScore
@@ -22,6 +22,8 @@ logger = get_logger(__name__)
 class RewardingQueryEngineWrapper(BaseQueryEngine):
     """
     Wraps a QueryEngine to reward/penalize nodes based on their contribution to the response.
+
+    Support both sync and async query flows, with retry logic
 
     Args:
         query_engine: Underlying query engine to wrap.
@@ -43,23 +45,47 @@ class RewardingQueryEngineWrapper(BaseQueryEngine):
         self._similarity_threshold = similarity_threshold
 
     def _is_node_used(self, node_text: str, response_text: str) -> bool:
-        """Checks if node text is sufficiently similar to response text."""
+        """
+        Checks if node text is sufficiently similar to response text.
+
+        Args:
+            node_text (str): Text from the source node.
+            response_text (str): Final response text.
+
+        Returns:
+            bool: True if node is considered "used" in the response.
+        """
         ratio = SequenceMatcher(None, node_text.lower(), response_text.lower()).ratio()
         return ratio >= self._similarity_threshold
 
     def _reward_nodes(
-        self, source_nodes: list[NodeWithScore], response_text: str
+        self, source_nodes: List[NodeWithScore], response_text: str
     ) -> None:
-        """Applies reward/penalty to nodes based on usage in response."""
+        """
+        Applies reward/penalty to nodes based on usage in response.
+        Args:
+            source_nodes (List[NodeWithScore]): Nodes to evaluate
+            response_text (str): The generated text
+        """
         for node in source_nodes:
             node_text = node.node.get_content()
             if self._is_node_used(node_text, response_text):
                 self._scorer.reward(node.metadata)
+                logger.debug(f"Rewarded node: {node.metadata}")
             else:
                 self._scorer.penalize(node.metadata)
+                logger.debug(f"Penalized node: {node.metadata}")
 
     def _query(self, query_str: str, **kwargs: Any) -> Response:
-        """Sync query with post-processing rewards."""
+        """
+        Sync query with post-processing rewards.
+
+        Args:
+            query_str(str): The input query string
+
+        Returns:
+            Response: The qury engine response
+        """
         logger.debug(
             "Running wrapped query engine(sync) with post-reward/penalty logic"
         )
@@ -69,7 +95,15 @@ class RewardingQueryEngineWrapper(BaseQueryEngine):
         return response
 
     async def _aquery(self, query_str: str, **kwargs: Any) -> Response:
-        """Async query with post-processing rewards."""
+        """
+        Asynchronous query with post-processing rewards.
+
+        Args:
+            query_str (str): The input query string.
+
+        Returns:
+            Response: The query engine response.
+        """
         logger.debug(
             "Running wrapped query engine(async) with post-reward/penalty logic"
         )
