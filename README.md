@@ -54,11 +54,12 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~       |
 | 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                                                                                 |
 | 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
-| 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                   |
-| 6    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
-| 7    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
-| 8    | Add A2A workflow (investigation, notification, action)                                            |
-| 9    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
+| 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
+| 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
+| 7    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
+| 8    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
+| 9    | Add A2A workflow (investigation, notification, action)                                            |
+| 10    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
 
 ---
 

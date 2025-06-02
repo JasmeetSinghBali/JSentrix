@@ -100,7 +100,7 @@ def close_neo4j_driver():
 
 # --- Async Driver Pooling ---
 try:
-    from neo4j.async_driver import AsyncDriver, AsyncGraphDatabase
+    from neo4j import AsyncDriver, AsyncGraphDatabase
 except ImportError:
     AsyncDriver = None
     AsyncGraphDatabase = None

@@ -21,6 +21,7 @@ import math
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
+import threading
 
 from neo4j import AsyncDriver, Driver
 from neo4j.exceptions import Neo4jError
@@ -65,6 +66,33 @@ class RelevanceScorer:
         self.sync_driver = sync_driver or get_neo4j_driver()
         self.async_driver = async_driver or get_async_neo4j_driver()
 
+    async def _apersist_metadata(self, metadata: Dict[str, Any]) -> None:
+        """
+        Persists updated score and access timestamp back to Neo4j.
+        Core async persistance with connection pooling and retries
+        """
+        if not (clause_id := metadata.get("clause_id")):
+            logger.error("Missing clause_id. Skipping Neo4j update.")
+            return
+
+        label = self.neo4j_config["node_label"]
+        query = f"""
+        MATCH (n:{label} {{clause_id: $clause_id}})
+        SET n.score = $score, n.last_accessed_at = $last_accessed_at
+        """
+        params = {
+            "clause_id": clause_id,
+            "score": metadata["score"],
+            "last_accessed_at": metadata.get("last_accessed_at"),
+        }
+
+        try:
+            async with self.async_driver.session() as session:
+                await session.execute_write(lambda tx: tx.run(query, params))
+            logger.debug(f"Updated clause {clause_id} scores in Neo4j.")
+        except Neo4jError as e:
+            logger.error(f"Neo4j persistance failed: {e.message}")
+
     def score(self, metadata: Dict[str, Any]) -> float:
         """
         Computes the final decayed relevance score for a document (pure function no I/O)
@@ -107,10 +135,29 @@ class RelevanceScorer:
         metadata["last_accessed_at"] = datetime.now(timezone.utc).isoformat()
         await self._apersist_metadata(metadata)
 
+    def _run_async_persist_in_thread(self, metadata: Dict[str, Any]):
+        asyncio.run(self._apersist_metadata(metadata))
+
+    def _fire_and_forget_async_persist(self, metadata: Dict[str, Any]):
+        """
+        Schedules async persistence in the correct context.
+        - If in an async context, uses asyncio.create_task.
+        - If in a sync context, starts a background thread with its own event loop.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            # If this succeeds, we're in an async context
+            loop.create_task(self._apersist_metadata(metadata))
+        except RuntimeError:
+            # No running event loop; run in a background thread with its own event loop
+            threading.Thread(
+                target=self._run_async_persist_in_thread, args=(metadata,), daemon=True
+            ).start()
+
     def reward(self, metadata: Dict[str, Any]) -> None:
         """
         Rewards a document by increasing its score and updating access time.
-        with fire-and-forget async persistance
+        with fire-and-forget async persistance (never blocking sync code)
         """
         score = metadata.get("score", self.base_score)
         score = min(score + self.reward_amount, 1.0)
@@ -119,7 +166,7 @@ class RelevanceScorer:
         logger.debug(
             f"Document {metadata.get('clause_id')} rewarded. New score: {score}"
         )
-        asyncio.create_task(self._apersist_metadata(metadata))
+        self._fire_and_forget_async_persist(metadata)
 
     async def apenalize(self, metadata: Dict[str, Any]) -> None:
         """
@@ -144,34 +191,7 @@ class RelevanceScorer:
         logger.debug(
             f"Document {metadata.get('clause_id')} penalized. New score: {score}"
         )
-        asyncio.create_task(self._apersist_metadata(metadata))
-
-    async def _apersist_metadata(self, metadata: Dict[str, Any]) -> None:
-        """
-        Persists updated score and access timestamp back to Neo4j.
-        Core async persistance with connection pooling and retries
-        """
-        if not (clause_id := metadata.get("clause_id")):
-            logger.error("Missing clause_id. Skipping Neo4j update.")
-            return
-
-        query = """
-        MATCH (n:$label {clause_id: $clause_id})
-        SET n.score = $score, n.last_accessed_at = $last_accessed_at
-        """
-        params = {
-            "label": self.neo4j_config["node_label"],
-            "clause_id": clause_id,
-            "score": metadata["score"],
-            "last_accessed_at": metadata.get("last_accessed_at"),
-        }
-
-        try:
-            async with self.async_driver.session() as session:
-                await session.execute_write(lambda tx: tx.run(query, params))
-            logger.debug(f"Updated clause {clause_id} scores in Neo4j.")
-        except Neo4jError as e:
-            logger.error(f"Neo4j persistance failed: {e.message}")
+        self._fire_and_forget_async_persist(metadata)
 
     def __enter__(self):
         return self

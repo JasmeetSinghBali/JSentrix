@@ -12,6 +12,7 @@
 # Inspecting detailed step-by-step flow, variable values, and all debug logs
 # Verifying scoring, decay, reranking, caching
 import pytest
+import asyncio
 from faker import Faker
 from utils.logger import get_logger
 
@@ -22,6 +23,7 @@ from application.retrievers.llamaindex_retriever import (
 )
 from llama_index.core.schema import Document
 from utils.neo4j_utils import get_neo4j_config
+from utils.summarizer import T5Summarizer
 
 from domain.models import MemoryEvent
 from infrastructure.memory_event_repository import MemoryEventRepository
@@ -67,6 +69,7 @@ def build_compliance_query(transaction):
 
 
 # test-core-1: Rag pipeline
+# pytest ./tests/test_jsentrix_core.py -v -s -k test_jsentrix_rag_pipeline
 def test_jsentrix_rag_pipeline(langchain_retriever, faker):
     logger.info("Neo4j config (should cache): %s", get_neo4j_config())
 
@@ -262,7 +265,7 @@ def test_memory_aware_triage_flow(
 
     # 3. Retrieve relevant memories using vector + metadata
     query_vector = embedding_model.embed_query(new_prompt)
-    relevant_memories, _ = memory_event_retriever.get_events(
+    relevant_memories = memory_event_retriever.get_events(
         query_vector=query_vector,
         filters={
             "user_id": "audit_user_1"
@@ -321,3 +324,129 @@ def test_memory_aware_triage_flow(
     assert any(
         "BANK_A" in prompt for prompt in prompts
     ), "Low-risk event missing in all-events fetch"
+
+
+# test-core 3
+# Run only the new memory-aware test_core_3_async_end_to_end triage flow
+# pytest ./tests/test_jsentrix_core.py -v -s -k test_core_3_async_end_to_end
+@pytest.mark.asyncio
+async def test_core_3_async_end_to_end(
+    langchain_retriever,
+    memory_event_repository,
+    memory_event_retriever,
+    embedding_model,
+    faker,
+):
+    """
+    End-to-end async test: memory event storage, retrieval, summarizer, and hybrid retrieval pipeline.
+    Uses unique mock values to ensure independence from other tests.
+    """
+    logger.info("\n === [ASYNC] End-to-End Async Pipeline Test ===")
+
+    # 1. Store mock memory events asynchronously (distinct from other tests)
+    summarizer = T5Summarizer()
+    mock_events = [
+        {
+            "prompt": "Async compliance audit for SGD transfer from ASYNC_CORP_42 to SG00ASYNC555888777",
+            "llm_response": "YES - Async anomaly detected.",
+            "scores": {"risk_score": 0.93},
+            "user_id": "async_unique_user_42",
+        },
+        {
+            "prompt": "Async compliance audit for JPY transfer from ASYNC_BANK_Z to ASYNC_BANK_Y",
+            "llm_response": "NO - All clear.",
+            "scores": {"risk_score": 0.18},
+            "user_id": "async_unique_user_99",
+        },
+    ]
+
+    for event_data in mock_events:
+        event = MemoryEvent(
+            agent_name="AsyncUniqueAgent",
+            prompt=event_data["prompt"],
+            llm_response=event_data["llm_response"],
+            scores=event_data["scores"],
+            user_id=event_data["user_id"],
+        )
+        summary = await summarizer.async_summarize(event.prompt)
+        event.summary = summary
+        vector = await asyncio.get_running_loop().run_in_executor(
+            None, embedding_model.embed_query, event.prompt
+        )
+        await asyncio.get_running_loop().run_in_executor(
+            None, memory_event_repository.store, event, vector
+        )
+
+    # 2. Simulate a new transaction with unique values
+    new_transaction = {
+        "amount": "¥2,000,000",
+        "sender": "ASYNC_CORP_42",
+        "receiver": "SG00ASYNC555888777",
+        "currency": "SGD",
+        "timestamp": "2025-06-02T09:00:00",
+    }
+    new_prompt = f"Async compliance audit for {new_transaction['currency']} transfer from {new_transaction['sender']} to {new_transaction['receiver']}"
+
+    # 3. Retrieve relevant memories using vector + metadata (async)
+    query_vector = await asyncio.get_running_loop().run_in_executor(
+        None, embedding_model.embed_query, new_prompt
+    )
+    relevant_memories = await memory_event_retriever.async_get_events(
+        query_vector=query_vector,
+        filters={"user_id": "async_unique_user_42"},
+        top_k=2,
+    )
+
+    logger.info(
+        f"\n[ASYNC Memory-Aware Triage] Retrieved {len(relevant_memories)} memories:"
+    )
+    for memory in relevant_memories:
+        logger.info(f"📝 Memory: {memory.prompt} | Risk: {memory.scores['risk_score']}")
+
+    assert len(relevant_memories) > 0, "No memories retrieved"
+    assert any(
+        "ASYNC_CORP_42" in memory.prompt and memory.scores["risk_score"] > 0.9
+        for memory in relevant_memories
+    ), "High-risk async memory not retrieved"
+
+    # 4. Simulate injecting memories into LLM context (async summarizer)
+    logger.info("\n[ASYNC Simulated LLM Context Injection]")
+    context = "\n".join(
+        [f"Past decision: {memory.llm_response}" for memory in relevant_memories]
+    )
+    logger.info(f"Context:\n{context}")
+    assert "YES" in context, "High-risk context not injected"
+
+    # 5. Fetch all events for the user using async pagination and assert correctness
+    all_events = await memory_event_repository.async_fetch_all_events_with_pagination(
+        filters={"user_id": "async_unique_user_42"}, batch_size=10
+    )
+    logger.info(
+        f"\n[ASYNC Pagination Fetch] Retrieved {len(all_events)} events for user 'async_unique_user_42'"
+    )
+    assert (
+        len(all_events) >= 1
+    ), "No events found for user 'async_unique_user_42' with async pagination fetch"
+    assert any(
+        "ASYNC_CORP_42" in event.prompt and event.scores["risk_score"] > 0.9
+        for event in all_events
+    ), "High-risk async event not found in paginated fetch"
+
+    # 6. Fetch all events for all users (no filter) and assert both events are present
+    all_events_unfiltered = (
+        await memory_event_repository.async_fetch_all_events_with_pagination(
+            filters=None, batch_size=10
+        )
+    )
+    logger.info(
+        f"\n[ASYNC Pagination Fetch] Retrieved {len(all_events_unfiltered)} events (unfiltered)"
+    )
+    prompts = [event.prompt for event in all_events_unfiltered]
+    assert any(
+        "ASYNC_CORP_42" in prompt for prompt in prompts
+    ), "High-risk async event missing in all-events fetch"
+    assert any(
+        "ASYNC_BANK_Z" in prompt for prompt in prompts
+    ), "Low-risk async event missing in all-events fetch"
+
+    logger.info("=== [ASYNC] End-to-End Async Pipeline Test PASSED ===\n")
