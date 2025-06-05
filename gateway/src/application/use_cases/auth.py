@@ -64,3 +64,12 @@ async def create_first_superuser(db: AsyncSession, settings):
         )
         db.add(db_user)
         await db.commit()
+
+
+async def ensure_first_superuser(db, settings):
+    result = await db.execute(
+        select(User).where(User.email == settings.FIRST_SUPERUSER_EMAIL)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        await create_first_superuser(db, settings)

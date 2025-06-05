@@ -9,10 +9,12 @@ authors = [
     { name = "JasmeetSinghBali", email = "jasmeetbali.dev.2021@gmail.com" }
 ]
 dependencies = [
+    "alembic>=1.16.1",
     "asyncpg>=0.30.0",
     "bcrypt>=4.3.0",
     "fastapi[standard]>=0.115.12",
     "mcp>=1.8.1",
+    "psycopg2-binary>=2.9.10",
     "pyjwt>=2.10.1",
     "sqlalchemy>=2.0.41",
 ]

@@ -46,5 +46,15 @@ gateway/
 ├── .env                       # Environment variables
 ├── pyproject.toml
 
+# to check dockerized postgres is up
+docker exec postgresjsentrix pg_isready
+# shud output accepting connections
+
+# interactive shell with postgres docker container
+docker exec -it postgresjsentrix psql -U postgres -d jsentrixdb
+\dt
+\l
+\q
+
 
 ```

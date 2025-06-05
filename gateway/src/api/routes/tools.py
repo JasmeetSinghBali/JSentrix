@@ -53,18 +53,3 @@ async def invoke_tool(
                 detail=f"Tool invocation failed: {resp.text}",
             )
         return resp.json()
-
-
-@router.get("/test_mcp")
-async def test_mcp():
-    """
-    Test connection to MCP server's /list_tools endpoint.
-    """
-    mcp_url = f"{MCP_SERVER_URL}/list_tools"
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(mcp_url)
-        try:
-            data = resp.json()
-        except Exception:
-            data = resp.text
-        return {"status": resp.status_code, "response": data}

@@ -2,8 +2,8 @@ services:
   neo4j:
     image: neo4j:2025.04.0
     container_name: neo4jsentrix
-    environment:
-      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+    env_file:
+      - ./mcp-server/.env
     ports:
       - "7474:7474" #http browser
       - "7687:7687" #bolt
@@ -27,5 +27,20 @@ services:
       resources:
         limits:
           memory: 2G  # Qdrant limited to 2GB RAM
+  postgres:
+    image: postgres:16
+    container_name: postgresjsentrix
+    env_file:
+      - ./gateway/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above
   neo4j_data:
+  pg_data:

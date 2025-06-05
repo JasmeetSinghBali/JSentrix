@@ -18,7 +18,7 @@ from infrastructure.database.models import Base
 from application.services.logger import logger
 from api.routes import auth, tools
 from core.config.settings import settings
-from application.use_cases.auth import create_first_superuser
+from application.use_cases.auth import ensure_first_superuser
 import httpx
 import os
 
@@ -52,14 +52,13 @@ async def lifespan(app: FastAPI):
     Application startup and shutdown logic.
     """
     logger.info("Initializing database...")
-    # 🎈 uncomment when db(postgres) connected
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-    # # Create first superuser if not exists
-    # async for db in get_db():
-    #     await create_first_superuser(db, settings)
-    #     break
+    # Create first superuser if not exists
+    async for db in get_db():
+        await ensure_first_superuser(db, settings)
+        break
 
     mcp_process = None
     if args.mcp_mode == "subprocess":
