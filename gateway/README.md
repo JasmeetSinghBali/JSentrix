@@ -12,23 +12,39 @@ uv run ./main.py
 
 # polished gateway
 gateway/
-├── main.py               # App entrypoint
-├── config.py             # Config & env vars
-├── database.py           # DB connection & setup
-├── models.py             # SQLAlchemy & Pydantic models
-├── schemas.py            # Pydantic request/response models
-├── auth.py               # Auth utils, JWT, RBAC
-├── dependencies.py       # Custom FastAPI dependencies
-├── api/
-│   ├── __init__.py
-│   ├── routes_auth.py    # /token, /onboard
-│   └── routes_tools.py   # /listtools, /tools/{tool_name}/invoke
-├── utils/
-│   ├── __init__.py
-│   └── security.py       # Password hashing, etc.
-├── .env                  # Secrets (excluded from git)
-└── README.md
-
+├── src/
+│   ├── core/                  # Domain layer (pure Python)
+│   │   ├── config/            # Configuration models
+│   │   │   └── settings.py
+│   │   └── models/            # Pydantic models
+│   │       └── user.py
+│   │
+│   ├── infrastructure/        # External implementations
+│   │   ├── database/          # DB connections
+│   │   │   ├── session.py
+│   │   │   └── models.py      # SQLAlchemy models
+│   │   ├── auth/              # Auth implementations
+│   │   │   ├── jwt.py
+│   │   │   └── security.py
+│   │
+│   ├── application/           # Use cases & services
+│   │   ├── use_cases/
+│   │   │   ├── auth.py
+│   │   └── services/          # Internal services
+│   │       └── logger.py
+│   │
+│   ├── api/                   # Presentation layer
+│   │   ├── dependencies.py
+│   │   ├── routes/
+│   │   │   ├── auth.py
+│   │   │   └── tools.py
+|   |   |   └── dashboard.py
+│   │
+│   └── main.py                # App initialization
+│
+├── tests/                     # Test suite
+├── .env                       # Environment variables
+├── pyproject.toml
 
 
 ```
