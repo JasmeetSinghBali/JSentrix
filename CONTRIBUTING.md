@@ -57,8 +57,10 @@ Please DO NOT use pip ,conda or poetry to install the dependencies. Instead, use
 To ensure our standards, make sure to install pre-commit reff: [here](https://pre-commit.com/#install) before starting to contribute.
 
 ```bash
-# navigate to mcp-server or gateway
-uv --cache-dir ./pathtoloca/uv_cache add "pre-commit"
+# navigate to Jsentrix
+python -m venv .venv
+# activate
+pip install pre-commit
 pre-commit install
 pre-commit run --all-files
 ```

@@ -17,10 +17,13 @@ SECRET_KEY = "super-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup: launch mcp server event
-    mcp_server_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py"))
+    mcp_server_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py")
+    )
     print(f"[gateway] Starting MCP server: {mcp_server_path}")
     mcp_process = subprocess.Popen([sys.executable, mcp_server_path])
     print(f"[gateway] MCP server started with PID {mcp_process.pid}")
@@ -38,6 +41,7 @@ async def lifespan(app: FastAPI):
         mcp_process.kill()
         print("[gateway] MCP server killed")
 
+
 # https://fastapi.tiangolo.com/advanced/events/#lifespan
 app = FastAPI(lifespan=lifespan)
 mcp_process = None  # Global reference to the MCP subprocess
@@ -54,11 +58,13 @@ app.add_middleware(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 fake_user = {"username": "admin", "password": "secret"}
 
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
@@ -73,16 +79,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    if form_data.username == fake_user["username"] and form_data.password == fake_user["password"]:
+    if (
+        form_data.username == fake_user["username"]
+        and form_data.password == fake_user["password"]
+    ):
         token = create_access_token({"sub": form_data.username})
         return {"access_token": token, "token_type": "bearer"}
     raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-async def mcp_client_call(call_type: str, tool_name: str = None, arguments: dict = None):
+
+async def mcp_client_call(
+    call_type: str, tool_name: str = None, arguments: dict = None
+):
     # Use the same path as above for the MCP server subprocess
     server_params = StdioServerParameters(
         command=sys.executable,
-        args=[os.path.abspath(os.path.join(os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py"))],
+        args=[
+            os.path.abspath(
+                os.path.join(
+                    os.path.dirname(__file__), "../mcp-server/interface/mcp_server.py"
+                )
+            )
+        ],
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -96,22 +114,31 @@ async def mcp_client_call(call_type: str, tool_name: str = None, arguments: dict
             else:
                 raise ValueError("Unknown call_type")
 
+
 @app.get("/listtools")
 async def list_tools(user: str = Depends(get_current_user)):
     return {"tools": await mcp_client_call("list_tools")}
 
+
 class ToolInvokeRequest(BaseModel):
     arguments: dict = {}
 
+
 @app.post("/tools/{tool_name}/invoke")
-async def invoke_tool(tool_name: str, req: ToolInvokeRequest, user: str = Depends(get_current_user)):
+async def invoke_tool(
+    tool_name: str, req: ToolInvokeRequest, user: str = Depends(get_current_user)
+):
     try:
-        result = await mcp_client_call("call_tool", tool_name=tool_name, arguments=req.arguments)
+        result = await mcp_client_call(
+            "call_tool", tool_name=tool_name, arguments=req.arguments
+        )
         return {"result": result}
     except Exception as e:
         print(f"Tool invocation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Tool invocation failed")
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8080)

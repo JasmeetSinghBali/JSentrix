@@ -57,7 +57,7 @@ https://www.elastic.co/blog/async-patterns-building-python-service
 ```
 
 >>>>>>>>>> from here
-
+ tools routes and RBAC implementation
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j and qdrant locally with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
 
 > ## CORE TRIAGE FLOW
