@@ -37,6 +37,7 @@ def ping() -> str:
 
 @mcp.tool()
 def add(a: int, b: int) -> int:
+    """Add two number simple tool"""
     return a + b
 
 
@@ -116,11 +117,17 @@ async def invoke_tool(tool_name: str, req: ToolInvokeRequest):
     """
     Invoke a registered tool by name.
     """
-    tool = mcp.tools_map.get(tool_name)
+    print(dir(mcp._tool_manager))
+    print(mcp._tool_manager.__dict__)
+    tools = await mcp.list_tools()
+    tool = next((t for t in tools if t.name == tool_name), None)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
+    tool_obj = mcp._tool_manager._tools[tool_name]
+    # the actual callable tool Python func
+    tool_func = tool_obj.fn
     try:
-        result = tool(**req.arguments)
+        result = tool_func(**req.arguments)
         if inspect.iscoroutine(result):
             result = await result
         return {"result": result}
@@ -143,7 +150,7 @@ if __name__ == "__main__":
         "--http", action="store_true", help="Run as HTTP server (FastAPI)"
     )
     parser.add_argument("--host", type=str, default="0.0.0.0", help="HTTP host")
-    parser.add_argument("--port", type=int, default=9000, help="HTTP port")
+    parser.add_argument("--port", type=int, default=9001, help="HTTP port")
     args = parser.parse_args()
 
     if args.http:

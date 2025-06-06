@@ -58,9 +58,9 @@ https://www.elastic.co/blog/async-patterns-building-python-service
 
 >>>>>>>>>> from here
 
-dockerize gateway and mcp server and check electron-gateway-mcp_server works
-sphinix doc setup
-- diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j and qdrant locally with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.
+make sure to add final instr in core readme about starting gateway, mcp-server and electron mcp client for e2e interaction
+sphinix doc setup shud pick up all doc string for auto doc of the codebase files basically all .py files
+
 
 > ## CORE TRIAGE FLOW
 ```bash
