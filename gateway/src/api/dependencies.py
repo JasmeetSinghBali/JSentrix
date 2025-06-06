@@ -68,3 +68,20 @@ def require_roles(*roles):
         return current_user
 
     return _require_roles
+
+
+async def get_active_user_by_email(
+    email: str, db: AsyncSession = Depends(get_db)
+) -> User:
+    """
+    Get an active user by email from the database.
+    Raises 401 if user not found or inactive.
+    """
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalars().first()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
+    return user
