@@ -57,8 +57,12 @@ https://www.elastic.co/blog/async-patterns-building-python-service
 ```
 
 >>>>>>>>>> from here
-setup postgres and check auth flow end to end
-a tests/test_gateway_mcp_server_comm.py
+
+refresh token setup
+
+a tests/test_gateway_mcp_server_comm.py with both test user and superadmin /me, /listtools and refresh token
+for all cases successfull authenticated and non-authenticated request
+
 dockerize gateway and mcp server and check electron-gateway-mcp_server works
 sphinix doc setup
 - diff-brnch polish gateway main.py maybe segregate into different files and folders and python-dotenv setup for storing the jwt secret and setup dockerizing gateway to run gateway and mcp-server along with neo4j and qdrant locally with single docker-compose up be carefull so that the mcp-client electron can still interact with mcp-server via gateway.

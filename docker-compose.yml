@@ -13,7 +13,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1G
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrantjsentrix
@@ -26,7 +26,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G  # Qdrant limited to 2GB RAM
+          memory: 1G  # Qdrant limited to 1GB RAM
   postgres:
     image: postgres:16
     container_name: postgresjsentrix

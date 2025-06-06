@@ -56,5 +56,8 @@ docker exec -it postgresjsentrix psql -U postgres -d jsentrixdb
 \l
 \q
 
+# openapi specification swagger docs at
+http://localhost:8080/docs
+
 
 ```

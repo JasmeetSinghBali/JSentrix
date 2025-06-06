@@ -16,7 +16,9 @@ MCP_SERVER_URL = f"http://{settings.MCP_SERVER_HOST}:{settings.MCP_SERVER_PORT}"
 
 
 @router.get("/listtools")
-async def list_tools(current_user: UserInDB = Depends(require_roles("superadmin"))):
+async def list_tools(
+    current_user: UserInDB = Depends(require_roles("superadmin", "superuser", "admin"))
+):
     """
     List available tools (protected superadmin only)
     """
@@ -39,7 +41,7 @@ class ToolInvokeRequest(TypedDict, total=False):
 async def invoke_tool(
     tool_name: str,
     req: ToolInvokeRequest,
-    current_user: UserInDB = Depends(require_roles("superadmin")),
+    current_user: UserInDB = Depends(require_roles("superadmin", "superuser", "admin")),
 ):
     """
     Invoke a tool (protected superadmin only)
