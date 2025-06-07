@@ -56,140 +56,6 @@ https://realpython.com/async-io-python/
 https://www.elastic.co/blog/async-patterns-building-python-service
 ```
 
->>>>>>>>>> from here
-
-make sure to add final instr in core readme about starting gateway, mcp-server and electron mcp client for e2e interaction
-sphinix doc setup shud pick up all doc string for auto doc of the codebase files basically all .py files
-
-
-> ## CORE TRIAGE FLOW
-```bash
-End-to-End Triage Flow (Bird’s-Eye View)
-1. Intake & Preprocessing (Intake Agent)
-Role: Ingest transactions from the Electron app (real-time or batch).
-
-Responsibilities:
-
-Validate and enrich transactions with metadata (user, risk settings, timestamps).
-
-Optionally, attach prior memory events from Qdrant for context.
-
-Pass enriched transactions to the Assessment Agent.
-
-2. Assessment & Prioritization (LangChain Agent)
-Role: Score and prioritize transactions for analysis.
-
-Responsibilities:
-
-Integrate multiple data sources (Qdrant for memory, Neo4j for graph context).
-
-Score each transaction using user risk levels, business rules, and historical memory.
-
-Apply dynamic scoring, decay, and sorting.
-
-Select and forward only high-priority transactions to the Action Agent.
-
-3. Analysis/Action (LlamaIndex Agent)
-Role: Deep analysis and compliance/risk assessment via LLM.
-
-Responsibilities:
-
-Retrieve relevant clauses/facts (RAG) for each prioritized transaction.
-
-Inject dynamic metadata (scores, decay, summaries, clause IDs).
-
-Run LLM for compliance/risk analysis.
-
-Postprocess results, attaching all relevant metadata.
-
-4. Notification & Reporting
-Role: Communicate results to users.
-
-Responsibilities:
-
-Notify users (via Electron app, email, etc.) only for high-risk or violated transactions.
-
-Stream results and metadata for user review.
-
-5. Memory Event Storage (Dedicated Agent/Service)
-Role: Persist analysis outcomes as memory events in Qdrant.
-
-Responsibilities:
-
-After each LLM analysis, construct a MemoryEvent (prompt, response, scores, user/session info, etc.).
-
-Generate embedding vector for the event.
-
-Offload the storage task to a dedicated Memory Event Agent/Service to ensure non-blocking, scalable operation.
-
-Store (vector + metadata) in Qdrant for future retrieval.
-
-6. Audit, Feedback, Self-Improvement (Optional)
-Role: Enable querying and analysis of memory events for audit, learning, and continuous improvement.
-
-Responsibilities:
-
-Provide tools for reconstructing user/session/decision history.
-
-Support compliance audits, feedback loops, and model retraining or tuning.
-
-🟢 Key Insights
-First Run:
-No memory events exist. After LLM analysis, events are created and stored.
-
-Subsequent Runs:
-New transactions can leverage prior memory events for context-aware triage and scoring.
-
-Memory Event Storage:
-Offloading to a dedicated agent/service is a best practice for scalability and reliability, ensuring the main analysis flow is not blocked by I/O or DB operations.
-
-Audit/History:
-All memory events are queryable for audit, debugging, and learning—enabling a transparent, explainable triage system.
-
-Electron App
-    │
-    ▼
-[Intake Agent]
-    │
-    ▼
-[Assessment Agent (LangChain)]
-    │
-    ▼
-[Action/Analysis Agent (LlamaIndex)]
-    │
-    ├─────────────► [Notification/Reporting]
-    │
-    ▼
-[Memory Event Storage Agent/Service]
-    │
-    ▼
-[Qdrant Vector DB]
-    │
-    ▼
-[Audit/History/Feedback Tools]
-
-```
-- diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system.
-example-agents fraud detection agent, investigation agent, notification agent, action agent extends these base class to initialize and setup agents in a custom way.
-```bash
-Agent	                     Responsibilities	                                          Suggested Agent Type
-Fraud Detection	Scans incoming transactions using embeddings, rules, or heuristics	🧠 LlamaIndexAgent (for graph/vector querying)
-Investigation	   Explores relationships, historical links, clause violations	         🧠 LlamaIndexAgent (Neo4j graph queries + context-aware)
-Notification	   Sends alerts based on triggers from above agents	                  🔗 LangChainAgent (Tooling + APIs + Webhooks)
-Action Agent	   Takes follow-up actions (e.g., block account, trigger audit)	      🔗 LangChainAgent (Multi-tool + Autonomous capability)
-```
-
-- diff-branch add and setup new "streaminges" and "abortinges" tool for the mcp-server these tools can be invoked by mcp-client by clicking a button in electron app. 
-streaminges when invoked should send out notification to the (basic setup for now) minimal agent setup of Langchain Agent i.e fraud detection agent that on recieving this notification starts intaking a mock stream of transactions generated via https://github.com/joke2k/faker (a callable function that mocks transaction streams) for now.  
-
-- diff branch polish frauddetectionagent now this agent will analyzes the stream of transactions in real time continuously by embedding them with all-MiniLM-L6-v2 and doing a similarity search or RAG against the stored compliance rules and clauses from neo4j 
-**If fraud is suspected i.e a similar clause match with particular transaction condition met then:**
-   - **A2A workflow:**  
-     - Investigation agent gathers more context (looking into mem0 history) uses retreived data from fraud detection agent to qwen3 1.7B model runnning locally to return a analyzed report for that transaction.
-     - Notification agent drafts alert or send alerts to electron app with analyzed report to mcp client via gateway fastapi.
-     - Action agent autonomously performs freeze(freeze funds or transaction)/escalation(to human) actions.
- 
-
 > ## 🕊️ Streaming, MCP server tool invocation and FDA Agent Flow
 ```bash
 MCP Client      MCP Server        Notification System       Agent
@@ -516,3 +382,120 @@ https://docs.llamaindex.ai/en/stable/api_reference/llms/openai_like/
 https://docs.llamaindex.ai/en/stable/examples/index_structs/knowledge_graph/Neo4jKGIndexDemo/
 
 ```
+
+
+> ## Core Triage Flow e2e
+>>>>>>>>>> from here
+
+sphinix doc setup shud pick up all doc string for auto doc of the codebase files basically all .py files
+
+💫💫💫💫🎯🎯🎯🎯
+- diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system keeping the below 💡flow in mind.
+💡flow
+- first setup new tool streaminges and abortinges that can be invoked by the electron app by auditors type user
+- when streaminges is clicked in electron app the tool gets invoked via gateway inside mcp-server 
+- Then Triage Flow kicks inside of mcp-server 
+
+```bash
+1. Intake agent that will consume mock https://github.com/joke2k/faker (a callable function that mocks transaction streams) in future these mock transaction can be replaced by realtime batch transactions from external service or electron app itself so the intake agent shud be setup accordingly.
+
+Responsibilities of Intake agent:
+
+Validate and enrich transactions with metadata (user, risk settings, timestamps).
+
+attach prior memory events from Qdrant for context.
+
+Pass enriched transactions to the Assessment Agent.
+
+2. Assessment & Prioritization (LangChain Agent)
+Role: Score and prioritize transactions for analysis.
+
+Responsibilities:
+
+prior Memory events from Intake agent and multiple data sources (Neo4j for graph context).
+
+Score each transaction using user risk levels, business rules, and historical memory.
+
+Apply dynamic scoring, decay, and sorting.
+
+Select and forward only high-priority transactions to the Action Agent.
+
+3. Analysis/Action (LlamaIndex Agent)
+Role: Deep analysis and compliance/risk assessment via LLM.
+
+Responsibilities:
+
+Retrieve relevant clauses/facts (RAG) for each prioritized transaction.
+
+Inject dynamic metadata (scores, decay, summaries, clause IDs).
+
+Run LLM for compliance/risk analysis.
+
+Postprocess results, attaching all relevant metadata.
+
+Passing the results and attached all relevant metadata to memory event storage
+
+and Finally Pushing the result with attached relevant metadata into kafka topic and for voilating transactions immediately send it to golang fiber microservice notification and streaming service
+
+4. Memory Event Storage (Dedicated Agent/Service)
+Role: Persist analysis outcomes as memory events in Qdrant.
+
+Responsibilities:
+
+After each LLM analysis, construct a MemoryEvent (prompt, response, scores, user/session info, etc.).
+
+Generate embedding vector for the event.
+
+Offload the storage task to a dedicated Memory Event Agent/Service to ensure non-blocking, scalable operation.
+
+Store (vector + metadata) in Qdrant for future retrieval.
+
+and for Audit, Feedback, Self-Improvement
+Role: Enable querying and analysis of memory events for audit, learning, and continuous improvement.
+
+Responsibilities:
+
+Provide tools for reconstructing user/session/decision history.
+
+Support compliance audits, feedback loops, and model retraining or tuning.
+
+```
+- for Notification & Reporting their shud be a seprate minimal golang fiber microservice with kafka that is robust and solid production grade with effective golang coroutines and channel setup that act as streaming and notification service that sends back final results i.e compliance analysis by llamaindex agent analysis/action agent as events pushed by this agent inside kafka topics, and golang service will be consuming this kafka topic and will be responsible for processing and consuming these events from kafka and then streaming the processed events back to gateway service and the gateway service then sends it further as server sent events to electron app that can be displayed in electron app dashhboard Also the high risk or violated transactions shud be immediately sent via email notification or mobile notication without pushing them into kafka topics.
+- finally if abortinges tool is invoked from electron app via gateway then the mcp-server will stop consuming the mock https://github.com/joke2k/faker (a callable function that mocks transaction streams).
+```bash
+🟢 Key Insights
+First Run:
+No memory events exist. After LLM analysis, events are created and stored.
+
+Subsequent Runs:
+New transactions can leverage prior memory events for context-aware triage and scoring.
+
+Memory Event Storage:
+Offloading to a dedicated agent/service is a best practice for scalability and reliability, ensuring the main analysis flow is not blocked by I/O or DB operations.
+
+Audit/History:
+All memory events are queryable for audit, debugging, and learning—enabling a transparent, explainable triage system.
+
+Electron App
+    │
+    ▼
+[Intake Agent]
+    │
+    ▼
+[Assessment Agent (LangChain)]
+    │
+    ▼
+[Action/Analysis Agent (LlamaIndex)]
+    │
+    ├─────────────► [Notification/Reporting]
+    │
+    ▼
+[Memory Event Storage Agent/Service]
+    │
+    ▼
+[Qdrant Vector DB]
+    │
+    ▼
+[Audit/History/Feedback Tools]
+```
+💫💫💫💫🎯🎯🎯🎯

@@ -87,9 +87,46 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ## Getting Started
 
-1. **Clone the repo and follow setup instructions for each component.**
+1. **Clone the repo and follow setup instructions for each component in the next step.**
 2. **Start the MCP server and supporting services (Ollama, neo4j) via Docker or local a/c to instructions.**
-3. **Run the Electron app locally for IT staff dashboard for monitoring.**
+```bash
+# start up postgres,neo4j & qdrant docker instance from root jsentrix
+docker-compose up -d
+
+# startup ollama qwen3 model locally in terminal
+ollama pull qwen3:1.7b # only the first time
+ollama run qwen3:1.7b
+
+# makes sure venv is activated and .env is set for each of the backend components
+# mcp-server
+python -m interface.mcp_server --http
+# gateway (super user is auto created everytime the gateway fastapi service startsup with mcp-server health check and accessibility)
+uv run ./src/main.py
+
+# frontend electron app startup
+# mcp-client
+npm run start
+
+#qwen3
+http://localhost:11434 # local api qwen3
+
+# neo4j
+http://localhost:7474
+
+# qdrant ui
+http://localhost:6333/dashboard
+
+# gateway
+http://localhost:8080/docs
+
+# mcp-server
+http://localhost:9001
+
+# to prep neo4j knowledge base with initial clauses
+python generate_sample.py
+python application/run_pipeline.py
+
+```
 
 
 ---
