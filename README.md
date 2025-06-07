@@ -11,7 +11,7 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 ## Architecture
 
 - **Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
-- **MCP Server(s):** Python backend for now single MCP-server that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
+- **MCP Server(s):** Python backend for now single MCP-server wrapped by fastapi http api that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
 - **Gateway FastAPI:** Act a minimal proxy gateway service that enables interaction between MCP Server and Electron app.
 - **Local Data/Models/LLM:** All LLMs (Ollama), vector DB (Qdrant), and graph clause memory (neo4j) run locally-no cloud or API keys.
 
@@ -56,10 +56,11 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
 | 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
 | 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
-| 7    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
-| 8    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
-| 9    | Add A2A workflow (investigation, notification, action)                                            |
-| 10    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
+| 7    | sphinix doc and instrumentation with opentellemetry setup                                         |
+| 8    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
+| 9    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
+| 10    | Add A2A workflow (investigation, notification, action)                                            |
+| 11    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
 
 ---
 
@@ -71,6 +72,8 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 - **neo4j** - Local graph database 
 - **customMemory Event via Qdrant** - Local agent memory wired with custom configs and setup
 - **Docker** - Deployment and local orchestration
+- **Sphinix** - Docs
+- **OpenTelemetry** Tracing and Instrumentation
 
 ---
 
@@ -83,6 +86,8 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 - [Neo4j](https://neo4j.com/docs/operations-manual/current/docker/introduction/)
 - [Qdrant](https://qdrant.tech/documentation/)
 - [Electron](https://www.electronjs.org/)
+- [Sphinix](https://www.sphinx-doc.org/en/master/usage/installation.html#pypi-package)
+- [OpenTelemetry](https://opentelemetry.io/docs/languages/python/)
 ---
 
 ## Getting Started
@@ -123,8 +128,8 @@ http://localhost:8080/docs
 http://localhost:9001
 
 # to prep neo4j knowledge base with initial clauses
-python generate_sample.py
-python application/run_pipeline.py
+python generate_sample.py # generate data/sample_clause.pdf
+python application/run_pipeline.py # generate sample_clause.md and prep and injest knowledge base neo4j
 
 ```
 

@@ -89,7 +89,7 @@ atexit.register(cleanup)
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
-# --- HTTP API (FastAPI) ---
+# --- HTTP API (FastAPI) act as wrapper around fastmcp server tools as http rest endpoints ---
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
@@ -101,14 +101,46 @@ class ToolInvokeRequest(BaseModel):
     arguments: dict = {}
 
 
+# --- Utility for extracting tool fn for seemless tool invocation by tool_name and req.arguments ----
+async def invoke_registered_tools(tool_manager, tool_name: str, arguments: dict):
+    """
+    Looks up and invokes a registered tool by name using the tool manager.
+    Handles both sync and async tool functions.
+    Raises HTTPException(404) if the tool is not found.
+    """
+    logger.debug(dir(tool_manager))
+    logger.debug(tool_manager.__dict__)
+    logger.info("🔨 ----mcp tool manager structure above---")
+
+    tool_obj = tool_manager._tools[tool_name]
+    if not tool_obj:
+        raise HTTPException(status_code=404, detail=f"Tool {tool_name} not found")
+    # the actual callable tool Python func
+    tool_func = tool_obj.fn
+    try:
+        result = tool_func(**arguments)
+        # if result is coroutine eq to promise then await it
+        if inspect.iscoroutine(result):
+            result = await result
+        return result
+    except Exception as e:
+        logger.error(f"Unknown error invoking tool : {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Tool invocation failed: {e}")
+
+
+# --- Fast API mcp wrapper routes ---
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/list_tools")
 async def list_tools():
     """
     List all registered tools.
     """
-    # print(dir(mcp))
     tools = await mcp.list_tools()
-    print(tools)
+    logger.info(f"mcp tools logged: {str(tools)} sending them to source now...")
     return {"tools": tools}
 
 
@@ -117,31 +149,18 @@ async def invoke_tool(tool_name: str, req: ToolInvokeRequest):
     """
     Invoke a registered tool by name.
     """
-    print(dir(mcp._tool_manager))
-    print(mcp._tool_manager.__dict__)
-    tools = await mcp.list_tools()
-    tool = next((t for t in tools if t.name == tool_name), None)
-    if not tool:
-        raise HTTPException(status_code=404, detail="Tool not found")
-    tool_obj = mcp._tool_manager._tools[tool_name]
-    # the actual callable tool Python func
-    tool_func = tool_obj.fn
     try:
-        result = tool_func(**req.arguments)
-        if inspect.iscoroutine(result):
-            result = await result
+        result = await invoke_registered_tools(
+            mcp._tool_manager, tool_name, req.arguments
+        )
         return {"result": result}
-    except Exception as e:
-        logger.error(f"Tool invocation failed: {e}")
-        raise HTTPException(status_code=500, detail="Tool invocation failed")
+    except HTTPException as e:
+        logger.error(f"Tool invocation failed: {e.detail}")
+        # 📌 reraise so that fastapi can convert it into error response with the error automatically instead of 200 success
+        raise
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-# --- Entrypoint ---
+# --- mcp-server Entrypoint ---
 if __name__ == "__main__":
     import argparse
 

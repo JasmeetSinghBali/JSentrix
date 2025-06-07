@@ -100,7 +100,7 @@ export default React.memo((props: any) => {
 
     useEffect(() => {
         login('admin@example.com', 'ChangeThisSecurePassword123!');
-        login('testuser@example.com', 'testpassword');
+        // login('user@example.com', 'testpassword');
     }, []);
 
     return (
