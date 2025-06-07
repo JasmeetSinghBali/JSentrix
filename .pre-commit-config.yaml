@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+        files: ^(mcp-server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
+      - id: trailing-whitespace
+        files: ^(mcp-server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
+
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3
+        files: ^(mcp-server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
+
