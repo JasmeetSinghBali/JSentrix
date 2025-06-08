@@ -116,6 +116,14 @@ make clean html
 #💡  NOTE- IN case any module not found error then install those via pip in root jsentrix/.venv then delete docs/build and docs/source/api and then rerun sphinx-apidoc for gateway and mcp_server and finally make clean html commands inside docs
 ```
 
+
+### 📌 Instrumentation/Tracing
+
+```bash
+# https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
+
+```
+
 ### 🧪 Testing
 
 We use `pytest` to test our code. You can run the tests by running the following command:

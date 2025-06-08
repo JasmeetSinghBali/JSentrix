@@ -27,7 +27,15 @@ __pycache__/
 docs/source/api/
 
 
-# misc
+# Tracing logs (do not commit trace data)
+tracers/logs/
+
+# OS or tool-specific files
+Thumbs.db
+
+# (Optional) test/coverage artifacts
 htmlcov/
-.coverage
 .tox/
+.coverage
+.pytest_cache/
+.mypy_cache/
