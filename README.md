@@ -56,7 +56,7 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
 | 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
 | 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
-| 7    | sphinix doc and instrumentation with opentellemetry setup                                         |
+| 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
 | 8    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
 | 9    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
 | 10    | Add A2A workflow (investigation, notification, action)                                            |

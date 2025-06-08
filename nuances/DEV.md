@@ -387,8 +387,6 @@ https://docs.llamaindex.ai/en/stable/examples/index_structs/knowledge_graph/Neo4
 > ## Core Triage Flow e2e
 >>>>>>>>>> from here
 
-- diff-branch sphinix doc setup shud pick up all doc string for auto doc of the codebase files basically all .py files and setup tracing and instrumentation for both gateway and mcp-server seperately for now minimal and logs the traces in a new folder tracers/ a.c to clean architecture https://opentelemetry.io/docs/languages/python/
-
 💫💫💫💫🎯🎯🎯🎯
 - diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system keeping the below 💡flow in mind.
 💡flow
