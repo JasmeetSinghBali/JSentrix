@@ -72,7 +72,7 @@ pre-commit run --all-files
 
 ```
 
-### 📌 Sphinx-doc
+### 📌 Sphinx-doc generation
 
 ```bash
 NOTE- sphinx shud also be installed in root jsentrix venv only
@@ -113,7 +113,7 @@ sphinx-apidoc -o docs/source/api/mcp_server -e -M mcp_server
 # inside of docs/
 make clean html
 
-#💡  NOTE- IN case any module not found error then install those via pip in root jsentrix/.venv then delete docs/build and docs/source/api and then rerun sphinx-apidoc for gateway and mcp_server and finally make clean html commands inside docs
+#💡 NOTE- IN case any module not found error then install those via pip in root jsentrix/.venv then delete docs/build and docs/source/api and then rerun sphinx-apidoc for gateway and mcp_server and finally make clean html commands inside docs
 ```
 
 
@@ -121,6 +121,14 @@ make clean html
 
 ```bash
 # https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
+
+# start mcp-server with stdio tracer to tracers/logs/mcp_server_trace.log
+python -m interface.mcp_server --http > tracers/logs/mcp_server_trace.log 2>&1
+
+# start gateway with stdio tracer to tracers/logs/gateway_trace.log
+uv run ./src/main.py > tracers/logs/gateway_trace.log 2>&1
+
+# 💡 NOTE- both tracers are independent intentionally and installed and setup in respective .venv for gateway and mcp_server
 
 ```
 
