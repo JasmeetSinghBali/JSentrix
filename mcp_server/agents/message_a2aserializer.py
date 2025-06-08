@@ -24,6 +24,30 @@ class A2AMessageSerializable:
 
     @classmethod
     def _serialize_value(cls, value: Any) -> Any:
+        """
+        Serializes various data types for A2A message transmission.
+
+        This method handles the serialization of common Python types and custom
+        `A2AMessageSerializable` objects into a format suitable for A2A (Application-to-Application)
+        message exchange.
+
+        Args:
+            value (Any): The value to be serialized.
+
+        Returns:
+            Any: The serialized value. The return type depends on the input value:
+                - If `value` is an instance of `A2AMessageSerializable`, its `to_dict()`
+                  method is called to serialize it into a dictionary.
+                - If `value` is a `datetime` or `date` object, it's converted to an
+                  ISO 8601 formatted string.
+                - If `value` is `bytes`, it's decoded into a UTF-8 string.
+                - If `value` is a `list`, each element in the list is recursively
+                  serialized.
+                - If `value` is a `dict`, each key-value pair in the dictionary is
+                  recursively serialized.
+                - For any other type, the `value` is returned as is, assuming it's
+                  already in a serializable format (e.g., int, float, str, bool, None).
+        """
         if isinstance(value, A2AMessageSerializable):
             return value.to_dict()
         elif isinstance(value, (datetime, date)):

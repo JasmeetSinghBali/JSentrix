@@ -4,13 +4,19 @@ Gateway FastAPI application entrypoint.
 Supports both HTTP and subprocess MCP server modes.
 Usage:
     python src/main.py or uv run ./src/main.py for docker/production mode
-    python src/main.py --mcp-mode subprocess i.e to start the mcp-server also as subprocess in http api for local dev
+    uv run ./src/main.py > tracers/logs/gateway_trace.log 2>&1 without console tracer or logs instead persistance in gateway_trace.log
+    python src/main.py --mcp-mode subprocess i.e to start the mcp_server also as subprocess in http api for local dev
 """
 
 import argparse
 import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import subprocess
 from fastapi import FastAPI
+from tracers.tracing import setup_tracing
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from infrastructure.database.session import engine, get_db
@@ -20,7 +26,6 @@ from api.routes import auth, tools
 from core.config.settings import settings
 from application.use_cases.auth import ensure_first_superuser
 import httpx
-import os
 
 
 def parse_args():
@@ -35,7 +40,7 @@ def parse_args():
         "--mcp-server-script",
         default=os.path.abspath(
             os.path.join(
-                os.path.dirname(__file__), "../../mcp-server/interface/mcp_server.py"
+                os.path.dirname(__file__), "../../mcp_server/interface/mcp_server.py"
             )
         ),
         help="Path to mcp_server.py for subprocess mode",
@@ -101,6 +106,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+tracer = setup_tracing(app)
 
 # CORS for Electron app (update origins for prod)
 app.add_middleware(

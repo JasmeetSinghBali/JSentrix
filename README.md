@@ -56,7 +56,7 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
 | 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
 | 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
-| 7    | sphinix doc and instrumentation with opentellemetry setup                                         |
+| 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
 | 8    | Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system|
 | 9    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
 | 10    | Add A2A workflow (investigation, notification, action)                                            |
@@ -103,9 +103,9 @@ ollama pull qwen3:1.7b # only the first time
 ollama run qwen3:1.7b
 
 # makes sure venv is activated and .env is set for each of the backend components
-# mcp-server
+# mcp_server
 python -m interface.mcp_server --http
-# gateway (super user is auto created everytime the gateway fastapi service startsup with mcp-server health check and accessibility)
+# gateway (super user is auto created everytime the gateway fastapi service startsup with mcp_server health check and accessibility)
 uv run ./src/main.py
 
 # frontend electron app startup
@@ -124,7 +124,7 @@ http://localhost:6333/dashboard
 # gateway
 http://localhost:8080/docs
 
-# mcp-server
+# mcp_server
 http://localhost:9001
 
 # to prep neo4j knowledge base with initial clauses

@@ -1,5 +1,5 @@
 """
-mcp-server/interface/mcp_server.py
+mcp_server/interface/mcp_server.py
 
 Entry point for the MCP server (FastMCP).
 - Registers tools and shutdown logic.
@@ -7,7 +7,8 @@ Entry point for the MCP server (FastMCP).
 
 Usage:
     python -m interface.mcp_server          # stdio (subprocess mode)
-    python -m interface.mcp_server --http   # HTTP API mode (for Docker/microservices)
+    python -m interface.mcp_server --http   # HTTP API mode (for Docker/microservices) without tracers log pesistance only console tracers
+    python -m interface.mcp_server --http > tracers/logs/mcp_server_trace.log 2>&1 # http api mode with tracers log persistance inside tracers/logs/mcp_server_trace.log and no console tracers
 """
 
 import sys
@@ -91,10 +92,12 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # --- HTTP API (FastAPI) act as wrapper around fastmcp server tools as http rest endpoints ---
 from fastapi import FastAPI, HTTPException
+from tracers.tracing import setup_tracing
 from pydantic import BaseModel
 import uvicorn
 
 app = FastAPI(title="MCP Server API")
+tracer = setup_tracing(app)
 
 
 class ToolInvokeRequest(BaseModel):
@@ -160,7 +163,7 @@ async def invoke_tool(tool_name: str, req: ToolInvokeRequest):
         raise
 
 
-# --- mcp-server Entrypoint ---
+# --- mcp_server Entrypoint ---
 if __name__ == "__main__":
     import argparse
 
