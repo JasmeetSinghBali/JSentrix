@@ -4,9 +4,9 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
-        files: ^(mcp-server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
+        files: ^(mcp_server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
       - id: trailing-whitespace
-        files: ^(mcp-server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
+        files: ^(mcp_server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
 
 
   - repo: https://github.com/psf/black
@@ -14,5 +14,5 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        files: ^(mcp-server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
+        files: ^(mcp_server/(tests|utils|interface|infrastructure|domain|application|agents)/.*\.py$|gateway/.*\.py$)
 

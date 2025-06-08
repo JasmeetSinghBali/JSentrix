@@ -4,7 +4,7 @@ Gateway FastAPI application entrypoint.
 Supports both HTTP and subprocess MCP server modes.
 Usage:
     python src/main.py or uv run ./src/main.py for docker/production mode
-    python src/main.py --mcp-mode subprocess i.e to start the mcp-server also as subprocess in http api for local dev
+    python src/main.py --mcp-mode subprocess i.e to start the mcp_server also as subprocess in http api for local dev
 """
 
 import argparse
@@ -35,7 +35,7 @@ def parse_args():
         "--mcp-server-script",
         default=os.path.abspath(
             os.path.join(
-                os.path.dirname(__file__), "../../mcp-server/interface/mcp_server.py"
+                os.path.dirname(__file__), "../../mcp_server/interface/mcp_server.py"
             )
         ),
         help="Path to mcp_server.py for subprocess mode",

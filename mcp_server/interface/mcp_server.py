@@ -1,5 +1,5 @@
 """
-mcp-server/interface/mcp_server.py
+mcp_server/interface/mcp_server.py
 
 Entry point for the MCP server (FastMCP).
 - Registers tools and shutdown logic.
@@ -160,7 +160,7 @@ async def invoke_tool(tool_name: str, req: ToolInvokeRequest):
         raise
 
 
-# --- mcp-server Entrypoint ---
+# --- mcp_server Entrypoint ---
 if __name__ == "__main__":
     import argparse
 

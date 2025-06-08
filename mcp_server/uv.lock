@@ -1386,7 +1386,7 @@ cli = [
 ]
 
 [[package]]
-name = "mcp-server"
+name = "mcp_server"
 version = "1.0.0"
 source = { virtual = "." }
 dependencies = [

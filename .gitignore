@@ -1,3 +1,33 @@
 .venv/
+venv/
 qdrant_data/
 .env
+env/
+
+# Sphinx documentation build directory
+docs/build/
+docs/_build/
+
+# Sphinx cache and temporary files
+*.doctree
+*.pickle
+
+# Python cache and compiled files
+*.pyc
+__pycache__/
+
+# Editor/project files
+.idea/
+.vscode/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+
+# generated api docs
+docs/source/api/
+
+
+# misc
+htmlcov/
+.coverage
+.tox/

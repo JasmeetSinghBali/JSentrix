@@ -103,9 +103,9 @@ ollama pull qwen3:1.7b # only the first time
 ollama run qwen3:1.7b
 
 # makes sure venv is activated and .env is set for each of the backend components
-# mcp-server
+# mcp_server
 python -m interface.mcp_server --http
-# gateway (super user is auto created everytime the gateway fastapi service startsup with mcp-server health check and accessibility)
+# gateway (super user is auto created everytime the gateway fastapi service startsup with mcp_server health check and accessibility)
 uv run ./src/main.py
 
 # frontend electron app startup
@@ -124,7 +124,7 @@ http://localhost:6333/dashboard
 # gateway
 http://localhost:8080/docs
 
-# mcp-server
+# mcp_server
 http://localhost:9001
 
 # to prep neo4j knowledge base with initial clauses

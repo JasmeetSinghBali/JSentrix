@@ -35,7 +35,7 @@ Metadata:
 
 ```bash
 
-mcp-server/
+mcp_server/
 ├── data/                  # Raw PDFs go here
 ├── infrastructure/
 │     |
@@ -108,7 +108,7 @@ docker-compose up -d
 ```bash
 # start the neo4j local instance
 docker-compose up -d
-# navigate to mcp-server
+# navigate to mcp_server
 # to generate sample compliance pdf
 python generate_sample.py
 # to run and test the end-to-end pipeline
