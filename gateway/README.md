@@ -41,7 +41,9 @@ gateway/
 |   |   |   └── dashboard.py
 │   │
 │   └── main.py                # App initialization
-│
+└── tracers/                    # tracers opentelemetry
+|    ├── __init__.py
+|
 ├── tests/                     # Test suite
 ├── .env                       # Environment variables
 ├── pyproject.toml
