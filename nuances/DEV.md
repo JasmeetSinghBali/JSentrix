@@ -614,15 +614,63 @@ Each agent (Intake, Assessment/LangChain, Action/LlamaIndex, etc.) will inherit 
 
 
 
+> ## current
+
+first complete base_agent.py initial
+then custom card and jsonrpc2.0 support setup for base_agent.py
+1. dev-core/triage-baseagent internal agent-to-agent communication (inside mcp-server), possibly with a “custom agent card” abstraction:
+```bash
+ 
+
+Why JSON-RPC 2.0 for Internal Agent-to-Agent Communication?
+Consistency:
+Using JSON-RPC 2.0 for both Gateway→MCP-Server and internal agent-to-agent calls creates a uniform, method-oriented communication protocol throughout your stack.
+
+Simplicity & Extensibility:
+JSON-RPC is stateless, lightweight, and method-driven. It’s easy to extend with new methods, supports batching, and can be implemented over HTTP, WebSocket, or even in-process function calls.
+
+Decoupling:
+Each agent exposes a set of methods (an “agent card”) that can be invoked via JSON-RPC, making it easy to add, remove, or swap agents without changing the communication contract.
+
+Transport Agnostic:
+JSON-RPC can be used for in-process calls, over sockets, or HTTP/WebSocket, giving you flexibility for future scaling or distribution.
+
+Error Handling & Notifications:
+Built-in error reporting and support for notifications (fire-and-forget) and batch calls make it robust for complex workflows.
+
+"Agent Card" Concept
+Think of each agent as exposing a “card” (its JSON-RPC method set and schema).
+
+This card describes what methods are available, their parameters, and expected results.
+
+Gateway and other agents can discover and invoke these methods dynamically, supporting plug-and-play agent orchestration.
+
+Change BaseAgent and Flow?
+BaseAgent:
+
+Expose a dispatch_jsonrpc method that takes a JSON-RPC request and routes to the correct agent method.
+
+Each agent defines its own methods (e.g., invoke, stream, abort, etc.), which are callable via JSON-RPC.
+
+Optionally, auto-generate the “agent card” (method schema) for discoverability.
+
+Agent-to-Agent Calls:
+
+Instead of direct Python method calls, agents can use a local JSON-RPC client to invoke methods on other agents, even within the same process.
+
+This enables future scaling to distributed/multi-process setups with minimal refactoring.
+
+```
+
+2. diff branch adding support of jsonrpc2.0 comm between gateway and mcp-server.
+
+then continue with below
+> ## >>>> here for Next Steps
+dev-core/triage-agents:
+- Create concrete agent classes for the phases a/c to the triage flow
+- Implement A2A message types for each agent
+- Add MCP-specific validation hooks
 
 
->>>> here
-Next Steps
-Create concrete agent classes for the phases a/c to the triage flow
-
-Implement A2A message types for each agent
-
-Add MCP-specific validation hooks
-
-
+then
 Move to Phase 2 (Tooling Integration)?
