@@ -616,8 +616,21 @@ Each agent (Intake, Assessment/LangChain, Action/LlamaIndex, etc.) will inherit 
 
 > ## current
 
-first complete base_agent.py initial
-then custom card and jsonrpc2.0 support setup for base_agent.py
+
+- custom card and jsonrpc2.0 support setup for base_agent.py design dry run 
+```bash
+JSON-RPC 2.0 Dispatch: Each agent can receive and process 
+
+JSON-RPC requests (single or batch), route them to registered methods, and return compliant responses.
+
+Agent Card: Each agent exposes a self-describing “card” of available methods, their signatures, and docstrings for dynamic discovery.
+
+Type hints, input validation, robust error handling, logging, and extensibility for future agent features.
+
+no external JSON-RPC libraries use case shud be their keep it light and minimal
+```
+
+
 1. dev-core/triage-baseagent internal agent-to-agent communication (inside mcp-server), possibly with a “custom agent card” abstraction:
 ```bash
  
