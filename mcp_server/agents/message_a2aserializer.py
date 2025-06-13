@@ -1,3 +1,9 @@
+"""
+mcp_server/agents/message_a2aserializer.py
+
+Exposes reusable a2a message serialization base for agents
+"""
+
 import json
 from datetime import datetime, date
 from typing import Any, Type, TypeVar, Dict

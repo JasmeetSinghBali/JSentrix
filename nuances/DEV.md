@@ -497,3 +497,240 @@ Electron App
 [Audit/History/Feedback Tools]
 ```
 💫💫💫💫🎯🎯🎯🎯
+
+
+
+---
+
+
+> ## 🎈 Abstracted Phases for Your Triage Flow
+
+```bash
+Phase 1: Core Agent Abstraction
+Design a BaseAgent abstract class/interface.
+
+Ensure it can wrap both LangChain and LlamaIndex agents.
+
+Provide a consistent interface for setup, invocation, streaming, and aborting.
+
+Make it modular, reusable, and MCP + A2A compliant.
+
+Phase 2: Tooling Integration
+Implement new tools: streaminges and abortinges as callable endpoints.
+
+Ensure they can be invoked by the Electron app (via Gateway → MCP Server).
+
+Provide hooks for auditors to start/stop streaming.
+
+Phase 3: Intake Agent
+Build the Intake Agent using the BaseAgent abstraction.
+
+Integrate with a mock transaction stream (using faker).
+
+Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant.
+
+Pass enriched transactions to the next phase.
+
+Phase 4: Assessment & Prioritization Agent (LangChain)
+Build the Assessment Agent using LangChain.
+
+Score and prioritize transactions using prior memory, Neo4j data, user risk, and business rules.
+
+Apply dynamic scoring, decay, and sorting.
+
+Forward high-priority transactions to the Action Agent.
+
+Phase 5: Analysis/Action Agent (LlamaIndex)
+Build the Action Agent using LlamaIndex.
+
+Retrieve relevant RAG context, inject dynamic metadata.
+
+Run LLM for compliance/risk analysis.
+
+Postprocess results and attach all relevant metadata.
+
+Phase 6: Memory Event Storage Agent/Service
+Build a dedicated agent/service for storing memory events in Qdrant.
+
+Ensure non-blocking, scalable operation (async/offloaded).
+
+Store embeddings and metadata for future retrieval.
+
+Phase 7: Notification & Reporting Microservice (Go + Kafka)
+Design a minimal, robust Go Fiber microservice.
+
+Consume Kafka events, process, and stream back to Gateway.
+
+Implement immediate notification for high-risk/violated transactions (email/SMS).
+
+Phase 8: Audit, Feedback, and Self-Improvement Tools
+Build tools/APIs for querying memory events, reconstructing history, and supporting audits.
+
+Provide feedback and continuous improvement hooks.
+
+Phase 9: System Integration & Testing
+End-to-end integration tests.
+
+Robust error handling, logging, and monitoring.
+
+Ensure compliance and extensibility.
+```
+
+> ### Key Design Goals for BaseAgent
+
+A2A compliance: Follows essential patterns from google-a2a/a2a-python (but minimal, only what you need).
+
+MCP compliance: Ensures protocol and message structure compatibility for your platform.
+
+Clean Architecture: Place the base class in mcp_server/agents/ (domain layer), so all agents (LangChain, LlamaIndex, Intake, etc.) inherit from it.
+
+Extensible and Testable: Abstracts over both synchronous and asynchronous agent actions, streaming, aborting, and message serialization.
+
+Docstring and Type Hints: For clarity and maintainability.
+
+Phase 1: Abstracted Plan
+1. BaseAgent Class
+Abstract base class (ABC) in mcp_server/agents/base_agent.py
+
+Defines the essential interface for all agents:
+
+invoke() — main entrypoint for agent action.
+
+stream() — streaming support (for streaminges tool).
+
+abort() — abort ongoing action (for abortinges tool).
+
+serialize_message() — A2A-compliant message serialization.
+
+deserialize_message() — A2A-compliant message deserialization.
+
+get_status() — for health/monitoring.
+
+2. MessageA2ASerializer
+Already exists as message_a2aserializer.py — can be used or extended for message (de)serialization.
+
+3. Concrete Agents
+Each agent (Intake, Assessment/LangChain, Action/LlamaIndex, etc.) will inherit from BaseAgent and implement its methods.
+
+
+
+> ## current
+
+
+- custom card and jsonrpc2.0 support setup for base_agent.py design dry run 
+```bash
+JSON-RPC 2.0 Dispatch: Each agent can receive and process 
+
+JSON-RPC requests (single or batch), route them to registered methods, and return compliant responses.
+
+Agent Card: Each agent exposes a self-describing “card” of available methods, their signatures, and docstrings for dynamic discovery.
+
+Type hints, input validation, robust error handling, logging, and extensibility for future agent features.
+
+no external JSON-RPC libraries use case shud be their keep it light and minimal
+```
+
+
+1. dev-core/triage-baseagent internal agent-to-agent communication (inside mcp-server), possibly with a “custom agent card” abstraction: ✅
+```bash
+ 
+
+Why JSON-RPC 2.0 for Internal Agent-to-Agent Communication?
+Consistency:
+Using JSON-RPC 2.0 for both Gateway→MCP-Server and internal agent-to-agent calls creates a uniform, method-oriented communication protocol throughout your stack.
+
+Simplicity & Extensibility:
+JSON-RPC is stateless, lightweight, and method-driven. It’s easy to extend with new methods, supports batching, and can be implemented over HTTP, WebSocket, or even in-process function calls.
+
+Decoupling:
+Each agent exposes a set of methods (an “agent card”) that can be invoked via JSON-RPC, making it easy to add, remove, or swap agents without changing the communication contract.
+
+Transport Agnostic:
+JSON-RPC can be used for in-process calls, over sockets, or HTTP/WebSocket, giving you flexibility for future scaling or distribution.
+
+Error Handling & Notifications:
+Built-in error reporting and support for notifications (fire-and-forget) and batch calls make it robust for complex workflows.
+
+"Agent Card" Concept
+Think of each agent as exposing a “card” (its JSON-RPC method set and schema).
+
+This card describes what methods are available, their parameters, and expected results.
+
+Gateway and other agents can discover and invoke these methods dynamically, supporting plug-and-play agent orchestration.
+
+Change BaseAgent and Flow?
+BaseAgent:
+
+Expose a dispatch_jsonrpc method that takes a JSON-RPC request and routes to the correct agent method.
+
+Each agent defines its own methods (e.g., invoke, stream, abort, etc.), which are callable via JSON-RPC.
+
+Optionally, auto-generate the “agent card” (method schema) for discoverability.
+
+Agent-to-Agent Calls:
+
+Instead of direct Python method calls, agents can use a local JSON-RPC client to invoke methods on other agents, even within the same process.
+
+This enables future scaling to distributed/multi-process setups with minimal refactoring.
+
+```
+
+```bash
+# async migration e2e mcp-server plan
+I/O-bound components first, then CPU-bound optimizations.
+
+Phase Plan for Async Migration
+
+Phase 1: Async Infrastructure Layer
+Goal: Make database/network clients async-ready
+Files to Modify:
+
+1. infrastructure/memory_event_repository.py → Async Qdrant client
+2. infrastructure/ingestion/load.py → Async Neo4j/Qdrant writes
+3. utils/neo4j_utils.py → Async Neo4j driver
+4. utils/embedding_utils.py → Async batch embedding
+
+Phase 2: Async Agent Core
+Goal: Update BaseAgent and JSON-RPC layer for async
+Files to Modify:
+
+1. agents/base_agent.py → Async invoke()/stream()
+2. agents/message_a2aserializer.py → (No changes needed)
+
+Phase 3: Async Application Layer
+Goal: Migrate business logic to async
+Files to Modify:
+
+1. application/run_pipeline.py → Async pipeline steps
+2. application/retrievers/*.py → Async retrievers
+3. application/postprocessors/*.py → Async postprocessing
+
+Phase 4: Async Interface Layer
+Goal: Update MCP-server entrypoint for async
+Files to Modify:
+
+1. interface/mcp_server.py → Async FastAPI routes
+2. utils/lifecycle.py → Async shutdown hooks
+
+Phase 5: Async Utilities
+Goal: Make helper functions async-compatible
+Files to Modify:
+
+1. utils/retry.py → Async retry decorator
+2. utils/summarizer.py → Async summarization
+3. utils/logger.py → Async logging handlers (if needed)
+
+```
+
+2. diff branch adding support of jsonrpc2.0 comm between gateway and mcp-server.
+
+then continue with below
+> ## >>>> here for Next Steps
+dev-core/triage-agents:
+- Create concrete agent classes for the phases a/c to the triage flow
+- Implement A2A message types for each agent
+- Add MCP-specific validation hooks
+
+
+then
+Move to Phase 2 (Tooling Integration)?

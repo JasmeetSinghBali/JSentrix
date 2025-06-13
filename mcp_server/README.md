@@ -54,6 +54,7 @@ mcp_server/
 |── agents/
 │   ├── __init__.py
 |   └── message_a2aserializer.py           # Base class for robust agent-to-agent (A2A) message serialization
+|   ├── base_agent.py 
 |
 |── application/
 │   ├── __init__.py
@@ -86,6 +87,9 @@ mcp_server/
 |   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
 |
 └── tests/                    # test dir
+|    ├── __init__.py
+|
+└── tracers/                    # tracers opentelemetry
 |    ├── __init__.py
 | 
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
