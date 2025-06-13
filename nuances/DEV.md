@@ -682,13 +682,13 @@ I/O-bound components first, then CPU-bound optimizations.
 Phase Plan for Async Migration
 
 Phase 1: Async Infrastructure Layer
-Goal: Make database/network clients async-ready
+Goal: Make database/network clients async-ready ✅
 Files to Modify:
 
 1. infrastructure/memory_event_repository.py → Async Qdrant client ✅
-2. infrastructure/ingestion/load.py → Async Neo4j/Qdrant writes
-3. utils/neo4j_utils.py → Async Neo4j driver
-4. utils/embedding_utils.py → Async batch embedding
+2. infrastructure/ingestion/load.py → Async Neo4j/Qdrant writes ✅
+3. utils/neo4j_utils.py → Async Neo4j driver ✅
+4. utils/embedding_utils.py → Async batch embedding ✅
 
 Phase 2: Async Agent Core
 Goal: Update BaseAgent and JSON-RPC layer for async

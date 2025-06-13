@@ -22,7 +22,7 @@ from typing import Optional
 import threading
 from utils.logger import get_logger
 
-logger = get_logger("qdrant_client")
+logger = get_logger("qdrant_utils")
 
 # --- Singleton for sync client (legacy) ---
 _qdrant_client_lock = threading.Lock()

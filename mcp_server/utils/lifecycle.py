@@ -31,19 +31,22 @@ from .logger import get_logger
 logger = get_logger("lifecycle")
 
 # Internal list of shutdown callbacks (can be sync or async)
-_shutdown_callbacks: List[Callable[[], Union[None, Awaitable[None]]]] = []
+ShutdownCallback = Callable[[], Union[None, Awaitable[None]]]
+_shutdown_callbacks: List[ShutdownCallback] = []
 
 
-def register_shutdown_callback(callback: Callable[[], Union[None, Awaitable[None]]]):
+def _callback_name(cb):
+    return getattr(cb, "__name__", repr(cb))
+
+
+def register_shutdown_callback(callback: ShutdownCallback):
     """
     Register a shutdown callback(sync or async) to be called when app stops.
 
     Args:
         callback: A no-argument function or coroutine function to run on shutdown.
     """
-    logger.debug(
-        f"Registered shutdown callback: {getattr(callback, '__name__', str(callback))}"
-    )
+    logger.debug(f"Registered shutdown callback: {_callback_name(callback)}")
     _shutdown_callbacks.append(callback)
 
 
@@ -64,15 +67,13 @@ def shutdown_all(order: Literal["fifo", "lifo"] = "fifo"):
         try:
             if asyncio.iscoroutinefunction(callback):
                 logger.warning(
-                    f"Skipping async shutdown callback {getattr(callback, '__name__', str(callback))} in sync shutdown. Use async_shutdown_all()."
+                    f"Skipping async shutdown callback {_callback_name(callback)} in sync shutdown. Use async_shutdown_all()."
                 )
                 continue
             callback()
-            logger.info(f"Executed: {getattr(callback, '__name__', str(callback))}")
+            logger.info(f"Executed: {_callback_name(callback)}")
         except Exception as e:
-            logger.error(
-                f"Error during shutdown of {getattr(callback, '__name__', str(callback))}: {e}"
-            )
+            logger.error(f"Error during shutdown of {_callback_name(callback)}: {e}")
 
 
 async def async_shutdown_all(order: Literal["fifo", "lifo"] = "fifo"):
@@ -97,8 +98,13 @@ async def async_shutdown_all(order: Literal["fifo", "lifo"] = "fifo"):
                 await callback()
             else:
                 callback()
-            logger.info(f"Executed: {getattr(callback, '__name__', str(callback))}")
+            logger.info(f"Executed: {_callback_name(callback)}")
         except Exception as e:
-            logger.error(
-                f"Error during shutdown of {getattr(callback, '__name__', str(callback))}: {e}"
-            )
+            logger.error(f"Error during shutdown of {_callback_name(callback)}: {e}")
+
+
+def reset_shutdown_callbacks():
+    """
+    Clears all registered shutdown callbacks (useful for testing).
+    """
+    _shutdown_callbacks.clear()

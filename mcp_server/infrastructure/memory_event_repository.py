@@ -13,7 +13,7 @@ from utils.embedding_utils import get_langchain_embedding_model
 from utils.logger import get_logger
 import anyio
 
-logger = get_logger("jsentrix")
+logger = get_logger("memory_event_repository")
 
 COLLECTION_NAME = "memory_events"
 
