@@ -8,24 +8,39 @@ so that basically when the other agent langchain or llamaindex custom class inhe
 Enforces A2A/MCP compliance, message serialization, and core agent lifecycle.
 
 Usage example:
-class IntakeAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("intake-agent-v1")
-        self._active = False
+    from .base_agent import BaseAgent, JsonRpcAgentMixin, jsonrpc_method
 
-    def invoke(self, input, context):
-        self._active = True
-        try:
-            # Processing logic...
-            return output
-        finally:
-            self._active = False
+    class MyAgent(BaseAgent, JsonRpcAgentMixin):
+        def __init__(self):
+            BaseAgent.__init__(self, "my-agent-v1")
+            JsonRpcAgentMixin.__init__(self)
 
-    def abort(self):
-        super().abort()  # Logs warning
-        if self._active:
-            # Actual cleanup logic
-            self._active = False
+        @jsonrpc_method
+        def invoke(self, input: dict, context: dict) -> dict:
+            # main agent invocation
+            # ... your logic ...
+            return {"result": "ok"}
+
+        @jsonrpc_method
+        def stream(self, input: dict, context: dict) -> dict:
+            # streaming call
+            # ... your logic ...
+            return {"result": "streaming"}
+
+    # to dispatch a json rpc call
+    agent = MyAgent()
+    # check the agentcard
+    print(agent.agent_card())
+    request = {
+        "jsonrpc": "2.0",
+        "method": "invoke",
+        "params": {"input": {...}, "context": {...}},
+        "id": 1
+    }
+    response = agent.dispatch_jsonrpc(request)
+    print(response)
+
+
 """
 
 from typing import TypeVar, Optional, Generic, Dict, Any, Callable, Union, List
@@ -204,6 +219,26 @@ class JsonRpcParseError(JsonRpcError):
         super().__init__(-32700, f"Parse error: {details}")
 
 
+class JsonRpcInvalidRequest(JsonRpcError):
+    def __init__(self, details: str):
+        super().__init__(-32600, f"Invalid request: {details}")
+
+
+class JsonRpcInvalidParams(JsonRpcError):
+    def __init__(self, details: str):
+        super().__init__(-32602, f"Invalid params: {details}")
+
+
+class JsonRpcMethodNotFound(JsonRpcError):
+    def __init__(self, method: str):
+        super().__init__(-32601, f"Method not found: {method}")
+
+
+class JsonRpcInternalError(JsonRpcError):
+    def __init__(self, details: str):
+        super().__init__(-32603, f"Internal error: {details}")
+
+
 class AgentCardMethod:
     """
     Metadata for a registered agent method for agent card/discoery and describing its capabl
@@ -263,6 +298,50 @@ class JsonRpcAgentMixin:
     def _jsonrpc_error_response(req_id: Any, error: JsonRpcError) -> Dict:
         return {"jsonrpc": "2.0", "error": error.to_dict(), "id": req_id}
 
+    @staticmethod
+    def _jsonrpc_success_response(req_id: Any, result: Any) -> Dict:
+        return {"jsonrpc": "2.0", "result": result, "id": req_id}
+
+    def _handle_jsonrpc_single(self, req: Dict) -> Optional[Dict]:
+        """
+        Handle a single JSON-RPC 2.0 request object
+        """
+        req_id = req.get("id", None)
+        try:
+            if req.get("jsonrpc") != "2.0":
+                raise JsonRpcInvalidRequest("Invalid JSON-RPC version")
+            if "method" not in req:
+                raise JsonRpcInvalidRequest("Missing method")
+            method_name = req["method"]
+            params = req.get("params", {})
+
+            # method: agent_card
+            if method_name == "agent_card":
+                result = self.agent_card()
+                return self._jsonrpc_success_response(req_id, result)
+
+            # method: Lookup
+            if method_name not in self._jsonrpc_methods:
+                raise JsonRpcMethodNotFound(method_name)
+
+            method = self._jsonrpc_methods[method_name].func
+
+            # some other Call method
+            if isinstance(params, dict):
+                # unpack the params pass it to method execute and stre result
+                result = method(**params)  # **kwargs
+            elif isinstance(params, list):
+                result = method(*params)  # *args
+            else:
+                # safe fallback with no params passe and method executed
+                result = method(params) if params is not None else method()
+
+            return self._jsonrpc_success_response(req_id, result)
+        except JsonRpcError as e:
+            return self._jsonrpc_error_response(req_id, e)
+        except Exception as e:
+            return self._jsonrpc_error_response(req_id, JsonRpcInternalError(str(e)))
+
     def dispatch_jsonrpc(
         self, request_json: Union[str, Dict, List]
     ) -> Union[Dict, List[Dict]]:
@@ -280,3 +359,26 @@ class JsonRpcAgentMixin:
                 req = request_json
         except Exception as e:
             return self._jsonrpc_error_response(None, JsonRpcParseError(str(e)))
+
+        if isinstance(req, list):
+            # if batch request
+            if not req:
+                return self._jsonrpc_error_response(
+                    None, JsonRpcInvalidRequest("Empty batch")
+                )
+            #  📌 loop over req and process each request and store the result of each process in r as list of processed req
+            return [
+                r
+                for r in (self._handle_jsonrpc_single(r) for r in req)
+                if r is not None
+            ]
+        else:  # single req i.e dict/json payload
+            return self._handle_jsonrpc_single(req)
+
+
+def jsonrpc_method(func):
+    """
+    Decorator to mark agent methds as JSON-rpc callable
+    """
+    func._is_jsonrpc_method = True
+    return func

@@ -631,7 +631,7 @@ no external JSON-RPC libraries use case shud be their keep it light and minimal
 ```
 
 
-1. dev-core/triage-baseagent internal agent-to-agent communication (inside mcp-server), possibly with a “custom agent card” abstraction:
+1. dev-core/triage-baseagent internal agent-to-agent communication (inside mcp-server), possibly with a “custom agent card” abstraction: ✅
 ```bash
  
 
@@ -672,6 +672,53 @@ Agent-to-Agent Calls:
 Instead of direct Python method calls, agents can use a local JSON-RPC client to invoke methods on other agents, even within the same process.
 
 This enables future scaling to distributed/multi-process setups with minimal refactoring.
+
+```
+
+```bash
+# async migration e2e mcp-server plan
+I/O-bound components first, then CPU-bound optimizations.
+
+Phase Plan for Async Migration
+
+Phase 1: Async Infrastructure Layer
+Goal: Make database/network clients async-ready
+Files to Modify:
+
+1. infrastructure/memory_event_repository.py → Async Qdrant client
+2. infrastructure/ingestion/load.py → Async Neo4j/Qdrant writes
+3. utils/neo4j_utils.py → Async Neo4j driver
+4. utils/embedding_utils.py → Async batch embedding
+
+Phase 2: Async Agent Core
+Goal: Update BaseAgent and JSON-RPC layer for async
+Files to Modify:
+
+1. agents/base_agent.py → Async invoke()/stream()
+2. agents/message_a2aserializer.py → (No changes needed)
+
+Phase 3: Async Application Layer
+Goal: Migrate business logic to async
+Files to Modify:
+
+1. application/run_pipeline.py → Async pipeline steps
+2. application/retrievers/*.py → Async retrievers
+3. application/postprocessors/*.py → Async postprocessing
+
+Phase 4: Async Interface Layer
+Goal: Update MCP-server entrypoint for async
+Files to Modify:
+
+1. interface/mcp_server.py → Async FastAPI routes
+2. utils/lifecycle.py → Async shutdown hooks
+
+Phase 5: Async Utilities
+Goal: Make helper functions async-compatible
+Files to Modify:
+
+1. utils/retry.py → Async retry decorator
+2. utils/summarizer.py → Async summarization
+3. utils/logger.py → Async logging handlers (if needed)
 
 ```
 
