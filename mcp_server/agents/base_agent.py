@@ -28,11 +28,13 @@ class IntakeAgent(BaseAgent):
             self._active = False
 """
 
-from typing import TypeVar, Optional, Generic, Dict, Any
+from typing import TypeVar, Optional, Generic, Dict, Any, Callable, Union, List
 from datetime import datetime, timezone
 from .message_a2aserializer import A2AMessageSerializable
 from abc import ABC, abstractmethod
 import logging
+import inspect
+import json
 
 # --- Type variables for input/output message typ ---
 InputType = TypeVar("InputType", bound=A2AMessageSerializable)
@@ -175,3 +177,106 @@ class NotSupportedError(AgentError):
     """
     Raised when agent doesn't support requested operation
     """
+
+
+class JsonRpcError(Exception):
+    """
+    Base class for JSON-RPC errors
+    """
+
+    def __init__(self, code: int, message: str, data: Any = None):
+        super().__init__(message)  # pass err message to base Exception class
+        self.code = code
+        self.message = message
+        self.data = data
+
+    def to_dict(self):
+        err = {"code": self.code, "message": self.message}
+        if self.data is not None:
+            err["data"] = self.data
+        # 📌 {"code": ..., "message": ..., "data": ...}
+        return err
+
+
+class JsonRpcParseError(JsonRpcError):
+    def __init__(self, details: str):
+        # 📌 reff: https://www.jsonrpc.org/specification#error_object
+        super().__init__(-32700, f"Parse error: {details}")
+
+
+class AgentCardMethod:
+    """
+    Metadata for a registered agent method for agent card/discoery and describing its capabl
+    """
+
+    def __init__(
+        self,
+        name: str,
+        func: Callable,
+        doc: str,
+        signature: str,  # the function parameter signature
+    ):
+        self.name = name
+        self.func = func
+        self.doc = doc
+        self.signature = signature
+
+
+class JsonRpcAgentMixin:
+    """
+    Mixin for BaseAgent to support JSON-RPC 2.0 dispatch and agent card discovery to any base agent
+    """
+
+    def __init__(self):
+        self._jsonrpc_methods: Dict[str, AgentCardMethod] = {}
+        self._register_jsonrpc_methods()
+
+    def _register_jsonrpc_methods(self):
+        """
+        Registers all public methods decorated with @jsonrpc_method as JSON-RPC callable
+        """
+        # only return members of object self that are method
+        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
+            # 📌 False default safely skips method that are not explicitely marked with _isjsonrpc_method if it does not exist
+            if getattr(method, "_is_jsonrpc_method", False):
+                # sig ex (x: int, y:int)
+                sig = str(inspect.signature(method))
+                doc = inspect.getdoc(method) or ""
+                self._jsonrpc_methods[name] = AgentCardMethod(name, method, doc, sig)
+
+    def agent_card(self) -> Dict[str, Any]:
+        """
+        Returns the agent's "card": available JSON-RPC methods, signatures, and docstrings
+        """
+        return {
+            "agent_id": getattr(self, "agent_id", None),
+            "methods": {
+                name: {
+                    "signature": method.signature,
+                    "doc": method.doc,
+                }
+                for name, method in self._jsonrpc_methods.items()
+            },
+        }
+
+    @staticmethod
+    def _jsonrpc_error_response(req_id: Any, error: JsonRpcError) -> Dict:
+        return {"jsonrpc": "2.0", "error": error.to_dict(), "id": req_id}
+
+    def dispatch_jsonrpc(
+        self, request_json: Union[str, Dict, List]
+    ) -> Union[Dict, List[Dict]]:
+        """
+        Main JSON-RPC 2.0 dispatch entry point
+        Handles single(str or Dict) and batch requests(List)
+
+        Returns:
+            a single response Dict or List of Dict responses
+        """
+        try:
+            if isinstance(request_json, str):
+                req = json.loads(request_json)
+            else:
+                req = request_json
+        except Exception as e:
+            return self._jsonrpc_error_response(None, JsonRpcParseError(str(e)))
