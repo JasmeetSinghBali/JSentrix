@@ -2,23 +2,29 @@
 utils/qdrant_utils.py
 
 Qdrant client factory utility.
-Provides a singleton QdrantClient for vector DB operations.
+Provides singleton QdrantClient (sync) and AsyncQdrantClient (async) for vector DB operations.
 
 Usage:
-    from utils.qdrant_utils import get_qdrant_client
+    from utils.qdrant_utils import get_qdrant_client, get_async_qdrant_client
 
+    # Sync client (legacy)
     client = get_qdrant_client()
-    # Use client for upsert/query/scroll/etc.
+
+    # Async client (recommended for async code)
+    async_client = get_async_qdrant_client()
+    async with async_client as c:
+        await c.search(...)
+
 """
 
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, AsyncQdrantClient
 from typing import Optional
 import threading
-
 from utils.logger import get_logger
 
 logger = get_logger("qdrant_client")
 
+# --- Singleton for sync client (legacy) ---
 _qdrant_client_lock = threading.Lock()
 _qdrant_client: Optional[QdrantClient] = None
 
@@ -36,7 +42,6 @@ def get_qdrant_client(host: str = "localhost", port: int = 6333) -> QdrantClient
     """
     global _qdrant_client
     if _qdrant_client is None:
-        # to make sure one client created at a time incase multi-threaded fastapi context with workers>1
         with _qdrant_client_lock:
             if _qdrant_client is None:
                 logger.info(f"Creating new QdrantClient at {host}:{port}")
@@ -52,3 +57,26 @@ def close_qdrant_client():
     if _qdrant_client is not None:
         logger.info("Closing QdrantClient connection (noop for now).")
         _qdrant_client = None
+
+
+# --- Async client factory (stateless, always returns a new client) ---
+def get_async_qdrant_client(
+    host: str = "localhost", port: int = 6333
+) -> AsyncQdrantClient:
+    """
+    Returns a new AsyncQdrantClient connected to the specified Qdrant instance.
+
+    Args:
+        host (str): Qdrant host address.
+        port (int): Qdrant port.
+
+    Returns:
+        AsyncQdrantClient: The connected async client instance.
+    """
+    logger.info(f"Creating new AsyncQdrantClient at {host}:{port}")
+    return AsyncQdrantClient(
+        host=host,
+        port=port,
+        timeout=10.0,
+        prefer_grpc=True,  # Best performance for async
+    )

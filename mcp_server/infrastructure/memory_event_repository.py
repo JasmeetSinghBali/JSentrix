@@ -1,27 +1,17 @@
 """
-infrastructure/memory_event_repository
+infrastructure/memory_event_repository.py
 
-MemoryEventRepository
-
-Handles low-level Qdrant persistence for MemoryEvent domain objects.
-Supports both sync and async usage (async via thread pool, since qdrant client is synchronous blocking by default only)
-Usage:
-    from infrastructure.memory_event_repository import MemoryEventRepository
-    repo = MemoryEventRepository()
-    repo.store(event, vector)
-    events, _ = repo.query(query_vector, top_k=5, filters={"user_id": "alice"})
-
-    # Async usage (in FastAPI etc.):
-    events, _ = await repo.async_query(query_vector, top_k=5, filters={"user_id": "alice"})
+Async-optimized Qdrant repository using native async client and FastEmbed.
 """
 
 from typing import List, Optional, Dict, Any, Tuple
-from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+from qdrant_client.http.models import PointStruct
 from domain.models import MemoryEvent
-from utils.qdrant_utils import get_qdrant_client
+from utils.qdrant_utils import get_async_qdrant_client
 from utils.embedding_utils import get_langchain_embedding_model
 from utils.logger import get_logger
-import asyncio
+import anyio
 
 logger = get_logger("jsentrix")
 
@@ -30,34 +20,36 @@ COLLECTION_NAME = "memory_events"
 
 class MemoryEventRepository:
     """
-    Repository for storing and retrieving MemoryEvent objects in Qdrant.
-    Sync and async methods are provided (async uses thread pool).
+    Async-native repository for MemoryEvent storage/retrieval in Qdrant.
+    Uses native async client with FastEmbed for high performance.
     """
 
     def __init__(
         self, vector_size: int = 384, host: str = "localhost", port: int = 6333
     ):
-        self.client = get_qdrant_client(host=host, port=port)
+        self.client = get_async_qdrant_client(host=host, port=port)
         self.vector_size = vector_size
         self.embedding_model = get_langchain_embedding_model()
 
-    def store(self, event: MemoryEvent, vector: List[float]) -> None:
+    async def store(self, event: MemoryEvent, vector: List[float]) -> None:
         """
-        Upsert a memory event with its vector and metadata into qdrant
+        Async store with connection pooling and batch-ready design.
 
         Args:
-            event (MemoryEvent): event
-            vector (List[float]): vector
+            event (MemoryEvent): The event to store.
+            vector (List[float]): The embedding vector.
         """
-        # PointStruct core data model that represent single point domain specifc memory events in vector collection of qdrant for retrieval based vecor similarity and metadata filters
         point = PointStruct(
             id=event.event_id,
             vector=vector,
-            payload=event.model_dump(),  # metadata dict key-value pairs
+            payload=event.model_dump(),
         )
-        self.client.upsert(collection_name=COLLECTION_NAME, points=[point])
+        async with self.client as client:
+            await client.upsert(
+                collection_name=COLLECTION_NAME, points=[point], timeout=10.0, wait=True
+            )
 
-    def query(
+    async def query(
         self,
         query_vector: Optional[List[float]] = None,
         top_k: int = 5,
@@ -65,127 +57,109 @@ class MemoryEventRepository:
         offset: Optional[Any] = None,
     ) -> Tuple[List[MemoryEvent], Optional[Any]]:
         """
-        Query Qdrant for most relevant memory events by optional vector similarity or optional metadata filters or both
-        Returns a list of typed domain objects of type MemoryEvent from models
-        """
-        qdrant_filter = None
-        if filters:
-            conditions = [
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filters.items()
-            ]
-            qdrant_filter = Filter(must=conditions)
+        Async-native query with proper connection handling and error recovery.
 
-        if query_vector is not None:
-            response = self.client.query_points(
-                collection_name=COLLECTION_NAME,
-                query=query_vector,
-                limit=top_k,
-                query_filter=qdrant_filter,
-                with_payload=True,
-                with_vectors=False,
-            )
-            points = response.points
-            logger.info(f"DEBUG Qdrant query: points type: {type(points)}")
-            logger.info(f"DEBUG Qdrant query: points value: {points}")
-            return [MemoryEvent.model_validate(hit.payload) for hit in points], None
-        else:
-            # reff: https://qdrant.tech/documentation/concepts/filtering/
-            # The .scroll() method returns a tuple:
-            # The first element is a list of points (each with .payload, .id, etc.).
-            # The second element is the next page offset (used for pagination).
-            # Metadata-only: Use scroll API
-            # unpack the tuple from scroll
-            points, next_offset = self.client.scroll(
-                collection_name=COLLECTION_NAME,
-                scroll_filter=qdrant_filter,
-                limit=top_k,
-                offset=offset,  # Pass offset for pagination
-                with_payload=True,
-                with_vectors=False,
-            )
-            return [
-                MemoryEvent.model_validate(hit.payload) for hit in points
-            ], next_offset
+        Args:
+            query_vector: Vector to search by (optional).
+            top_k: Number of results to return.
+            filters: Metadata filters (optional).
+            offset: Pagination offset (optional).
 
-    async def async_query(
-        self,
-        query_vector: Optional[List[float]] = None,
-        top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-        offset: Optional[Any] = None,
-    ) -> Tuple[List[MemoryEvent], Optional[Any]]:
+        Returns:
+            Tuple of (list of MemoryEvent, next offset).
         """
-        Async wrapper for query() using thread pool to avoid blocking event loop.
-        """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            self.query,
-            query_vector,
-            top_k,
-            filters,
-            offset,
-        )
+        qdrant_filter = self._build_filter(filters)
+        try:
+            async with self.client as client:
+                if query_vector is not None:
+                    response = await client.search(
+                        collection_name=COLLECTION_NAME,
+                        query_vector=query_vector,
+                        limit=top_k,
+                        query_filter=qdrant_filter,
+                        with_payload=True,
+                        timeout=5.0,
+                    )
+                    return [
+                        MemoryEvent.model_validate(hit.payload) for hit in response
+                    ], None
+                else:
+                    response = await client.scroll(
+                        collection_name=COLLECTION_NAME,
+                        scroll_filter=qdrant_filter,
+                        limit=top_k,
+                        offset=offset,
+                        with_payload=True,
+                        timeout=5.0,
+                    )
+                    points, next_offset = response
+                    return [
+                        MemoryEvent.model_validate(hit.payload) for hit in points
+                    ], next_offset
+        except Exception as e:
+            logger.error(f"Qdrant query failed: {str(e)}")
+            raise
 
-    def fetch_all_events_with_pagination(
+    async def fetch_all_events_with_pagination(
         self,
         filters: Optional[Dict[str, Any]] = None,
         batch_size: int = 100,
     ) -> List[MemoryEvent]:
         """
-        Retrieve all MemoryEvent objects from Qdrant using pagination via scroll.
+        Async-native paginated fetch with backpressure control.
 
         Args:
-            filters: Dict of metadata filters (optional).
-            batch_size: Number of points per page.
+            filters: Metadata filters (optional).
+            batch_size: Number of results per page.
 
         Returns:
-            List of MemoryEvent objects matching the filter.
-
-        Usage:
-            repo = MemoryEventRepository()
-            all_events = repo.fetch_all_events_with_pagination(filters={"user_id": "alice"}, batch_size=200)
+            List of MemoryEvent objects.
         """
-        qdrant_filter = None
-        if filters:
-            conditions = [
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filters.items()
-            ]
-            qdrant_filter = Filter(must=conditions)
-
+        qdrant_filter = self._build_filter(filters)
         all_points = []
         next_offset = None
 
-        while True:
-            points, next_offset = self.client.scroll(
-                collection_name=COLLECTION_NAME,
-                scroll_filter=qdrant_filter,
-                limit=batch_size,
-                offset=next_offset,
-                with_payload=True,
-                with_vectors=False,
-            )
-            all_points.extend(points)
-            if not next_offset:
-                break  # No more pages
+        async with self.client as client:
+            while True:
+                response = await client.scroll(  # Non-blocking network I/O
+                    collection_name=COLLECTION_NAME,
+                    scroll_filter=qdrant_filter,
+                    limit=batch_size,
+                    offset=next_offset,
+                    with_payload=True,
+                    timeout=10.0,
+                )
+                points, next_offset = response
+                all_points.extend(points)  # Fast, but CPU work
+                # 📌 Even though await client.scroll(...) is async and yields internally (good!), the loop itself is:
+                # Fast enough to repeat immediately
+                # And runs until all records are fetched (could be thousands)
+                # This means client.scroll() coroutine might hog the event loop, even though it technically awaits inside.
+                # await anyio.sleep(0) breaks that rapid loop just enough to let other tasks "breathe", like:
+                # Logging, HTTP requests, Background jobs, Cleanup callbacks, WebSocket pings, Other client queries
+                await anyio.sleep(
+                    0
+                )  # 📌 await anyio.sleep(0) is way of manually inserting a yield point in a tight async loop, so the event loop can maintain fairness and responsiveness by briefly checking in on other tasks.
+                if not next_offset:
+                    break
 
-        # Convert to MemoryEvent objects
         return [MemoryEvent.model_validate(point.payload) for point in all_points]
 
-    async def async_fetch_all_events_with_pagination(
-        self,
-        filters: Optional[Dict[str, Any]] = None,
-        batch_size: int = 100,
-    ) -> List[MemoryEvent]:
+    def _build_filter(self, filters: Optional[Dict[str, Any]]) -> Optional[Filter]:
         """
-        Async wrapper for fetch_all_events_with_pagination() using thread pool.
+        Helper for filter construction.
         """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            self.fetch_all_events_with_pagination,
-            filters,
-            batch_size,
+        if not filters:
+            return None
+        return Filter(
+            must=[
+                FieldCondition(key=k, match=MatchValue(value=v))
+                for k, v in filters.items()
+            ]
         )
+
+    async def close(self) -> None:
+        """
+        Explicit cleanup for async client.
+        """
+        await self.client.close()

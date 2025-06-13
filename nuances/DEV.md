@@ -685,7 +685,7 @@ Phase 1: Async Infrastructure Layer
 Goal: Make database/network clients async-ready
 Files to Modify:
 
-1. infrastructure/memory_event_repository.py → Async Qdrant client
+1. infrastructure/memory_event_repository.py → Async Qdrant client ✅
 2. infrastructure/ingestion/load.py → Async Neo4j/Qdrant writes
 3. utils/neo4j_utils.py → Async Neo4j driver
 4. utils/embedding_utils.py → Async batch embedding
