@@ -12,8 +12,11 @@ Usage:
 
     # Async client (recommended for async code)
     async_client = get_async_qdrant_client()
-    async with async_client as c:
-        await c.search(...)
+
+    reff: https://github.com/qdrant/qdrant-client?tab=readme-ov-file#async-client
+    async_client.create_collection(...)
+    async_client.upsert(...)
+    async_client.query_points(...)
 
 """
 

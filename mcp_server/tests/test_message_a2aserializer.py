@@ -1,4 +1,15 @@
-from agents.message_a2aserializer import A2AMessageSerializable
+"""
+mcp_server/tests/test_message_a2aserializer.py
+
+Requirements:
+    - pytest
+
+Run with:
+    From inside mcp_server:
+        pytest tests/test_message_a2aserializer.py
+"""
+
+from ..agents.message_a2aserializer import A2AMessageSerializable
 from datetime import datetime, timezone
 
 

@@ -64,21 +64,25 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
         return self._process_nodes(nodes)
 
     async def _aprocess_nodes(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
-        """Full async processing when supported by scorer"""
+        """Full async processing when supported by scorer, with eror handl logs per node"""
         processed = []
         for node in nodes:
-            metadata = node.metadata.copy()
+            try:
+                metadata = node.metadata.copy()
 
-            # Async score calculation
-            if hasattr(self._scorer, "ascore"):
-                metadata["decayed_score"] = await self._scorer.ascore(metadata)
-            else:
-                metadata["decayed_score"] = self._scorer.score(metadata)
+                # Async score calculation
+                if hasattr(self._scorer, "ascore"):
+                    metadata["decayed_score"] = await self._scorer.ascore(metadata)
+                else:
+                    metadata["decayed_score"] = self._scorer.score(metadata)
 
-            node.score = metadata["decayed_score"]
-            node.metadata = metadata
-            processed.append(node)
-
+                node.score = metadata["decayed_score"]
+                node.metadata = metadata
+                processed.append(node)
+            except Exception as e:
+                logger.error(
+                    f"Error processing node {node.metadata.get('clause_id',None)}: {e}"
+                )
         return sorted(processed, key=lambda x: x.score, reverse=True)
 
     async def _apostprocess_nodes(
@@ -91,8 +95,12 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
         # If scorer has async capabilities, use them
         if hasattr(self._scorer, "ascore"):
             return await self._aprocess_nodes(nodes)
-        # Fallback to threadpool for sync scoring
-        return await asyncio.to_thread(self._process_nodes, nodes)
+        # Fallback to threadpool for sync scoring with err handl
+        try:
+            return await asyncio.to_thread(self._process_nodes, nodes)
+        except Exception as e:
+            logger.error(f"Error in threadpool scoring: {e}")
+            return []
 
 
 class MarkUsedDocsPostprocessor(BaseNodePostprocessor):
@@ -124,7 +132,11 @@ class MarkUsedDocsPostprocessor(BaseNodePostprocessor):
         self, nodes: List[NodeWithScore], query_bundle: Optional[QueryBundle] = None
     ) -> List[NodeWithScore]:
         """Async: Tag nodes with initial usage flag"""
-        return await asyncio.to_thread(self._process_nodes, nodes)
+        try:
+            return await asyncio.to_thread(self._process_nodes, nodes)
+        except Exception as e:
+            logger.error(f"Error tagging nodes with usage flag: {e}")
+            return []
 
 
 class MetadataInjectionPostprocessor(BaseNodePostprocessor):
@@ -165,7 +177,11 @@ class MetadataInjectionPostprocessor(BaseNodePostprocessor):
         self, nodes: List[NodeWithScore], query_bundle: Optional[QueryBundle] = None
     ) -> List[NodeWithScore]:
         """Async: Inject metadata into nodes."""
-        return await asyncio.to_thread(self._process_nodes, nodes)
+        try:
+            return await asyncio.to_thread(self._process_nodes, nodes)
+        except Exception as e:
+            logger.error(f"Error injecting metadata into nodes: {e}")
+            return []
 
 
 class HybridScorePostprocessor(BaseNodePostprocessor):
@@ -191,4 +207,8 @@ class HybridScorePostprocessor(BaseNodePostprocessor):
     async def _apostprocess_nodes(
         self, nodes: List[NodeWithScore], query_bundle: Optional[QueryBundle] = None
     ) -> List[NodeWithScore]:
-        return await asyncio.to_thread(self._process_nodes, nodes)
+        try:
+            return await asyncio.to_thread(self._process_nodes, nodes)
+        except Exception as e:
+            logger.error(f"Error applying hybrid score: {e}")
+            return []

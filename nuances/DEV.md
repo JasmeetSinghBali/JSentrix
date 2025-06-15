@@ -503,7 +503,7 @@ Electron App
 ---
 
 
-> ## 🎈 Abstracted Phases for Your Triage Flow
+> ## 🎈 Abstracted Phases for Triage Flow Draft-1
 
 ```bash
 Phase 1: Core Agent Abstraction
@@ -691,19 +691,19 @@ Files to Modify:
 4. utils/embedding_utils.py → Async batch embedding ✅
 
 Phase 2: Async Agent Core
-Goal: Update BaseAgent and JSON-RPC layer for async
+Goal: Update BaseAgent and JSON-RPC layer for async ✅
 Files to Modify:
 
-1. agents/base_agent.py → Async invoke()/stream()
-2. agents/message_a2aserializer.py → (No changes needed)
+1. agents/base_agent.py → Async invoke()/stream() ✅
+2. agents/message_a2aserializer.py → (No changes needed) ✅
 
 Phase 3: Async Application Layer
 Goal: Migrate business logic to async
 Files to Modify:
 
-1. application/run_pipeline.py → Async pipeline steps
-2. application/retrievers/*.py → Async retrievers
-3. application/postprocessors/*.py → Async postprocessing
+1. application/run_pipeline.py → Async pipeline steps ✅
+2. application/retrievers/*.py → Async retrievers ✅
+3. application/postprocessors/*.py → Async postprocessing ✅
 
 Phase 4: Async Interface Layer
 Goal: Update MCP-server entrypoint for async
@@ -726,7 +726,19 @@ Files to Modify:
 
 then continue with below
 > ## >>>> here for Next Steps
-dev-core/triage-agents:
+🎈 tweak 🎈 Abstracted Phases for Triage Flow Draft-1 with adding vision based model like Gemma1.1B for pre-screen + embed + retrieve context(llamaindex) -> qwen3 1.7B for deep logic, analysis and decision  -> Gemma 1.1B summarizes decision + report
+```bash
+[ Gemma 1.1B ] → screen + embed + retrieve context (LlamaIndex)
+        │
+        ▼
+IF suspicious →
+[ Qwen 1.7B ] → deep logic + decision
+        │
+        ▼
+[ Gemma 1.1B ] → summarize decision + report
+
+```
+dev-core/triage-agents-v2:
 - Create concrete agent classes for the phases a/c to the triage flow
 - Implement A2A message types for each agent
 - Add MCP-specific validation hooks
