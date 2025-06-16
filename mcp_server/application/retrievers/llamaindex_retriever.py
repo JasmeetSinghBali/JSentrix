@@ -56,7 +56,7 @@ def get_llamaindex_query_engine_from_docs(
     embed_model = embed_model or get_llamaindex_embedding_model()
     if llm is None:
         llm = Ollama(
-            model="qwen3:1.7b", request_timeout=180.0
+            model="qwen3:1.7b", request_timeout=300.0
         )  # 3 minutes, adjust as needed
 
     # 2. Set global defaults for LlamaIndex modules
@@ -131,7 +131,7 @@ async def async_get_llamaindex_query_engine_from_docs(
     """
     embed_model = embed_model or get_llamaindex_embedding_model()
     if llm is None:
-        llm = Ollama(model="qwen3:1.7b", request_timeout=180.0)
+        llm = Ollama(model="qwen3:1.7b", request_timeout=300.0)
 
     Settings.embed_model = embed_model
     Settings.llm = llm

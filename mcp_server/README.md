@@ -103,6 +103,9 @@ mcp_server/
 # to run qwen3 1.7B model instance locally
 ollama pull qwen3:1.7b
 ollama run qwen3:1.7b
+# to run gemma 1.1B model instance locally
+ollama pull gemma3:1b
+ollama run gemma3:1b
 # http://localhost:11434 local api qwen3
 # to run neo4j docker instance locally
 docker-compose up -d

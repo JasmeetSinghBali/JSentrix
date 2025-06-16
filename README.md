@@ -58,9 +58,10 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
 | 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
 | 8    | ~~Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system~~|
-| 9    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
-| 10    | Add A2A workflow (investigation, notification, action)                                            |
-| 11    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
+| 9    | ~~Setup support jsonrpc2.0 for comm b/w gateway and mcp_server with rest backw compat~~               |
+| 10    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
+| 11    | Add A2A workflow (investigation, notification, action)                                            |
+| 12    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
 
 ---
 
@@ -68,9 +69,9 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 - **Electron** (React/TypeScript) - Desktop app & MCP client
 - **Python** - MCP server, agent orchestration via Langchain
-- **Ollama** - Local LLMs for analysis
+- **Ollama** - Local LLMs for analysis(qwen3:1.7b) + summary(Gemma3:1b)
 - **neo4j** - Local graph database 
-- **customMemory Event via Qdrant** - Local agent memory wired with custom configs and setup
+- **customMemory Event via Qdrant** - Local agent memory event wired with custom configs and setup
 - **Docker** - Deployment and local orchestration
 - **Sphinix** - Docs
 - **OpenTelemetry** Tracing and Instrumentation

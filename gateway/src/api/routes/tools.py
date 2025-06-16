@@ -9,10 +9,13 @@ from core.models.user import UserInDB
 from core.config.settings import settings
 import httpx
 from typing import TypedDict
+from infrastructure.jsonrpc.jsonrpc_client import JsonRpcClient
 
 router = APIRouter()
 
 MCP_SERVER_URL = f"http://{settings.MCP_SERVER_HOST}:{settings.MCP_SERVER_PORT}"
+MCP_JSONRPC_URL = f"{MCP_SERVER_URL}/jsonrpc"
+mcp_jsonrpc = JsonRpcClient(MCP_JSONRPC_URL)
 
 
 @router.get("/listtools")
@@ -21,6 +24,7 @@ async def list_tools(
 ):
     """
     List available tools (protected superadmin only)
+    Uses REST-to-REST for backward compatibility with MCP server.
     """
     mcp_url = f"{MCP_SERVER_URL}/list_tools"
     async with httpx.AsyncClient() as client:
@@ -45,13 +49,14 @@ async def invoke_tool(
 ):
     """
     Invoke a tool (protected superadmin only)
+    REST-in, JSON-RPC-out to MCP server.
     """
-    mcp_url = f"{MCP_SERVER_URL}/tools/{tool_name}/invoke"
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(mcp_url, json=req)
-        if resp.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Tool invocation failed: {resp.text}",
-            )
-        return resp.json()
+    try:
+        # Use JSON-RPC for backend comm, keep REST for client
+        result = await mcp_jsonrpc.call(tool_name, req.get("arguments", {}))
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Tool invocation failed: {str(e)}",
+        )
