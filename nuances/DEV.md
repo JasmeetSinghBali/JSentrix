@@ -506,7 +506,7 @@ Electron App
 > ## 🎈 Abstracted Phases for Triage Flow Draft-1
 
 ```bash
-Phase 1: Core Agent Abstraction
+Phase 1: Core Agent Abstraction ✅
 Design a BaseAgent abstract class/interface.
 
 Ensure it can wrap both LangChain and LlamaIndex agents.
@@ -525,7 +525,7 @@ Provide hooks for auditors to start/stop streaming from electron mcp-client.
 Phase 3: Intake Agent
 Build the Intake Agent using the BaseAgent abstraction.
 
-Integrate with a mock transaction stream (using faker).
+Integrate with a mock transaction stream (using faker) and this streams enable/disable a/c to the streaminges/abortinges tool call but button click in electron app that makes rest request via gateway->jsonrpc-> mcp server
 
 Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant.
 
@@ -737,11 +737,16 @@ IF suspicious →
 [ Gemma3 1B ] → summarize decision + report
 
 ```
-dev-core/triage-agents-v2:
-- Create concrete agent classes for the phases a/c to the triage flow
-- Implement A2A message types for each agent
-- Add MCP-specific validation hooks
 
 
 then
 Move to Phase 2 (Tooling Integration)?
+
+then First Agent Intake Agent
+NOTE- these 3 steps shud follow for all type of agents
+```bash
+dev-core/triage-agent-{intake/assesment...}:
+- Create concrete agent classe for this agent a/c to the triage flow
+- Implement A2A message types for this agent
+- Add MCP-specific validation hooks
+```
