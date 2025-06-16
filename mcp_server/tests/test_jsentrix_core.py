@@ -21,6 +21,7 @@ from application.retrievers.langchain_retriever import GraphMemoryRetriever
 from application.retrievers.llamaindex_retriever import (
     get_llamaindex_query_engine_from_docs,
 )
+from llama_index.llms.ollama import Ollama
 from llama_index.core.schema import Document
 from utils.neo4j_utils import get_neo4j_config
 from utils.summarizer import T5Summarizer
@@ -72,15 +73,18 @@ def build_compliance_query(transaction):
 # pytest ./tests/test_jsentrix_core.py -v -s -k test_jsentrix_rag_pipeline
 def test_jsentrix_rag_pipeline(langchain_retriever, faker):
     """
+    Run the RAG pipeline test
+        - Qwen3:1.7B makes the compliance decision.
+        - Gemma3:1b generates a summary/report based on Qwen's output.
+
     Requirements:
-        - Neo4j database must be running and accessible with the configured credentials.
-        - ingestion run_pipeline shud be ran
-        - ollama qwen3 1.7B shud be running
-        - No need to run the MCP server or gateway; this test interacts directly with the retriever and query engine APIs.
-        - All test data is mocked or in-memory, but the Neo4j connection and schema must be available.
-        - Ensure all necessary indexes and constraints exist in Neo4j for retrieval to work.
+        - Neo4j database running and accessible.
+        - ingestion run_pipeline completed.
+        - ollama qwen3:1.7b and gemma3:1b running locally.
+        - No MCP server or gateway required.
         - Recommended: Run with a clean or test-specific Neo4j instance to avoid data contamination.
     """
+    logger.info("Running RAG pipeline test with model: qwen3:1.7b")
     logger.info("Neo4j config (should cache): %s", get_neo4j_config())
 
     # 1. Intentionally violating transaction (C2)
@@ -106,7 +110,7 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
     transactions = [violating_transaction] + normal_transactions
 
     for idx, txn in enumerate(transactions):
-        logger.info(f"\n === Processing Transaction {idx+1} ===")
+        logger.info(f"\n === Processing Transaction {idx+1} with model qwen3:1.7b ===")
         logger.info(f"Transaction: {txn}")
 
         # ---1. LangChain hybrid retrieval ---
@@ -133,7 +137,7 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
             for doc in langchain_docs
         ]
 
-        # ---4. Create a LlamaIndex query engine from these docs with postprocessors and reward logic ---
+        # ---4. Create a LlamaIndex query engine with specified model ---
         query_engine = get_llamaindex_query_engine_from_docs(
             llamaindex_docs, dynamic_metadata_by_clause_id=dynamic_metadata_by_clause_id
         )
@@ -154,15 +158,13 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
 
         # ---6. Compliance assertions ---
         if idx == 0:
-            # The first transaction should be a violation (YES)
             assert (
                 "YES" in str(response).upper()
-            ), "LLM failed to detect compliance violation for transaction 1"
+            ), f"Qwen3:1.7B failed to detect compliance violation for transaction 1"
         else:
-            # The rest should be NO
             assert (
                 "NO" in str(response).upper()
-            ), f"LLM incorrectly detected violation for transaction {idx+1}"
+            ), f"Qwen3:1.7B incorrectly detected violation for transaction {idx+1}"
 
         # ---7. Verify metadata propagation ---
         for node in getattr(response, "source_nodes", []):
@@ -188,7 +190,6 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
                 f"decayed_score={meta.get('decayed_score')}, "
                 f"hybrid_score={meta.get('hybrid_score')}"
             )
-            # Assert all scores are present and are floats
             assert isinstance(
                 original_score, (float, int)
             ), "original_score missing or not a number"
@@ -198,11 +199,9 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
             assert isinstance(
                 meta.get("hybrid_score"), (float, int)
             ), "hybrid_score missing or not a number"
-            # Assert hybrid_score is less than or equal to original score (decay/rerank applied)
             assert (
                 meta["hybrid_score"] <= original_score
             ), "hybrid_score should be <= original score"
-            # Assert decayed_score is less than or equal to original score
             assert (
                 meta["decayed_score"] <= original_score
             ), "decayed_score should be <= original score"
@@ -216,6 +215,20 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         assert hybrid_scores == sorted(
             hybrid_scores, reverse=True
         ), "Nodes not reranked by hybrid_score"
+
+        # ---10. Summary/report with Gemma3:1b ---
+        summary_prompt = (
+            f"Summarize this compliance decision for auditors and end users:\n"
+            f"Transaction: {txn}\n"
+            f"Decision: {str(response)}"
+        )
+        # Use Gemma3:1b for summary
+        summary_llm = Ollama(model="gemma3:1b")
+        summary = summary_llm.complete(prompt=summary_prompt).text
+        logger.info(f"[Gemma3:1b Summary] {summary}")
+        assert (
+            summary and isinstance(summary, str) and len(summary.strip()) > 0
+        ), "Gemma3:1b returned empty summary"
 
         logger.info(f" === End Transaction {idx+1} Processing ===\n")
 

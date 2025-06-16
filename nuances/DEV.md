@@ -520,7 +520,7 @@ Implement new tools: streaminges and abortinges as callable endpoints.
 
 Ensure they can be invoked by the Electron app (via Gateway → MCP Server).
 
-Provide hooks for auditors to start/stop streaming.
+Provide hooks for auditors to start/stop streaming from electron mcp-client.
 
 Phase 3: Intake Agent
 Build the Intake Agent using the BaseAgent abstraction.
@@ -721,20 +721,20 @@ Files to Modify:
 
 ```
 
-2. diff branch adding support of jsonrpc2.0 comm between gateway and mcp-server.
+2. diff branch adding support of jsonrpc2.0 comm between gateway and mcp-server. ✅
 
 then continue with below
 > ## >>>> here for Next Steps
 🎈 tweak 🎈 Abstracted Phases for Triage Flow Draft-1 with adding vision based model like Gemma1.1B for pre-screen + embed + retrieve context(llamaindex) -> qwen3 1.7B for deep logic, analysis and decision  -> Gemma 1.1B summarizes decision + report
 ```bash
-[ Gemma 1.1B ] → screen + embed + retrieve context (LlamaIndex)
+[ Gemma3 1B ] → screen + embed + retrieve context (LlamaIndex)
         │
         ▼
 IF suspicious →
 [ Qwen 1.7B ] → deep logic + decision
         │
         ▼
-[ Gemma 1.1B ] → summarize decision + report
+[ Gemma3 1B ] → summarize decision + report
 
 ```
 dev-core/triage-agents-v2:
