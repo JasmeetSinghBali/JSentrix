@@ -33,6 +33,56 @@ from typing import List, Dict, Any
 logger = get_logger("jsentrix")
 
 
+def ensure_vector_index(driver, config, dimensions=384):
+    index_name = config["index_name"]
+    label = config["node_label"]
+    property = config["embedding_property"]
+    cypher_check = f"SHOW INDEXES WHERE name = '{index_name}'"
+    cypher_create = f"""
+    CREATE VECTOR INDEX {index_name}
+    FOR (n:{label}) ON (n.{property})
+    OPTIONS {{
+      indexConfig: {{
+        `vector.dimensions`: {dimensions},
+        `vector.similarity_function`: 'cosine'
+      }}
+    }}
+    """
+    with driver.session() as session:
+        result = session.run(cypher_check)
+        indexes = list(result)
+        if not indexes:
+            logger.info(f"Creating vector index: {index_name}")
+            session.run(cypher_create)
+        else:
+            logger.info(f"Vector index '{index_name}' already exists.")
+
+
+async def ensure_vector_index_async(driver, config, dimensions=384):
+    index_name = config["index_name"]
+    label = config["node_label"]
+    property = config["embedding_property"]
+    cypher_check = f"SHOW INDEXES WHERE name = '{index_name}'"
+    cypher_create = f"""
+    CREATE VECTOR INDEX {index_name}
+    FOR (n:{label}) ON (n.{property})
+    OPTIONS {{
+      indexConfig: {{
+        `vector.dimensions`: {dimensions},
+        `vector.similarity_function`: 'cosine'
+      }}
+    }}
+    """
+    async with driver.session() as session:
+        result = await session.run(cypher_check)
+        indexes = await result.values()
+        if not indexes:
+            logger.info(f"Creating vector index: {index_name}")
+            await session.run(cypher_create)
+        else:
+            logger.info(f"Vector index '{index_name}' already exists.")
+
+
 def clear_neo4j_database(config: Dict[str, Any]) -> None:
     """
     Removes all nodes and relationships from the Neo4j database.
@@ -65,6 +115,10 @@ def load_to_neo4j(clauses: List[Dict[str, Any]]) -> None:
     config = get_neo4j_config()
     clear_neo4j_database(config)
     embedding = get_langchain_embedding_model()
+    driver = GraphDatabase.driver(
+        config["url"], auth=(config["username"], config["password"])
+    )
+    ensure_vector_index(driver, config, dimensions=384)
 
     # pre docs for vector ingestion(nodes)
     docs = []
@@ -103,10 +157,6 @@ def load_to_neo4j(clauses: List[Dict[str, Any]]) -> None:
     )
 
     # create relationship via neo4j driver
-    driver = GraphDatabase.driver(
-        config["url"], auth=(config["username"], config["password"])
-    )
-
     with driver.session() as session:
         # create unique constraint on clause_id for effective matching
         session.run(
@@ -171,6 +221,8 @@ async def async_load_to_neo4j(clauses: List[Dict[str, Any]]) -> None:
     """
     config = get_neo4j_config()
     await async_clear_neo4j_database(config)
+    driver = get_async_neo4j_driver()
+    await ensure_vector_index_async(driver, config, dimensions=384)
 
     # Prepare docs for vector ingestion (nodes)
     docs = []
@@ -197,7 +249,6 @@ async def async_load_to_neo4j(clauses: List[Dict[str, Any]]) -> None:
     embeddings = await async_batch_embed_documents(texts, backend="langchain")
 
     # Insert nodes with embeddings
-    driver = get_async_neo4j_driver()
     async with driver.session() as session:
         # Create unique constraint on clause_id
         await session.run(

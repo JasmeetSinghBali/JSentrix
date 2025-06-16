@@ -91,16 +91,7 @@ class MemoryEventRetriever:
 
         logger.debug(f"Query: vector={query_vector}, filters={filters}, top_k={top_k}")
 
-        if hasattr(self.repository, "async_query"):
-            events, _ = await self.repository.async_query(
-                query_vector=query_vector, top_k=top_k, filters=filters
-            )
-        else:
-            loop = asyncio.get_running_loop()
-            events, _ = await loop.run_in_executor(
-                None,
-                lambda: self.repository.query(
-                    query_vector=query_vector, top_k=top_k, filters=filters
-                ),
-            )
+        events, _ = await self.repository.query(
+            query_vector=query_vector, top_k=top_k, filters=filters
+        )
         return events

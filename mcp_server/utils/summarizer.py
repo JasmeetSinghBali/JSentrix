@@ -102,7 +102,9 @@ class T5Summarizer:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.summarize, text)
 
-    async def async_summarize_long_text(self, text: str) -> Optional[str]:
+    async def async_summarize_long_text(
+        self, text: str, max_concurrency: int = 8
+    ) -> Optional[str]:
         """
         Asynchronously handles long texts via chunking and recursive summarization.
         Runs chunk summarization in a thread pool for each chunk.
@@ -112,15 +114,18 @@ class T5Summarizer:
         if len(text) <= self.max_input_length:
             return await self.async_summarize(text)
 
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def summarize_chunk(chunk):
+            async with semaphore:
+                return await self.async_summarize(chunk)
+
         chunks = [
             text[i : i + self.max_input_length]
             for i in range(0, len(text), self.max_input_length)
         ]
-        # Run chunk summarization concurrently
-        summaries = await asyncio.gather(
-            *(self.async_summarize(chunk) for chunk in chunks)
-        )
+        summaries = await asyncio.gather(*(summarize_chunk(chunk) for chunk in chunks))
         combined = " ".join(filter(None, summaries))
         if len(combined) > self.max_input_length:
-            return await self.async_summarize(combined)  # Recursive
+            return await self.async_summarize(combined)
         return combined

@@ -17,7 +17,7 @@ Install with:
 
 import pytest
 import asyncio
-from ..utils.lifecycle import (
+from utils.lifecycle import (
     register_shutdown_callback,
     shutdown_all,
     async_shutdown_all,

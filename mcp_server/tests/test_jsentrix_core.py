@@ -71,6 +71,16 @@ def build_compliance_query(transaction):
 # test-core-1: Rag pipeline
 # pytest ./tests/test_jsentrix_core.py -v -s -k test_jsentrix_rag_pipeline
 def test_jsentrix_rag_pipeline(langchain_retriever, faker):
+    """
+    Requirements:
+        - Neo4j database must be running and accessible with the configured credentials.
+        - ingestion run_pipeline shud be ran
+        - ollama qwen3 1.7B shud be running
+        - No need to run the MCP server or gateway; this test interacts directly with the retriever and query engine APIs.
+        - All test data is mocked or in-memory, but the Neo4j connection and schema must be available.
+        - Ensure all necessary indexes and constraints exist in Neo4j for retrieval to work.
+        - Recommended: Run with a clean or test-specific Neo4j instance to avoid data contamination.
+    """
     logger.info("Neo4j config (should cache): %s", get_neo4j_config())
 
     # 1. Intentionally violating transaction (C2)
@@ -210,10 +220,11 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         logger.info(f" === End Transaction {idx+1} Processing ===\n")
 
 
-# test-core-2: Memory-aware triage flow
-# Run only the new memory-aware test
-# pytest ./tests/test_jsentrix_core.py -v -s -k test_memory_aware_triage_flow
-def test_memory_aware_triage_flow(
+# test-core 2
+# Run only the new memory-aware test_core_2_async_end_to_end triage flow
+# pytest ./tests/test_jsentrix_core.py -v -s -k test_core_2_async_end_to_end
+@pytest.mark.asyncio
+async def test_core_2_async_end_to_end(
     langchain_retriever,
     memory_event_repository,
     memory_event_retriever,
@@ -222,124 +233,17 @@ def test_memory_aware_triage_flow(
 ):
     """
     Simulates a triage flow where past memory events influence current transactions.
-    """
-    logger.info("\n === Testing Memory-Aware Triage Flow ===")
 
-    # 1. Store mock memory events from previous transactions
-    mock_events = [
-        {
-            "prompt": "Compliance check for USD transfer from SANCTIONED_ENTITY_X to GB00FAKE12345678901234",
-            "llm_response": "YES - Sanctioned entity detected.",
-            "scores": {"risk_score": 0.95},
-            "user_id": "audit_user_1",
-        },
-        {
-            "prompt": "Compliance check for EUR transfer from BANK_A to BANK_B",
-            "llm_response": "NO - No violations found.",
-            "scores": {"risk_score": 0.15},
-            "user_id": "audit_user_2",
-        },
-    ]
-
-    for event_data in mock_events:
-        event = MemoryEvent(
-            agent_name="TestAgent",
-            prompt=event_data["prompt"],
-            llm_response=event_data["llm_response"],
-            scores=event_data["scores"],
-            user_id=event_data["user_id"],
-        )
-        # Generate embedding from prompt
-        vector = embedding_model.embed_query(event.prompt)
-        memory_event_repository.store(event, vector)
-
-    # 2. Simulate a new transaction similar to a high-risk past event
-    new_transaction = {
-        "amount": "$15,000.00",
-        "sender": "SANCTIONED_ENTITY_X",  # Similar to stored high-risk event
-        "receiver": "GB00FAKE12345678901234",
-        "currency": "USD",
-        "timestamp": "2025-05-30T12:00:00",
-    }
-    new_prompt = f"Compliance check for {new_transaction['currency']} transfer from {new_transaction['sender']} to {new_transaction['receiver']}"
-
-    # 3. Retrieve relevant memories using vector + metadata
-    query_vector = embedding_model.embed_query(new_prompt)
-    relevant_memories = memory_event_retriever.get_events(
-        query_vector=query_vector,
-        filters={
-            "user_id": "audit_user_1"
-        },  # this will be known from the session , login or request context this can be omitted to take leverage of all past high-risk memory events regardless of user
-        top_k=2,
-    )
-
-    logger.info(f"\n[Memory-Aware Triage] Retrieved {len(relevant_memories)} memories:")
-    for memory in relevant_memories:
-        logger.info(f"📝 Memory: {memory.prompt} | Risk: {memory.scores['risk_score']}")
-
-    # 4. Assert high-risk memory is prioritized
-    assert len(relevant_memories) > 0, "No memories retrieved"
-    assert any(
-        "SANCTIONED_ENTITY_X" in memory.prompt and memory.scores["risk_score"] > 0.9
-        for memory in relevant_memories
-    ), "High-risk memory not retrieved"
-
-    # 5. (Optional) Simulate injecting memories into LLM context
-    # This would depend on agent implementation
-    logger.info("\n[Simulated LLM Context Injection]")
-    context = "\n".join(
-        [f"Past decision: {memory.llm_response}" for memory in relevant_memories]
-    )
-    logger.info(f"Context:\n{context}")
-
-    # 6. Verify context influences analysis (simplified assertion)
-    assert "YES" in context, "High-risk context not injected"
-
-    # 7. Fetch all events for the user using pagination and assert correctness
-    all_events = memory_event_repository.fetch_all_events_with_pagination(
-        filters={"user_id": "audit_user_1"}, batch_size=10
-    )
-    logger.info(
-        f"\n[Pagination Fetch] Retrieved {len(all_events)} events for user 'audit_user_1'"
-    )
-    assert (
-        len(all_events) >= 1
-    ), "No events found for user 'audit_user_1' with pagination fetch"
-    assert any(
-        "SANCTIONED_ENTITY_X" in event.prompt and event.scores["risk_score"] > 0.9
-        for event in all_events
-    ), "High-risk event not found in paginated fetch"
-
-    # 8. Fetch all events for all users (no filter) and assert both events are present
-    all_events_unfiltered = memory_event_repository.fetch_all_events_with_pagination(
-        filters=None, batch_size=10
-    )
-    logger.info(
-        f"\n[Pagination Fetch] Retrieved {len(all_events_unfiltered)} events (unfiltered)"
-    )
-    prompts = [event.prompt for event in all_events_unfiltered]
-    assert any(
-        "SANCTIONED_ENTITY_X" in prompt for prompt in prompts
-    ), "High-risk event missing in all-events fetch"
-    assert any(
-        "BANK_A" in prompt for prompt in prompts
-    ), "Low-risk event missing in all-events fetch"
-
-
-# test-core 3
-# Run only the new memory-aware test_core_3_async_end_to_end triage flow
-# pytest ./tests/test_jsentrix_core.py -v -s -k test_core_3_async_end_to_end
-@pytest.mark.asyncio
-async def test_core_3_async_end_to_end(
-    langchain_retriever,
-    memory_event_repository,
-    memory_event_retriever,
-    embedding_model,
-    faker,
-):
-    """
     End-to-end async test: memory event storage, retrieval, summarizer, and hybrid retrieval pipeline.
     Uses unique mock values to ensure independence from other tests.
+
+    Requirements:
+        - neo4j shud be running and run_pipeline for prep knowledge base
+        - qdrant shud be running then run qdrant_setup.py
+        - No need to run the MCP server or gateway; this test interacts directly with repository, retriever, and summarizer APIs.
+        - All test data is unique and isolated for this test.
+        - If using an embedding model or summarizer that requires external files or network, ensure these are available.
+        - Python environment must support asyncio and pytest-asyncio (install with `pip install pytest-asyncio`).
     """
     logger.info("\n === [ASYNC] End-to-End Async Pipeline Test ===")
 
@@ -373,9 +277,7 @@ async def test_core_3_async_end_to_end(
         vector = await asyncio.get_running_loop().run_in_executor(
             None, embedding_model.embed_query, event.prompt
         )
-        await asyncio.get_running_loop().run_in_executor(
-            None, memory_event_repository.store, event, vector
-        )
+        await memory_event_repository.store(event, vector)
 
     # 2. Simulate a new transaction with unique values
     new_transaction = {
@@ -403,6 +305,7 @@ async def test_core_3_async_end_to_end(
     for memory in relevant_memories:
         logger.info(f"📝 Memory: {memory.prompt} | Risk: {memory.scores['risk_score']}")
 
+    # Assert high-risk memory is prioritized
     assert len(relevant_memories) > 0, "No memories retrieved"
     assert any(
         "ASYNC_CORP_42" in memory.prompt and memory.scores["risk_score"] > 0.9
@@ -418,7 +321,7 @@ async def test_core_3_async_end_to_end(
     assert "YES" in context, "High-risk context not injected"
 
     # 5. Fetch all events for the user using async pagination and assert correctness
-    all_events = await memory_event_repository.async_fetch_all_events_with_pagination(
+    all_events = await memory_event_repository.fetch_all_events_with_pagination(
         filters={"user_id": "async_unique_user_42"}, batch_size=10
     )
     logger.info(
@@ -434,7 +337,7 @@ async def test_core_3_async_end_to_end(
 
     # 6. Fetch all events for all users (no filter) and assert both events are present
     all_events_unfiltered = (
-        await memory_event_repository.async_fetch_all_events_with_pagination(
+        await memory_event_repository.fetch_all_events_with_pagination(
             filters=None, batch_size=10
         )
     )

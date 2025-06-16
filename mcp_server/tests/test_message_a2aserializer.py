@@ -9,7 +9,7 @@ Run with:
         pytest tests/test_message_a2aserializer.py
 """
 
-from ..agents.message_a2aserializer import A2AMessageSerializable
+from agents.message_a2aserializer import A2AMessageSerializable
 from datetime import datetime, timezone
 
 

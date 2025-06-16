@@ -3,8 +3,14 @@ utils/retry.py
 
 Generic retry decorator for functions that may fail transiently.
 Usage:
+    # Sync
     @retry(max_retries=5, delay=2, exceptions=(ValueError,))
     def my_func(...):
+        ...
+
+    # Async
+    @async_retry(max_retries=5, delay=2, exceptions=(ValueError,))
+    async def my_async_func(...):
         ...
 """
 
@@ -12,7 +18,7 @@ import time
 import asyncio
 import traceback
 from functools import wraps
-from typing import Callable, Any, Type, Tuple, Union
+from typing import Callable, Any, Type, Tuple, Union, Awaitable
 
 
 def retry(
@@ -20,7 +26,7 @@ def retry(
     delay: float = 1.0,
     exceptions: Tuple[Type[Exception], ...] = (Exception,),
     logger: Callable[[str], None] = None,
-) -> Callable:  # Outer function (decorator factory)
+) -> Callable:
     """
     Decorator to retry a function if specified exceptions occur.
 
@@ -34,7 +40,7 @@ def retry(
         Callable: Decorated function with retry logic.
     """
 
-    def decorator(func: Callable) -> Callable:  # Actual decorator
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             last_exception = None
@@ -54,13 +60,13 @@ def retry(
                             )
                             logger("[retry] All attempts failed. Traceback:")
                             logger(traceback.format_exc())
-                        raise  # Re-raises the same `e`, which is still in scope here
+                        raise
                     time.sleep(delay * attempt)
             return None
 
-        return wrapper  # decorator returns this function
+        return wrapper
 
-    return decorator  # factory returns the decorator
+    return decorator
 
 
 def async_retry(
@@ -69,7 +75,20 @@ def async_retry(
     exceptions: Tuple[Type[Exception], ...] = (Exception,),
     logger: Callable[[str], None] = None,
 ) -> Callable:
-    def decorator(func: Callable) -> Callable:
+    """
+    Async decorator to retry a coroutine if specified exceptions occur.
+
+    Args:
+        max_retries (int): Number of attempts before giving up.
+        delay (float): Initial delay (in seconds) between retries (increases linearly).
+        exceptions (tuple): Exceptions to catch and retry on.
+        logger (callable): Optional logger function to log retry attempts.
+
+    Returns:
+        Callable: Decorated async function with retry logic.
+    """
+
+    def decorator(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
             last_exception = None
@@ -89,7 +108,7 @@ def async_retry(
                             )
                             logger("[retry] All attempts failed. Traceback:")
                             logger(traceback.format_exc())
-                        raise  # Re-raises the same `e`, which is still in scope here
+                        raise
                     await asyncio.sleep(delay * attempt)
             raise last_exception
 

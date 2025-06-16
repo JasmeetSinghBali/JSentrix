@@ -44,10 +44,9 @@ class MemoryEventRepository:
             vector=vector,
             payload=event.model_dump(),
         )
-        async with self.client as client:
-            await client.upsert(
-                collection_name=COLLECTION_NAME, points=[point], timeout=10.0, wait=True
-            )
+        await self.client.upsert(
+            collection_name=COLLECTION_NAME, points=[point], wait=True
+        )
 
     async def query(
         self,
@@ -70,32 +69,31 @@ class MemoryEventRepository:
         """
         qdrant_filter = self._build_filter(filters)
         try:
-            async with self.client as client:
-                if query_vector is not None:
-                    response = await client.search(
-                        collection_name=COLLECTION_NAME,
-                        query_vector=query_vector,
-                        limit=top_k,
-                        query_filter=qdrant_filter,
-                        with_payload=True,
-                        timeout=5.0,
-                    )
-                    return [
-                        MemoryEvent.model_validate(hit.payload) for hit in response
-                    ], None
-                else:
-                    response = await client.scroll(
-                        collection_name=COLLECTION_NAME,
-                        scroll_filter=qdrant_filter,
-                        limit=top_k,
-                        offset=offset,
-                        with_payload=True,
-                        timeout=5.0,
-                    )
-                    points, next_offset = response
-                    return [
-                        MemoryEvent.model_validate(hit.payload) for hit in points
-                    ], next_offset
+            if query_vector is not None:
+                response = await self.client.query_points(
+                    collection_name=COLLECTION_NAME,
+                    query=query_vector,
+                    limit=top_k,
+                    query_filter=qdrant_filter,
+                    with_payload=True,
+                    timeout=5,
+                )
+                # list of hits
+                hits = response.points
+                return [MemoryEvent.model_validate(hit.payload) for hit in hits], None
+            else:
+                response = await self.client.scroll(
+                    collection_name=COLLECTION_NAME,
+                    scroll_filter=qdrant_filter,
+                    limit=top_k,
+                    offset=offset,
+                    with_payload=True,
+                    timeout=5,
+                )
+                points, next_offset = response
+                return [
+                    MemoryEvent.model_validate(hit.payload) for hit in points
+                ], next_offset
         except Exception as e:
             logger.error(f"Qdrant query failed: {str(e)}")
             raise
@@ -119,29 +117,28 @@ class MemoryEventRepository:
         all_points = []
         next_offset = None
 
-        async with self.client as client:
-            while True:
-                response = await client.scroll(  # Non-blocking network I/O
-                    collection_name=COLLECTION_NAME,
-                    scroll_filter=qdrant_filter,
-                    limit=batch_size,
-                    offset=next_offset,
-                    with_payload=True,
-                    timeout=10.0,
-                )
-                points, next_offset = response
-                all_points.extend(points)  # Fast, but CPU work
-                # 📌 Even though await client.scroll(...) is async and yields internally (good!), the loop itself is:
-                # Fast enough to repeat immediately
-                # And runs until all records are fetched (could be thousands)
-                # This means client.scroll() coroutine might hog the event loop, even though it technically awaits inside.
-                # await anyio.sleep(0) breaks that rapid loop just enough to let other tasks "breathe", like:
-                # Logging, HTTP requests, Background jobs, Cleanup callbacks, WebSocket pings, Other client queries
-                await anyio.sleep(
-                    0
-                )  # 📌 await anyio.sleep(0) is way of manually inserting a yield point in a tight async loop, so the event loop can maintain fairness and responsiveness by briefly checking in on other tasks.
-                if not next_offset:
-                    break
+        while True:
+            response = await self.client.scroll(  # Non-blocking network I/O
+                collection_name=COLLECTION_NAME,
+                scroll_filter=qdrant_filter,
+                limit=batch_size,
+                offset=next_offset,
+                with_payload=True,
+                timeout=10,
+            )
+            points, next_offset = response
+            all_points.extend(points)  # Fast, but CPU work
+            # 📌 Even though await client.scroll(...) is async and yields internally (good!), the loop itself is:
+            # Fast enough to repeat immediately
+            # And runs until all records are fetched (could be thousands)
+            # This means client.scroll() coroutine might hog the event loop, even though it technically awaits inside.
+            # await anyio.sleep(0) breaks that rapid loop just enough to let other tasks "breathe", like:
+            # Logging, HTTP requests, Background jobs, Cleanup callbacks, WebSocket pings, Other client queries
+            await anyio.sleep(
+                0
+            )  # 📌 await anyio.sleep(0) is way of manually inserting a yield point in a tight async loop, so the event loop can maintain fairness and responsiveness by briefly checking in on other tasks.
+            if not next_offset:
+                break
 
         return [MemoryEvent.model_validate(point.payload) for point in all_points]
 

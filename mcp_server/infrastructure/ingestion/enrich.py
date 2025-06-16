@@ -44,9 +44,7 @@ def enrich_clause(clause: Dict[str, Any]) -> Dict[str, Any]:
 
     # --- summarize the clause text ---
     text = clause["text"]
-    input_length = len(text.split())
-    max_length = min(150, max(10, input_length))
-    summary = summarizer.summarize(text, max_length=max_length)
+    summary = summarizer.summarize(text)
 
     # merge and syn metadata
     enriched_metadata = {

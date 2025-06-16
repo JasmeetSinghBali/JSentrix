@@ -53,7 +53,7 @@ def _any_async_shutdown_callbacks():
     return any(inspect.iscoroutinefunction(cb) for cb in _shutdown_callbacks)
 
 
-def cleanup():
+def cleanup(source="unknown"):
     """
     Runs all registered shutdown callbacks.
     If any callback is async, runs async_shutdown_all in a new event loop.
@@ -62,7 +62,9 @@ def cleanup():
     global _cleanup_called
     with _cleanup_lock:
         if not _cleanup_called:
-            logger.info("MCP server: Running server cleanup before shutting down...")
+            logger.info(
+                f"MCP server: Running server cleanup before shutting down (triggered by {source})..."
+            )
             if _any_async_shutdown_callbacks():
                 logger.info(
                     "MCP server: Detected async shutdown callbacks, running async shutdown."
@@ -80,15 +82,9 @@ def cleanup():
             logger.info("MCP server: Cleanup already performed")
 
 
-def signal_handler(signum, frame):
-    logger.info(f"MCP server: Recieved signal {signum}, shutting down")
-    cleanup()
-    sys.exit(0)
-
-
-atexit.register(cleanup)
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
+atexit.register(lambda: cleanup("atexit"))
+signal.signal(signal.SIGTERM, lambda signum, frame: (cleanup("SIGTERM"), sys.exit(0)))
+signal.signal(signal.SIGINT, lambda signum, frame: (cleanup("SIGINT"), sys.exit(0)))
 
 # --- HTTP API (FastAPI) act as wrapper around fastmcp server tools as http rest endpoints ---
 from fastapi import FastAPI, HTTPException
@@ -161,6 +157,11 @@ async def invoke_tool(tool_name: str, req: ToolInvokeRequest):
         logger.error(f"Tool invocation failed: {e.detail}")
         # 📌 reraise so that fastapi can convert it into error response with the error automatically instead of 200 success
         raise
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    cleanup("fastapi")
 
 
 # --- mcp_server Entrypoint ---
