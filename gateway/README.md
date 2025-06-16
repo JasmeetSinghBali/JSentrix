@@ -26,7 +26,10 @@ gateway/
 │   │   ├── auth/              # Auth implementations
 │   │   │   ├── jwt.py
 │   │   │   └── security.py
-│   │
+│   │   |
+|   |   └── jsonrpc/
+|   |         └── jsonrpc_client.py
+|   |
 │   ├── application/           # Use cases & services
 │   │   ├── use_cases/
 │   │   │   ├── auth.py
