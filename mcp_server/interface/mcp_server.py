@@ -7,8 +7,8 @@ Entry point for the MCP server (FastMCP).
 
 Usage:
     python -m interface.mcp_server          # stdio (subprocess mode)
-    python -m interface.mcp_server --http   # HTTP API mode (for Docker/microservices) without tracers log pesistance only console tracers
-    python -m interface.mcp_server --http > tracers/logs/mcp_server_trace.log 2>&1 # http api mode with tracers log persistance inside tracers/logs/mcp_server_trace.log and no console tracers
+    python -m interface.mcp_server --http   # HTTP and JSONRPC supp API mode (for Docker/microservices) without tracers log pesistance only console tracers
+    python -m interface.mcp_server --http > tracers/logs/mcp_server_trace.log 2>&1 # http api and jsonrpc supp mode with tracers log persistance inside tracers/logs/mcp_server_trace.log and no console tracers
 """
 
 import sys
@@ -87,7 +87,8 @@ signal.signal(signal.SIGTERM, lambda signum, frame: (cleanup("SIGTERM"), sys.exi
 signal.signal(signal.SIGINT, lambda signum, frame: (cleanup("SIGINT"), sys.exit(0)))
 
 # --- HTTP API (FastAPI) act as wrapper around fastmcp server tools as http rest endpoints ---
-from fastapi import FastAPI, HTTPException
+from fastapi import Request, FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from tracers.tracing import setup_tracing
 from pydantic import BaseModel
 import uvicorn
@@ -157,6 +158,54 @@ async def invoke_tool(tool_name: str, req: ToolInvokeRequest):
         logger.error(f"Tool invocation failed: {e.detail}")
         # 📌 reraise so that fastapi can convert it into error response with the error automatically instead of 200 success
         raise
+
+
+@app.post("/jsonrpc")
+async def jsonrpc_endpoint(request: Request):
+    req = await request.json()
+    # Basic JSON-RPC 2.0 validation
+    if (
+        not isinstance(req, dict)
+        or req.get("jsonrpc") != "2.0"
+        or "method" not in req
+        or "id" not in req
+    ):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "jsonrpc": "2.0",
+                "id": req.get("id") if isinstance(req, dict) else None,
+                "error": {"code": -32600, "message": "Invalid Request"},
+            },
+        )
+    method = req["method"]
+    params = req.get("params", {})
+    rpc_id = req["id"]
+
+    # Dispatch to registered tools (sync or async)
+    try:
+        tool_obj = mcp._tool_manager._tools.get(method)
+        if not tool_obj:
+            raise Exception("Method not found")
+        tool_func = tool_obj.fn
+        if isinstance(params, dict):
+            result = tool_func(**params)
+        elif isinstance(params, list):
+            result = tool_func(*params)
+        else:
+            result = tool_func()
+        if inspect.iscoroutine(result):
+            result = await result
+        return {"jsonrpc": "2.0", "result": result, "id": rpc_id}
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "error": {
+                "code": -32601 if "Method not found" in str(e) else -32603,
+                "message": str(e),
+            },
+        }
 
 
 @app.on_event("shutdown")
