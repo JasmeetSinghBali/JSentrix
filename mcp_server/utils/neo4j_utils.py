@@ -56,7 +56,7 @@ def get_neo4j_config() -> Dict[str, str]:
     return _neo4j_config
 
 
-# --- for Sync driver pooling ---
+# --- Sync driver pooling ---
 from neo4j import GraphDatabase, Driver
 
 _neo4j_driver: Optional[Driver] = None
@@ -98,15 +98,13 @@ def close_neo4j_driver():
         _neo4j_driver = None
 
 
-# --- Async Driver Pooling ---
+# --- Async driver pooling ---
 try:
     from neo4j import AsyncDriver, AsyncGraphDatabase
 except ImportError:
     AsyncDriver = None
     AsyncGraphDatabase = None
 
-# forward refferences "AsyncDriver" in case import error
-# reff: https://peps.python.org/pep-0484/#forward-references
 _neo4j_async_driver: Optional["AsyncDriver"] = None
 
 
@@ -118,7 +116,7 @@ def get_async_neo4j_driver() -> "AsyncDriver":
     global _neo4j_async_driver
     if AsyncGraphDatabase is None:
         raise ImportError(
-            "neo4j[async] is not installed. Please install the async extra."
+            "neo4j[async] is not installed. Please install the async extra: pip install 'neo4j[async]'"
         )
     if _neo4j_async_driver is None:
         config = get_neo4j_config()
@@ -151,5 +149,12 @@ def close_async_neo4j_driver():
     global _neo4j_async_driver
     if _neo4j_async_driver is not None:
         logger.info("Explicitly closing async Neo4j driver...")
-        asyncio.run(_neo4j_async_driver.close())
+        # Use asyncio.run only if not already in an event loop
+        try:
+            loop = asyncio.get_running_loop()
+            # If already in an event loop, schedule closure
+            loop.create_task(_neo4j_async_driver.close())
+        except RuntimeError:
+            # Not in an event loop
+            asyncio.run(_neo4j_async_driver.close())
         _neo4j_async_driver = None

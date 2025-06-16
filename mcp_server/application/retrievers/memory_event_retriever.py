@@ -26,6 +26,10 @@ Usage in Triage Flow or Agent:
 from typing import List, Optional, Dict, Any
 from domain.models import MemoryEvent
 from infrastructure.memory_event_repository import MemoryEventRepository
+import asyncio
+from utils.logger import get_logger
+
+logger = get_logger("memory_event_retriever")
 
 
 class MemoryEventRetriever:
@@ -81,10 +85,13 @@ class MemoryEventRetriever:
         Returns:
             List[MemoryEvent]
         """
+
         if query_vector is None and filters is None:
             raise ValueError("Must provide at least one of query_vector or filters.")
 
-        events, _ = await self.repository.async_query(
+        logger.debug(f"Query: vector={query_vector}, filters={filters}, top_k={top_k}")
+
+        events, _ = await self.repository.query(
             query_vector=query_vector, top_k=top_k, filters=filters
         )
         return events

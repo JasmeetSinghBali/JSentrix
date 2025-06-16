@@ -6,6 +6,7 @@ its a shared uderstanding of what the exposed methods do
 so that basically when the other agent langchain or llamaindex custom class inherits from this abstract class then they are promising to follow te rules described by abstract base class i.e implementing/defining all the methods from the base class in their own way example abstract class of shape and inheritors class like rectangle, square, circle etc... all implementing abstractmethod of area their own respective versions
 
 Enforces A2A/MCP compliance, message serialization, and core agent lifecycle.
+Async-compatible
 
 Usage example:
     from .base_agent import BaseAgent, JsonRpcAgentMixin, jsonrpc_method
@@ -50,6 +51,7 @@ from abc import ABC, abstractmethod
 import logging
 import inspect
 import json
+import asyncio
 
 # --- Type variables for input/output message typ ---
 InputType = TypeVar("InputType", bound=A2AMessageSerializable)
@@ -124,6 +126,13 @@ class BaseAgent(ABC, Generic[InputType, OutputType, ContextType]):
         """
         raise NotImplementedError("All agents must implement invoke()")
 
+    @abstractmethod
+    async def invoke(self, input: InputType, context: ContextType) -> OutputType:
+        """
+        Async processing core (must be implemented)
+        """
+        raise NotImplementedError("All agents must implement async invoke()")
+
     def stream(self, input: InputType, context: ContextType) -> OutputType:
         """
         Process input as a stream of partial responses (default non-streaming fallback)
@@ -132,6 +141,13 @@ class BaseAgent(ABC, Generic[InputType, OutputType, ContextType]):
         """
         self.logger.debug(f"Using invoke() fallback for streaming in{self.agent_id}")
         return self.invoke(input, context)
+
+    async def stream(self, input: InputType, context: ContextType) -> OutputType:
+        """
+        Async streaming imple (override for streaming support)
+        """
+        self.logger.debug(f"Using invoke() fallback for streaming in {self.agent_id}")
+        return await self.invoke(input, context)
 
     def abort(self) -> None:
         """
@@ -148,6 +164,12 @@ class BaseAgent(ABC, Generic[InputType, OutputType, ContextType]):
                     )
         """
         self.logger.warning(f"Abort requested but not implemented for {self.agent_id}")
+
+    async def abort(self) -> None:
+        """
+        Async abort mech (override if needed)
+        """
+        self.logger.warning(f"Async abort not implemented for {self.agent_id}")
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -250,16 +272,19 @@ class AgentCardMethod:
         func: Callable,
         doc: str,
         signature: str,  # the function parameter signature
+        is_async: bool = False,
     ):
         self.name = name
         self.func = func
         self.doc = doc
         self.signature = signature
+        self.is_async = is_async
 
 
 class JsonRpcAgentMixin:
     """
     Mixin for BaseAgent to support JSON-RPC 2.0 dispatch and agent card discovery to any base agent
+    Async-compatible
     """
 
     def __init__(self):
@@ -268,16 +293,22 @@ class JsonRpcAgentMixin:
 
     def _register_jsonrpc_methods(self):
         """
-        Registers all public methods decorated with @jsonrpc_method as JSON-RPC callable
+        Registers all sync and async public methods decorated with @jsonrpc_method as JSON-RPC callable
         """
-        # only return members of object self that are method
-        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
+        # only return members of object self that are method or async coroutines
+        for name, method in inspect.getmembers(
+            self,
+            predicate=lambda m: inspect.ismethod(m) or inspect.iscoroutinefunction(m),
+        ):
             # 📌 False default safely skips method that are not explicitely marked with _isjsonrpc_method if it does not exist
             if getattr(method, "_is_jsonrpc_method", False):
                 # sig ex (x: int, y:int)
                 sig = str(inspect.signature(method))
                 doc = inspect.getdoc(method) or ""
-                self._jsonrpc_methods[name] = AgentCardMethod(name, method, doc, sig)
+                is_async = inspect.iscoroutinefunction(method)
+                self._jsonrpc_methods[name] = AgentCardMethod(
+                    name, method, doc, sig, is_async
+                )
 
     def agent_card(self) -> Dict[str, Any]:
         """
@@ -342,6 +373,56 @@ class JsonRpcAgentMixin:
         except Exception as e:
             return self._jsonrpc_error_response(req_id, JsonRpcInternalError(str(e)))
 
+    async def _handle_jsonrpc_single(self, req: Dict) -> Optional[Dict]:
+        """
+        Async jsonrpc handler
+        """
+        req_id = req.get("id", None)
+        try:
+            if req.get("jsonrpc") != "2.0":
+                raise JsonRpcInvalidRequest("Invalid JSON-RPC version")
+            if "method" not in req:
+                raise JsonRpcInvalidRequest("Missing method")
+            method_name = req["method"]
+            params = req.get("params", {})
+
+            # method: agent_card
+            if method_name == "agent_card":
+                result = self.agent_card()
+                return self._jsonrpc_success_response(req_id, result)
+
+            # method: Lookup
+            if method_name not in self._jsonrpc_methods:
+                raise JsonRpcMethodNotFound(method_name)
+            method = self._jsonrpc_methods[method_name]
+
+            # Execute method with async awareness
+            if method.is_async:
+                result = (
+                    await method.func(**params)
+                    if isinstance(params, dict)
+                    else (
+                        await method.func(*params)
+                        if isinstance(params, list)
+                        else await method.func()
+                    )
+                )
+            else:
+                result = (
+                    method.func(**params)
+                    if isinstance(params, dict)
+                    else (
+                        method.func(*params)
+                        if isinstance(params, list)
+                        else method.func()
+                    )
+                )
+
+            return self._jsonrpc_success_response(req_id, result)
+
+        except Exception as e:
+            return self._jsonrpc_error_response(req_id, JsonRpcInternalError(str(e)))
+
     def dispatch_jsonrpc(
         self, request_json: Union[str, Dict, List]
     ) -> Union[Dict, List[Dict]]:
@@ -375,10 +456,31 @@ class JsonRpcAgentMixin:
         else:  # single req i.e dict/json payload
             return self._handle_jsonrpc_single(req)
 
+    async def dispatch_jsonrpc(
+        self, request_json: Union[str, Dict, List]
+    ) -> Union[Dict, List[Dict]]:
+        """
+        Async jsonrpc batch request handler
+        """
+        try:
+            if isinstance(request_json, str):
+                req = json.loads(request_json)
+            else:
+                req = request_json
+        except Exception as e:
+            return self._jsonrpc_error_response(None, JsonRpcParseError(str(e)))
+
+        if isinstance(req, list):
+            # *(generated coroutines) * will unpack all coroutines produced by generator so that to pass multiple indv corutine objects as sep arguments to asyncio.gather
+            # asyncio.gather(coroutine1,coroutine2,....)
+            return await asyncio.gather(*(self._handle_jsonrpc_single(r) for r in req))
+        else:
+            return await self._handle_jsonrpc_single(req)
+
 
 def jsonrpc_method(func):
     """
-    Decorator to mark agent methds as JSON-rpc callable
+    Decorator to mark agent methds both sync and async as JSON-rpc callable
     """
     func._is_jsonrpc_method = True
     return func

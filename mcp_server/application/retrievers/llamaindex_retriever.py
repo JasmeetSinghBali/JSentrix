@@ -138,12 +138,23 @@ async def async_get_llamaindex_query_engine_from_docs(
 
     summarizer = summarizer or T5Summarizer()
 
+    semaphore = asyncio.Semaphore(8)  # Limit to 8 concurrent summaries
+
     async def summarize_doc(doc):
-        text = getattr(doc, "text", None) or getattr(doc, "get_content", lambda: None)()
-        if text and ("summary" not in doc.metadata or not doc.metadata["summary"]):
-            summary = await summarizer.async_summarize(text)
-            doc.metadata["summary"] = summary
-            logger.debug(f"Summary added to doc: {summary}")
+        try:
+            async with semaphore:
+                text = (
+                    getattr(doc, "text", None)
+                    or getattr(doc, "get_content", lambda: None)()
+                )
+                if text and (
+                    "summary" not in doc.metadata or not doc.metadata["summary"]
+                ):
+                    summary = await summarizer.async_summarize(text)
+                    doc.metadata["summary"] = summary
+                    logger.debug(f"Summary added to doc: {summary}")
+        except Exception as e:
+            logger.error(f"Failed to summarize doc {getattr(doc, 'id', None)}: {e}")
 
     await asyncio.gather(*(summarize_doc(doc) for doc in docs))
 
