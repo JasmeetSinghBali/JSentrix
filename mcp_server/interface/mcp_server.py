@@ -25,22 +25,20 @@ from mcp.server.fastmcp import FastMCP
 from utils.logger import get_logger
 from utils.lifecycle import shutdown_all, async_shutdown_all
 
+# tool modules
+from tools.basic_tools import ping, add
+from tools.streaming_tools import streaminges, abortinges
+
 # --- MCP setup ---
 logger = get_logger("jsentrix")
 mcp = FastMCP("TransactionMonitorMCP")
 
 
-@mcp.tool()
-def ping() -> str:
-    """Health check endpoint."""
-    return "pong"
-
-
-@mcp.tool()
-def add(a: int, b: int) -> int:
-    """Add two number simple tool"""
-    return a + b
-
+# Register tools
+mcp.tool()(ping)
+mcp.tool()(add)
+mcp.tool("streaminges")(streaminges)
+mcp.tool("abortinges")(abortinges)
 
 # --- Cleanup  ---
 _cleanup_lock = threading.Lock()

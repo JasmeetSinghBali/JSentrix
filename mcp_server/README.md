@@ -75,6 +75,10 @@ mcp_server/
 │   ├── __init__.py
 │   └── mcp_server.py      # main entry point for mcp-server
 |
+├── tools/
+│   ├── __init__.py
+│   ├── basic_tools.py       # ping, add, etc.
+│   └── streaming_tools.py   # streaminges, abortinges, etc.
 ├── utils/
 │   ├── __init__.py
 |   ├── lifecycle.py          # Lifecycle utility for registering and running shutdown callbacks. 

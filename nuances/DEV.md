@@ -385,7 +385,6 @@ https://docs.llamaindex.ai/en/stable/examples/index_structs/knowledge_graph/Neo4
 
 
 > ## Core Triage Flow e2e
->>>>>>>>>> from here
 
 💫💫💫💫🎯🎯🎯🎯
 - diff-branch setup reusable BaseAgent class that abstracts over LangChain and LlamaIndex agents to ensure consistency, modularity, and MCP + A2A compliance across all agents in the system keeping the below 💡flow in mind.
@@ -503,7 +502,7 @@ Electron App
 ---
 
 
-> ## 🎈 Abstracted Phases for Triage Flow Draft-1
+> ## 📌Abstracted Phases for Triage Flow
 
 ```bash
 Phase 1: Core Agent Abstraction ✅
@@ -589,7 +588,7 @@ Extensible and Testable: Abstracts over both synchronous and asynchronous agent 
 Docstring and Type Hints: For clarity and maintainability.
 
 Phase 1: Abstracted Plan
-1. BaseAgent Class
+1. BaseAgent Class ✅
 Abstract base class (ABC) in mcp_server/agents/base_agent.py
 
 Defines the essential interface for all agents:
@@ -606,7 +605,7 @@ deserialize_message() — A2A-compliant message deserialization.
 
 get_status() — for health/monitoring.
 
-2. MessageA2ASerializer
+2. MessageA2ASerializer ✅
 Already exists as message_a2aserializer.py — can be used or extended for message (de)serialization.
 
 3. Concrete Agents
@@ -614,10 +613,7 @@ Each agent (Intake, Assessment/LangChain, Action/LlamaIndex, etc.) will inherit 
 
 
 
-> ## current
-
-
-- custom card and jsonrpc2.0 support setup for base_agent.py design dry run 
+- custom card and jsonrpc2.0 support setup for base_agent.py design dry run ✅
 ```bash
 JSON-RPC 2.0 Dispatch: Each agent can receive and process 
 
@@ -723,30 +719,75 @@ Files to Modify:
 
 2. diff branch adding support of jsonrpc2.0 comm between gateway and mcp-server. ✅
 
-then continue with below
-> ## >>>> here for Next Steps
-🎈 tweak 🎈 Abstracted Phases for Triage Flow Draft-1 with adding vision based model like Gemma1.1B for pre-screen + embed + retrieve context(llamaindex) -> qwen3 1.7B for deep logic, analysis and decision  -> Gemma 1.1B summarizes decision + report
-```bash
-[ Gemma3 1B ] → screen + embed + retrieve context (LlamaIndex)
-        │
-        ▼
-IF suspicious →
-[ Qwen 1.7B ] → deep logic + decision
-        │
-        ▼
-[ Gemma3 1B ] → summarize decision + report
 
+
+> ## 🎈 Phase 2 Tooling Integration e2e (dev/stream-abort-tool)
+
+```bash
+Electron App
+⬇️ REST
+Gateway
+⬇️ JSON-RPC 2.0
+MCP Server
+⬇️
+Tool Implementation (streaming/aborting)
+
+Phase 2: Tooling Integration (Streaming & Aborting)
+Abstract Plan
+Phase 2A: Implement streaming/aborting tools in MCP server with in-memory tracking. ✅
+Phase 2B: Add Go Fiber microservice for streaming to Electron clients.
+Phase 2C: Integrate MCP server → Go Fiber → Electron with WebSocket/SSE.
+Phase 2D: Add Redis/Kafka for scalability (optional for now).
+
+Phase 2A: MCP Server Streaming Tools ✅
+Steps
+Validate Existing Tools
+Ensure streaminges and abortinges work locally via HTTP/JSON-RPC.
+Test with curl/Postman to confirm streams start/stop.
+Add Stream ID Validation
+Enforce UUIDs for stream_id and error handling.
+Logging & Observability
+Add logs for stream start/stop events.
+Track active streams in logs/metrics.
+Unit/Integration Tests
+Add pytest cases for streaming/aborting tools.
+
+
+Phase 2B: Go Fiber Microservice (Streaming Hub)
+Steps
+Setup Go Fiber Project
+Initialize Go modules, add Fiber/WebSocket dependencies.
+Implement WebSocket/SSE Endpoints
+Handle client connections, broadcast messages.
+Add HTTP Ingestion Endpoint
+Accept events from MCP server via POST.
+
+Phase 2C: MCP → Go Fiber → Electron Integration
+Steps
+Update MCP Server
+Forward agent events to Go Fiber via HTTP.
+Electron Client
+Connect to Go Fiber via WebSocket/SSE.
+Display real-time logs/events.
+End-to-End Testing
+Validate data flows: MCP → Go Fiber → Electron.
+
+Phase 2D: Scalability
+Steps
+Add Redis Pub/Sub
+Replace in-memory active_streams with Redis.
+Horizontal Scaling
+Deploy multiple Go Fiber instances with load balancer.
+Kafka for Event Streaming
+Decouple MCP and Go Fiber with Kafka topics.
 ```
 
 
-then
-Move to Phase 2 (Tooling Integration)?
-
-then First Agent Intake Agent
+🎯 then Phase-3 i.e First Agent Intake Agent
 NOTE- these 3 steps shud follow for all type of agents
 ```bash
 dev-core/triage-agent-{intake/assesment...}:
-- Create concrete agent classe for this agent a/c to the triage flow
+- Create concrete agent class that extends the BaseAgent and JsonRpcAgentMixin class for this agent a/c to the triage flow
 - Implement A2A message types for this agent
 - Add MCP-specific validation hooks
 ```
