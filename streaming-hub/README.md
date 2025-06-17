@@ -43,3 +43,22 @@ streaming-hub/
 ## Testing
 
 Run all unit tests:
+
+```bash
+go test ./test
+```
+
+## Swagger
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+go get -u github.com/gofiber/swagger
+
+# streaming-hub
+swag init -g cmd/server/main.go
+# for specific doc output folder
+swag init -g cmd/server/main.go -o docs
+
+# check swagger ui
+http://localhost:4001/swagger/
+```

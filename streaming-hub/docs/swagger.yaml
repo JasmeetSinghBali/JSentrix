@@ -1,0 +1,75 @@
+basePath: /
+definitions:
+  model.Event:
+    properties:
+      event:
+        example: log
+        type: string
+      message:
+        example: Processing started
+        type: string
+      stream_id:
+        example: 123e4567-e89b-12d3-...
+        type: string
+    type: object
+host: localhost:4001
+info:
+  contact:
+    email: jasmeetbali.dev.2021@gmail.com
+    name: Jasmeet Singh Bali
+  description: Real-time log/event streaming microservice for MCP/Electron.
+  title: Streaming Hub API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns 200 if service is up
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      summary: Health check
+      tags:
+      - health
+  /ingest:
+    post:
+      consumes:
+      - application/json
+      description: Ingests an event to be broadcast to all clients
+      parameters:
+      - description: Event payload
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/model.Event'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: accepted
+          schema:
+            type: string
+        "400":
+          description: invalid event
+          schema:
+            type: string
+      summary: Ingest event for broadcast
+      tags:
+      - ingest
+  /ws:
+    get:
+      description: Upgrade to WebSocket at ws://localhost:4001/ws using a WebSocket
+        client (not Swagger UI).
+      produces:
+      - text/plain
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: WebSocket endpoint for real-time streaming
+      tags:
+      - websocket
+swagger: "2.0"
