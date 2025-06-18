@@ -40,6 +40,13 @@ streaming-hub/
 - Concurrency-safe client management
 - Easily extensible for Redis, JWT, metrics, etc.
 
+## Run streaming hub 
+
+```bash
+# streaming-hub
+go run .\cmd\server\main.go
+```
+
 ## Testing
 
 Run all unit tests:

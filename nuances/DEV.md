@@ -753,7 +753,7 @@ Unit/Integration Tests
 Add pytest cases for streaming/aborting tools.
 
 
-Phase 2B: Go Fiber Microservice (Streaming Hub)
+Phase 2B: Go Fiber Microservice (Streaming Hub) ✅
 Steps
 Setup Go Fiber Project
 Initialize Go modules, add Fiber/WebSocket dependencies.
@@ -790,4 +790,15 @@ dev-core/triage-agent-{intake/assesment...}:
 - Create concrete agent class that extends the BaseAgent and JsonRpcAgentMixin class for this agent a/c to the triage flow
 - Implement A2A message types for this agent
 - Add MCP-specific validation hooks
+```
+
+
+
+> Future possible feature upd
+```bash
+sep branch
+HYDE RAG retrieval strategy for pre-screening 
+https://zilliz.com/learn/improve-rag-and-information-retrieval-with-hyde-hypothetical-document-embeddings
+https://ollama.com/library/phi3
+
 ```
