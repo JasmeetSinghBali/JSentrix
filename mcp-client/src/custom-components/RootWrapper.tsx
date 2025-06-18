@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -23,7 +23,11 @@ interface ToolsState {
 export default React.memo((props: any) => {
 
     const [at, setAt] = useState<string>();
+    
     const [tools, setTools] = useState<ToolsState>();
+
+    const [logs, setLogs] = useState<string[]>([]);
+    const wsRef = useRef<WebSocket | null>(null);
 
     const whoami = async (token: string) => {
         try {
@@ -84,6 +88,49 @@ export default React.memo((props: any) => {
         }
     };
 
+    // Connect to Go fiber websocket and handle incoming messages
+    // also reconnects settimeout minimalistic logic if ws connection drops due to any reason
+    useEffect(() => {
+        let ws: WebSocket | null = null;
+        let reconnectTimeout: NodeJS.Timeout | null = null;
+        let shouldReconnect = true;
+        const RECONNECT_INTERVAL = 3000; // ms
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:4001/ws');
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                console.log('WebSocket connected to Go Fiber');
+            };
+
+            ws.onmessage = (event) => {
+                setLogs(prev => [...prev, event.data]);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+
+            ws.onclose = (event) => {
+                console.log('WebSocket closed', event.reason);
+                if (shouldReconnect) {
+                    reconnectTimeout = setTimeout(connect, RECONNECT_INTERVAL);
+                    console.log(`Attempting to reconnect in ${RECONNECT_INTERVAL / 1000}s...`);
+                }
+            };
+        }
+
+        connect();
+
+        // Cleanup on unmount
+        return () => {
+            shouldReconnect = false;
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            if (ws) ws.close();
+        };
+    }, []);
+
     useEffect(() => {
         if (at) {
             whoami(at);
@@ -103,12 +150,16 @@ export default React.memo((props: any) => {
         // login('user@example.com', 'testpassword');
     }, []);
 
+
     return (
         <div className='h-[100vh] w-[100%]'>
             <ResizablePanelGroup direction="horizontal">
                 <ResizablePanel minSize={25} defaultSize={30}>
-                    <p>Connected to gateway-server with tools:</p>
-                    <ul>
+                    <p>Connected to gateway-server with MCP tools:</p>
+                    <br/>
+                    <ul style={{
+                        listStyle: 'inside'
+                    }}>
                         {tools?.tools && tools.tools.map((tool: Tool) => (
                             <React.Fragment>
                                 <li key={tool.name}>{tool.name}-({tool.description})</li>
@@ -118,7 +169,22 @@ export default React.memo((props: any) => {
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>
-                    Transaction monitor
+                    <div>
+                        <h3>Transaction Monitor (Real-Time Events)</h3>
+                        <div style={{
+                            height: '90vh',
+                            overflowY: 'auto',
+                            background: '#1a1a1a',
+                            color: '#e0e0e0',
+                            padding: '1em',
+                            borderRadius: '8px'
+                        }}>
+                            {logs.length === 0 && <div>No events yet.</div>}
+                            {logs.map((log, idx) => (
+                                <div key={idx} style={{marginBottom: '0.5em'}}>{log}</div>
+                            ))}
+                        </div>
+                    </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
         </div>

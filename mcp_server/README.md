@@ -44,6 +44,7 @@ mcp_server/
 │       ├── pdf_to_md.py       # Docling: PDF → Markdown
 │       ├── unstructured_md.py # Unstructured<depracated>: direct block parsing Markdown → Clauses
 │       ├── enrich.py          # Docling/regex: NLP enrichment
+│       ├── forwarder.py       # forw event mcp_server->streamhub
 │       └── load.py            # LangChain+Neo4j: Embedding & storage
 │     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
 │     |── memory_event_repository.py   # Handles low-level Qdrant persistence for MemoryEvent domain objects.
