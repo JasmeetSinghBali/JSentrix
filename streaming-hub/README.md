@@ -62,6 +62,7 @@ go install github.com/swaggo/swag/cmd/swag@latest
 go get -u github.com/gofiber/swagger
 
 # streaming-hub
+# NOTE- rerun init command to regenerate docs make sure to delete the old docs/ inside streaming-hub
 swag init -g cmd/server/main.go
 # for specific doc output folder
 swag init -g cmd/server/main.go -o docs
