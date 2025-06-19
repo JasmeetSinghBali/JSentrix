@@ -96,7 +96,7 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 1. **Clone the repo and follow setup instructions for each component in the next step.**
 2. **Start the MCP server and supporting services (Ollama, neo4j) via Docker or local a/c to instructions.**
 ```bash
-# start up postgres,neo4j & qdrant docker instance from root jsentrix
+# start up postgres,neo4j,qdrant,redis,kafka and dockerized streaming-hub with traefik  docker instance from root jsentrix
 docker-compose up -d
 
 # startup ollama qwen3 model locally in terminal
@@ -132,6 +132,13 @@ http://localhost:9001
 python generate_sample.py # generate data/sample_clause.pdf
 python application/run_pipeline.py # generate sample_clause.md and prep and injest knowledge base neo4j
 
+# access swagger docs for running dockerized scalable streaming-hub golang fiber app
+http://localhost/swagger
+
+# check docker disk usage
+docker system df
+# remove all unused containers, images, networks, and build cache
+docker system prune
 ```
 
 

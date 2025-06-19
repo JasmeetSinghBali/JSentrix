@@ -1,0 +1,112 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Real-time log/event streaming microservice for MCP/Electron.",
+        "title": "Streaming Hub API",
+        "contact": {
+            "name": "Jasmeet Singh Bali",
+            "email": "jasmeetbali.dev.2021@gmail.com"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:4001",
+    "basePath": "/",
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Returns 200 if service is up",
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ingest": {
+            "post": {
+                "description": "Ingests an event to be broadcast to all clients",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ingest"
+                ],
+                "summary": "Ingest event for broadcast",
+                "parameters": [
+                    {
+                        "description": "Event payload",
+                        "name": "event",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Event"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "accepted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid event",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ws": {
+            "get": {
+                "description": "Upgrade to WebSocket at ws://localhost:4001/ws using a WebSocket client (not Swagger UI).",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "websocket"
+                ],
+                "summary": "WebSocket endpoint for real-time streaming",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.Event": {
+            "type": "object",
+            "properties": {
+                "event": {
+                    "type": "string",
+                    "example": "log"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Processing started"
+                },
+                "stream_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-..."
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,23 @@
+# Binaries
+streaming-hub
+*.exe
+*.out
+
+# Dev/IDE files
+.vscode/
+.idea/
+*.swp
+
+# Git
+.git
+.gitignore
+
+# Test files
+test/
+*.test
+*.md
+
+# OS files
+.DS_Store
+Thumbs.db
+

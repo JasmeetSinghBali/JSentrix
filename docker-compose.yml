@@ -1,4 +1,5 @@
 services:
+
   neo4j:
     image: neo4j:2025.04.0
     container_name: neo4jsentrix
@@ -14,6 +15,13 @@ services:
       resources:
         limits:
           memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrantjsentrix
@@ -27,6 +35,9 @@ services:
       resources:
         limits:
           memory: 1G  # Qdrant limited to 1GB RAM
+
+
+
   postgres:
     image: postgres:16
     container_name: postgresjsentrix
@@ -41,6 +52,123 @@ services:
       resources:
         limits:
           memory: 1G
-volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  redis:
+    image: redis:alpine
+    container_name: redisjsentrix
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jsentrix_net
+  
+  streaming-hub:
+    build:
+      context: ./streaming-hub
+      dockerfile: Dockerfile
+    # container_name: streaming-hub for scaling purposes omit container_name
+    restart: unless-stopped
+    env_file:
+      - ./streaming-hub/.env
+    # ports:
+    #   - "4001:4001" Traefix will handle external access
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - jsentrix_net
+    environment:
+      # Optionally override env vars here
+      REDIS_ADDR: redis:6379 # service name not container as they are scaled dynamically
+      PORT: ":4001"
+      # Add other env vars as needed
+    deploy:
+      replicas: 2 # Default scale
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.streaming-hub.rule=PathPrefix(`/`)"
+      - "traefik.http.services.streaming-hub.loadbalancer.server.port=4001"
+      - "traefik.http.services.streaming-hub.loadbalancer.sticky=false" # ensures round-robin load balancing sticky=false
+  
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      # Add for HTTPS: - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - jsentrix_net
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafkajsentrix
+    ports:
+      - "${KAFKA_PORT}:9092"
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka_data:/bitnami/kafka
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above same approch follow for other service
   neo4j_data:
   pg_data:
+  redis_data:
+  kafka_data:
+
+networks:
+  jsentrix_net:
+    driver: bridge
