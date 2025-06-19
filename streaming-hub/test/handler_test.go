@@ -15,7 +15,7 @@ import (
 )
 
 // Change this if your server runs on a different port or host
-const baseURL = "http://localhost:4001"
+const baseURL = "http://localhost"
 
 func TestHealthCheck_LiveServer(t *testing.T) {
 	resp, err := http.Get(baseURL + "/health")

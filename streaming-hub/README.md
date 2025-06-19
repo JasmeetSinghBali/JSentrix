@@ -25,6 +25,8 @@ streaming-hub/
 │   └── handler_test.go         # Mock tests for handlers
 ├── go.mod
 ├── go.sum
+└── .dockerignore
+└── Dockerfile
 └── README.md
 └── .env
 └── .example.env
@@ -71,4 +73,22 @@ swag init -g cmd/server/main.go -o docs
 
 # check swagger ui
 http://localhost:4001/swagger/
+```
+
+## Traefik
+
+```bash
+# reff : https://doc.traefik.io/traefik/getting-started/install-traefik/#use-the-official-docker-image
+# traffic flow loadbalanced(only for the case of streaming-hub no direct access)
+Client → Traefik (port 80) → Round-Robin → streaming-hub instances
+```
+
+## Scale streaming-hub to arbitary number
+
+```bash
+docker compose up -d --scale streaming-hub=4
+
+# to exec into running instance streaming-hub
+docker exec -it jsentrix-streaming-hub-1 sh
+curl -v http://localhost:4001/health
 ```

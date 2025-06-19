@@ -97,7 +97,7 @@ export default React.memo((props: any) => {
         const RECONNECT_INTERVAL = 3000; // ms
 
         function connect() {
-            ws = new WebSocket('ws://localhost:4001/ws');
+            ws = new WebSocket('ws://localhost/ws');
             wsRef.current = ws;
 
             ws.onopen = () => {

@@ -15,6 +15,12 @@ services:
       resources:
         limits:
           memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -30,6 +36,8 @@ services:
         limits:
           memory: 1G  # Qdrant limited to 1GB RAM
 
+
+
   postgres:
     image: postgres:16
     container_name: postgresjsentrix
@@ -44,7 +52,12 @@ services:
       resources:
         limits:
           memory: 1G
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
   redis:
     image: redis:alpine
     container_name: redisjsentrix
@@ -56,7 +69,71 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M  
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jsentrix_net
+  
+  streaming-hub:
+    build:
+      context: ./streaming-hub
+      dockerfile: Dockerfile
+    # container_name: streaming-hub for scaling purposes omit container_name
+    restart: unless-stopped
+    env_file:
+      - ./streaming-hub/.env
+    # ports:
+    #   - "4001:4001" Traefix will handle external access
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - jsentrix_net
+    environment:
+      # Optionally override env vars here
+      REDIS_ADDR: redis:6379 # service name not container as they are scaled dynamically
+      PORT: ":4001"
+      # Add other env vars as needed
+    deploy:
+      replicas: 2 # Default scale
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.streaming-hub.rule=PathPrefix(`/`)"
+      - "traefik.http.services.streaming-hub.loadbalancer.server.port=4001"
+      - "traefik.http.services.streaming-hub.loadbalancer.sticky=false" # ensures round-robin load balancing sticky=false
+  
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      # Add for HTTPS: - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - jsentrix_net
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   kafka:
     image: bitnami/kafka:latest
@@ -79,6 +156,11 @@ services:
       resources:
         limits:
           memory: 512M
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 
 volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above same approch follow for other service
@@ -86,3 +168,7 @@ volumes: # 🎈 remove this in case host bind mount supplied under services-neo4
   pg_data:
   redis_data:
   kafka_data:
+
+networks:
+  jsentrix_net:
+    driver: bridge
