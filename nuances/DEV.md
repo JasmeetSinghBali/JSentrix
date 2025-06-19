@@ -774,9 +774,12 @@ Validate data flows: MCP → Go Fiber → Electron.
 
 Phase 2D: Scalability
 Steps
-Add Redis Pub/Sub
-Replace in-memory active_streams with Redis.
-Horizontal Scaling
+Goal✅
+Replace your in-memory active_streams (or any in-memory broadcaster) with Redis Pub/Sub, so all Go Fiber instances can broadcast/receive events in a horizontally scalable way.
+- Add Redis Pub/Sub ✅
+- Replace in-memory active_streams with Redis. ✅
+- Horizontal Scaling ✅
+
 Deploy multiple Go Fiber instances with load balancer.
 Kafka for Event Streaming
 Decouple MCP and Go Fiber with Kafka topics.

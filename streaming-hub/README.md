@@ -12,11 +12,13 @@ streaming-hub/
 │   │   ├── http/
 │   │   │   └── handler.go      # HTTP & WebSocket handlers
 │   ├── service/
-│   │   └── broadcaster.go      # Broadcasting logic
+│   │   └── redis_broadcaster.go      # Broadcasting logic
 │   ├── model/
 │   │   └── event.go            # Event/message types
 │   └── config/
 │       └── config.go           # Config loading (env, flags)
+│   └── redis/
+│       └── redis.go            # redis go client instance
 ├── docs/
 │   └── swagger.yaml            # OpenAPI/Swagger spec
 ├── test/

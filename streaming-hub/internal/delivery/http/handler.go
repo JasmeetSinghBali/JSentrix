@@ -1,3 +1,4 @@
+// streaming-hub/internal/delivery/http/handler.go
 // Package http contains Fiber handlers for HTTP and Websocket endpoints
 package http
 
@@ -33,7 +34,7 @@ func HealthCheck(c *fiber.Ctx) error {
 // @Success      202    {string}  string       "accepted"
 // @Failure      400    {string}  string       "invalid event"
 // @Router       /ingest [post]
-func IngestEvent(broadcaster *service.Broadcaster) fiber.Handler {
+func IngestEvent(broadcaster *service.RedisBroadcaster) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var evt model.Event
 		if err := c.BodyParser(&evt); err != nil {
@@ -47,7 +48,7 @@ func IngestEvent(broadcaster *service.Broadcaster) fiber.Handler {
 }
 
 // WebSocketHandler handles websocket connections
-func WebSocketHandler(broadcaster *service.Broadcaster) fiber.Handler {
+func WebSocketHandler(broadcaster *service.RedisBroadcaster) fiber.Handler {
 	return websocket.New(func(conn *websocket.Conn) {
 		broadcaster.Register(conn)
 		defer broadcaster.Unregister(conn)
@@ -71,9 +72,8 @@ func WebSocketEndpointDoc(c *fiber.Ctx) error {
 }
 
 // NewFiberApp initializes the Fiber app with all routes and handlers
-func NewFiberApp(cfg *config.Config) *fiber.App {
+func NewFiberApp(cfg *config.Config, broadcaster *service.RedisBroadcaster) *fiber.App {
 	app := fiber.New()
-	broadcaster := service.NewBroadcaster()
 
 	app.Get("/health", HealthCheck)
 
@@ -90,6 +90,14 @@ func NewFiberApp(cfg *config.Config) *fiber.App {
 
 	// Serve Swagger UI at /swagger/index.html
 	app.Get("/swagger/*", swagger.HandlerDefault)
+
+	// Example of using config in a route
+	// app.Get("/config", func(c *fiber.Ctx) error {
+	// 	return c.JSON(fiber.Map{
+	// 		"redis_addr": cfg.RedisAddr,
+	// 		"kafka_brokers": cfg.KafkaBrokers,
+	// 	})
+	// })
 
 	return app
 }
