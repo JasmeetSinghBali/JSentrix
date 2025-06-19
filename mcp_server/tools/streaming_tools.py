@@ -4,65 +4,87 @@ mcp_server/tools/streaming_tools
 streaminges and abortinges tool
 """
 import asyncio
-from utils.logger import get_logger
 import uuid
+from typing import Any, Dict
+from utils.logger import get_logger
+from infrastructure.redis_stream_registry import AsyncStreamRegistry
+from utils.lifecycle import register_shutdown_callback
 
 logger = get_logger("mcp.streaming_tools")
 
-# In-memory registery for active streams
-# 🎈 for prod/scalability redis shud be used to manage this
-active_streams={}
+# Singleton registry instance
+active_streams_registry = AsyncStreamRegistry()
 
-def is_valid_stream_id(stream_id)->bool:
+# Register the async close method for shutdown
+register_shutdown_callback(active_streams_registry.close)
+
+def is_valid_stream_id(stream_id: Any) -> bool:
+    """
+    Validate if the given stream_id is a proper UUID.
+    """
     try:
         uuid.UUID(str(stream_id))
         return True
     except Exception as e:
-        logger.error(f"stream_id validation failed with error: {str(e)}")
+        logger.error(f"stream_id validation failed: {e}")
         return False
 
-async def streaminges(args,stream):
+async def streaminges(args: Dict, stream,registry = None) -> Dict:
     """
-    Intake agent starts consuming stream from db/externalsource for now mock faker stream reusable function to replicate the same
+    Streams incremental output (e.g., logs/events/processing) of the Intake Agent and other agents
+    to the client (electron app) via the Go Fiber streaming microservice.
 
-    Further Streams incremental output (e.g., logs/events/processing) of the Intake Agent and other agents to the client i.e electron app via minmal golang fiber streaming microservice.
-    Args must include a unique 'stream_id' for control.
+    Args:
+        args (Dict): Must include a unique 'stream_id' for control.
+        stream: Async stream object with .send() coroutine.
+
+    Returns:
+        Dict: {"done": True, "stream_id": ...} on completion, or {"error": ...} on failure.
     """
+    registry = registry or active_streams_registry
     stream_id = args.get("stream_id")
     if not stream_id or not is_valid_stream_id(stream_id):
         msg = f"Invalid or missing stream_id: {stream_id}"
         logger.warning(msg)
         await stream.send({"error": msg})
         return {"error": msg}
-    active_streams[stream_id] = True
+    await registry.add(stream_id)
     try:
         for i in range(100):
-            # check if stream is still active
-            if not active_streams.get(stream_id):
+            if not await registry.is_active(stream_id):
                 logger.info(f"Stream {stream_id} aborted at iteration {i}")
                 break
             log_event = {"event": "log", "stream_id": stream_id, "message": f"processing {i}"}
             logger.debug(f"Stream {stream_id} event: {log_event}")
             await stream.send(log_event)
-            await asyncio.sleep(0.1) # give control back to event loop to avoid indefinate event loop blocking
+            await asyncio.sleep(0.1)
         logger.info(f"Stream {stream_id} completed")
         return {"done": True, "stream_id": stream_id}
     finally:
-        active_streams.pop(stream_id,None)
+        await registry.remove(stream_id)
         logger.info(f"Stream {stream_id} cleaned up")
 
-async def abortinges(args,stream,context):
+async def abortinges(args: Dict, stream, context, registry = None) -> Dict:
     """
     Aborts a running stream/process by stream_id.
-    i.e the Intake agent stops taking stream and all agents stop processing transactions and the golang fiber microservice stop streaming log/events to electron app
+    Ensures all agents stop processing transactions and the Go Fiber microservice stops streaming.
+
+    Args:
+        args (Dict): Must include a valid 'stream_id'.
+        stream: Async stream object.
+        context: Additional context if needed.
+
+    Returns:
+        Dict: {"aborted": True, "stream_id": ...} on success, or {"error": ...}.
     """
+    registry = registry or active_streams_registry
     stream_id = args.get("stream_id")
     if not stream_id or not is_valid_stream_id(stream_id):
         msg = f"Invalid or missing stream_id: {stream_id}"
         logger.warning(msg)
         return {"error": msg}
-    if stream_id in active_streams:
-        active_streams[stream_id] = False
+    if await registry.is_active(stream_id):
+        await registry.remove(stream_id)
         logger.info(f"Aborted stream {stream_id}")
         return {"aborted": True, "stream_id": stream_id}
     else:

@@ -4,6 +4,7 @@ package http
 
 import (
 	"log"
+	"os"
 
 	_ "github.com/JasmeetSinghBali/JSentrix/streaming-hub/docs"
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/config"
@@ -42,6 +43,10 @@ func IngestEvent(broadcaster *service.RedisBroadcaster) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).SendString("Invalid event")
 		}
 		msg := c.Body()
+		// Log the event and the container hostname for replica identification
+		hostname, _ := os.Hostname()
+		log.Printf("[Replica: %s] EVENT %d: %+v\n", hostname, evt.StreamID, evt)
+		os.Stdout.Sync()
 		broadcaster.Broadcast(msg)
 		return c.SendStatus(fiber.StatusAccepted)
 	}

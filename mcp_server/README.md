@@ -48,6 +48,7 @@ mcp_server/
 │       └── load.py            # LangChain+Neo4j: Embedding & storage
 │     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
 │     |── memory_event_repository.py   # Handles low-level Qdrant persistence for MemoryEvent domain objects.
+|     |── redis_stream_registry.py     # AsyncStream registery to track active streaming sessions for all agents and parts in mcp_server
 |
 |── domain/
 │   ├── __init__.py

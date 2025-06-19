@@ -85,13 +85,23 @@ signal.signal(signal.SIGTERM, lambda signum, frame: (cleanup("SIGTERM"), sys.exi
 signal.signal(signal.SIGINT, lambda signum, frame: (cleanup("SIGINT"), sys.exit(0)))
 
 # --- HTTP API (FastAPI) act as wrapper around fastmcp server tools as http rest endpoints ---
+from contextlib import asynccontextmanager
 from fastapi import Request, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from tracers.tracing import setup_tracing
 from pydantic import BaseModel
 import uvicorn
 
-app = FastAPI(title="MCP Server API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Optionally, place any startup code here
+    yield
+    # Shutdown async_shutdown_all already handles both sync and async callbacks
+    await async_shutdown_all()
+
+
+app = FastAPI(title="MCP Server API", lifespan=lifespan)
 tracer = setup_tracing(app)
 
 
@@ -204,11 +214,6 @@ async def jsonrpc_endpoint(request: Request):
                 "message": str(e),
             },
         }
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    cleanup("fastapi")
 
 
 # --- mcp_server Entrypoint ---
