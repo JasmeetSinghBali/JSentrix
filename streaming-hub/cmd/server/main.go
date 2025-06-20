@@ -30,8 +30,23 @@ func main() {
 	if err := myredis.Init(cfg); err != nil {
 		log.Fatalf("Failed to initialize Redis: %v", err)
 	}
-
 	broadcaster := service.NewRedisBroadcaster(cfg.RedisChannelName)
+
+	// ---- KAFKA CONSUMER SETUP ----
+	kafkaGroup := "streaming-hub-group"
+	kafkaConsumer, err := service.NewKafkaConsumer(cfg.KafkaBrokers, kafkaGroup, cfg.KafkaIngestTopic)
+	if err != nil {
+		log.Fatalf("Failed to create Kafka consumer: %v", err)
+	}
+	// Context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Start Kafka consumer in a goroutine
+	go func() {
+		if err := kafkaConsumer.StartConsuming(ctx, broadcaster); err != nil {
+			log.Fatalf("Kafka consumer error: %v", err)
+		}
+	}()
 
 	// Initialize fiber app
 	app := http.NewFiberApp(cfg, broadcaster)
@@ -57,11 +72,15 @@ func main() {
 	log.Println("Shutting down streaming-hub...")
 
 	// gracefull shutdown fiber with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := app.ShutdownWithContext(ctx); err != nil {
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
 		log.Printf("streaming-hub shutdown error: %v", err)
 	}
+
+	// signal kafka consumer to stop
+	cancel()
+	time.Sleep(1 * time.Second) // give some time for kafka consumer to close
 
 	// Graceful shutdown: close Redis subscription
 	broadcaster.Close()

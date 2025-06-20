@@ -91,7 +91,8 @@ func NewFiberApp(cfg *config.Config, broadcaster *service.RedisBroadcaster) *fib
 	})
 	app.Get("/ws", WebSocketHandler(broadcaster))
 
-	app.Post("/ingest", IngestEvent(broadcaster))
+	// Note - the mcpserver<>streaming_hub are no decoupled by kafka ingest_event topic producer consumer pattern
+	// Deprecated: app.Post("/ingest", IngestEvent(broadcaster))
 
 	// Serve Swagger UI at /swagger/index.html
 	app.Get("/swagger/*", swagger.HandlerDefault)

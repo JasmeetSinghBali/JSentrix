@@ -49,6 +49,9 @@ mcp_server/
 │     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
 │     |── memory_event_repository.py   # Handles low-level Qdrant persistence for MemoryEvent domain objects.
 |     |── redis_stream_registry.py     # AsyncStream registery to track active streaming sessions for all agents and parts in mcp_server
+|     |── kafka
+|       ├── __init__.py
+│       ├── producer_singleton.py       kafka producer publish to shared topic b/w mcp_server and streaming_hub
 |
 |── domain/
 │   ├── __init__.py

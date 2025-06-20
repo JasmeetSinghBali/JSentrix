@@ -23,72 +23,28 @@ Usage:
 """
 
 import os
-import asyncio
-from typing import Dict, Optional
-import httpx
-from dotenv import load_dotenv
+from typing import Dict
+from utils.logger import get_logger
+from infrastructure.kafka.producer_singleton import kafka_producer
 
-load_dotenv()
-
-
-def get_streaming_hub_url() -> str:
-    """
-    Loads and caches the Streaming Hub service URL from environment variables
-    Raises an error if not set
-    """
-    url = os.getenv("STREAMING_HUB_SERVICE", None)
-    if not url:
-        raise EnvironmentError("STREAMING_HUB_SERVICE env variable is not set")
-    return url
+logger = get_logger("forwarder_mcpserver")
 
 
 async def forward_event_to_streaming_hub(
     event: Dict,
-    url: Optional[str] = None,
-    retries: int = 3,
-    timeout: int = 3,
-    backoff: float = 1.0,
-    logger: Optional[object] = None,
 ) -> bool:
     """
-    Async forward an event to go fiber streaming hub /ingest endpoint
+    Async forward an event to go fiber streaming hub via kafka
 
     Args:
         event (Dict): The event payload to send (must match with Go model.Event)
-        url (str,Optional): The url of the /ingest endpoint defaults to env var
-        retries (int): Number of retry attempts on failure
-        timeout (int): Timeout for the HTTP request in seconds
-        backoff (float): Seconds to wait between retries
-        logger (object, optional): Logger instance with .info/.error methods
 
     Returns:
         bool: True if the event was sent successfully, False otherwise
     """
-    if url is None:
-        url = get_streaming_hub_url()
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        for attempt in range(1, retries + 1):
-            try:
-                resp = await client.post(
-                    url, json=event, headers={"Content-Type": "application/json"}
-                )
-                if resp.status_code == 202:
-                    if logger:
-                        logger.info(f"Event forwarded: {event}")
-                    return True
-                else:
-                    msg = f"Unexpected status {resp.status_code}:{resp.text}"
-
-                    if logger:
-                        logger.error(msg)
-                    else:
-                        print(msg)
-            except Exception as e:
-                msg = f"Attempt {attempt}: Error sending event: {e}"
-                if logger:
-                    logger.error(msg)
-                else:
-                    print(msg)
-            if attempt < retries:
-                await asyncio.sleep(backoff)
-    return False
+    try:
+        await kafka_producer.produce("ingest_topic", event)
+        return True
+    except Exception as e:
+        logger.error(f"failed to forward event to kafka: {e}")
+        return False
