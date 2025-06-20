@@ -782,8 +782,24 @@ Replace any in-memory broadcaster with Redis Pub/Sub, so all Go Fiber instances 
 Deploy multiple Go Fiber instances with load balancer.✅
 Replace inmemory active_streams in mcp_server similar to gofiber approach ✅
 
-Kafka for Event Streaming
-Decouple MCP and Go Fiber with Kafka topics.
+Kafka for Event Streaming ✅
+Decouple MCP and Go Fiber with Kafka topics. ✅
+MCP Server (Python)
+   |
+   |  [produce event]
+   v
+Kafka Topic ("ingest_topic")
+   |
+   |  [consume event]
+   v
+Go streaming_hub (KafkaConsumer)
+   |
+   |  [broadcast]
+   v
+RedisBroadcaster -> WebSocket clients (Electron app)
+
+
+secure commun btween electron client and golang traefik /ws websocket setup
 ```
 
 

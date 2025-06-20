@@ -7,11 +7,11 @@
 package test
 
 import (
-	"bytes"
-	"io"
+	// "bytes"
+	// "io"
 	"net/http"
 	"testing"
-	"time"
+	// "time"
 )
 
 // Change this if your server runs on a different port or host
@@ -28,23 +28,23 @@ func TestHealthCheck_LiveServer(t *testing.T) {
 	}
 }
 
-func TestIngestEndpoint_LiveServer(t *testing.T) {
-	body := []byte(`{"event":"log","message":"test from integration test","stream_id":"123e4567-e89b-12d3-a456-426614174000"}`)
-	req, err := http.NewRequest("POST", baseURL+"/ingest", bytes.NewBuffer(body))
-	if err != nil {
-		t.Fatalf("Failed to create POST request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+// func TestIngestEndpoint_LiveServer(t *testing.T) {
+// 	body := []byte(`{"event":"log","message":"test from integration test","stream_id":"123e4567-e89b-12d3-a456-426614174000"}`)
+// 	req, err := http.NewRequest("POST", baseURL+"/ingest", bytes.NewBuffer(body))
+// 	if err != nil {
+// 		t.Fatalf("Failed to create POST request: %v", err)
+// 	}
+// 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to POST /ingest: %v", err)
-	}
-	defer resp.Body.Close()
+// 	client := &http.Client{Timeout: 2 * time.Second}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		t.Fatalf("Failed to POST /ingest: %v", err)
+// 	}
+// 	defer resp.Body.Close()
 
-	if resp.StatusCode != 202 {
-		b, _ := io.ReadAll(resp.Body)
-		t.Errorf("Expected status 202, got %d. Body: %s", resp.StatusCode, string(b))
-	}
-}
+// 	if resp.StatusCode != 202 {
+// 		b, _ := io.ReadAll(resp.Body)
+// 		t.Errorf("Expected status 202, got %d. Body: %s", resp.StatusCode, string(b))
+// 	}
+// }

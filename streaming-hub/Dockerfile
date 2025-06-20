@@ -3,6 +3,9 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
+# Install build dependencies for CGO and librdkafka
+RUN apk add --no-cache gcc musl-dev pkgconfig
+
 # Only copy go.mod/sum first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
@@ -10,8 +13,8 @@ RUN go mod download
 # Copy the rest of the code
 COPY . .
 
-# Build the Go binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o streaming-hub ./cmd/server/main.go
+# Build the Go binary (CGO enabled by default)
+RUN go build -tags musl -ldflags="-s -w" -o streaming-hub ./cmd/server/main.go
 
 # --- Final Stage ---
 FROM alpine:latest

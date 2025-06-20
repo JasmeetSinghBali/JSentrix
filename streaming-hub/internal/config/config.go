@@ -17,7 +17,7 @@ type Config struct {
 	RedisPassword    string
 	RedisChannelName string
 	KafkaBrokers     string
-	KafkaTopic       string
+	KafkaIngestTopic string
 	// Add other fields here
 }
 
@@ -51,7 +51,7 @@ func Load() *Config {
 			RedisPassword:    getEnv("REDIS_PASSWORD", ""),
 			RedisChannelName: getEnv("REDIS_CHANNEL_NAME", "triageevents"),
 			KafkaBrokers:     getEnv("KAFKA_BROKERS", "localhost:9092"),
-			KafkaTopic:       getEnv("KAFKA_TOPIC", "events"),
+			KafkaIngestTopic: getEnv("KAFKA_TOPIC", "ingest_topic"),
 			// Add other fields here
 		}
 	})
