@@ -11,8 +11,8 @@ from .intake_messages import IntakeInput, IntakeOutput
 from datetime import datetime, timezone
 import asyncio
 import faker
-from infrastructure.kafka.producer_singleton import kafka_producer
 from utils.logger import get_logger
+from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 
 logger = get_logger("intake_agent")
 
@@ -60,26 +60,41 @@ class IntakeAgent(
         """
         Background task: generates and publishes transactions while stream is active in registry.
         """
-        while await registry.is_active(stream_id):
-            txn = IntakeInput(
-                txn_id=self.fake.uuid4(),
-                amount=self.fake.pyfloat(left_digits=3, right_digits=2, positive=True),
-                source=source,
-            )
-            context = AgentContext(
-                request_id=self.fake.uuid4(),
-                user_id="system",  # Or pass admin user if you want to track
-                timestamp=datetime.now(timezone.utc),
-            )
-            output = await self.invoke(txn, context)
-            enriched_data = output.enriched_txn
-            enriched_data["prior_events"] = output.prior_events
-            enriched_data["stream_id"] = stream_id
-            try:
-                await kafka_producer.produce("triageevents", enriched_data)
-            except Exception as e:
-                logger.error(f"Failed to publish to kafka: {e}")
-            await asyncio.sleep(1)  # 1 event per second
+        try:
+            while await registry.is_active(stream_id):
+                txn = IntakeInput(
+                    txn_id=self.fake.uuid4(),
+                    amount=self.fake.pyfloat(
+                        left_digits=3, right_digits=2, positive=True
+                    ),
+                    source=source,
+                )
+                context = AgentContext(
+                    request_id=self.fake.uuid4(),
+                    user_id="system",  # Or pass admin user if you want to track
+                    timestamp=datetime.now(timezone.utc),
+                )
+                output = await self.invoke(txn, context)
+                enriched_data = output.enriched_txn
+                enriched_data["prior_events"] = output.prior_events
+                enriched_data["stream_id"] = stream_id
+
+                # --- Forward to streaming-hub via forwarder ---
+                try:
+                    await forward_event_to_streaming_hub(
+                        {
+                            "event": "transaction",
+                            "message": "Mock transaction event",
+                            "stream_id": stream_id,
+                            "data": enriched_data,
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to forward event to streaming-hub: {e}")
+                await asyncio.sleep(1)  # 1 event per second
+        except Exception as e:
+            logger.info(f"Stream loop for {stream_id} cancelled.")
+            return
 
     @jsonrpc_method
     async def stream(self, input: dict, context: AgentContext) -> dict:

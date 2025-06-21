@@ -8,7 +8,7 @@ class IntakeInput(A2AMessageSerializable):
     Describes the message input type for intake agent
     """
 
-    def __int__(
+    def __init__(
         self, txn_id: str, amount: float, source: str = "faker", metadata: dict = None
     ):
         self.txn_id = txn_id

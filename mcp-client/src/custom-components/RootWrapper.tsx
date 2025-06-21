@@ -110,6 +110,14 @@ export default React.memo((props: any) => {
 
     // --- Start streaming and schedule abort after 4 seconds ---
     const startAndAbortStreaming = async (accessToken: string) => {
+        // Abort any previous stream first
+        if (streamId) {
+            await invokeTool(accessToken, "abortinges", {
+                arguments: { stream_id: streamId }
+            });
+            clearStreamId();
+        }
+        // Now start a new stream
         const res = await invokeTool(accessToken, "streaminges", {
             arguments: { source: "faker" }
         });
@@ -121,7 +129,7 @@ export default React.memo((props: any) => {
                 });
                 // clear streamid after abort
                 clearStreamId(); 
-            }, 4000);
+            }, 20000);
         } else {
             console.error("No stream_id returned from streaminges!", res);
         }
@@ -177,7 +185,15 @@ export default React.memo((props: any) => {
         return () => {
             shouldReconnect = false;
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            if (ws) ws.close();
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            // Abort any running stream on unmount
+            if (streamId && at) {
+                invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
+                clearStreamId();
+            }
         };
     }, []);
 
