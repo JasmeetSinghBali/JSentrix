@@ -5,14 +5,12 @@ package http
 import (
 	"log"
 	"os"
+	"time"
 
-	_ "github.com/JasmeetSinghBali/JSentrix/streaming-hub/docs"
-	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/config"
+	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/auth"
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/model"
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/service"
-	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/swagger"
 )
 
 // HealthCheck godoc
@@ -25,7 +23,7 @@ func HealthCheck(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// IngestEvent godoc
+// deprecated: IngestEvent godoc
 // @Summary      Ingest event for broadcast
 // @Description  Ingests an event to be broadcast to all clients
 // @Tags         ingest
@@ -52,58 +50,19 @@ func IngestEvent(broadcaster *service.RedisBroadcaster) fiber.Handler {
 	}
 }
 
-// WebSocketHandler handles websocket connections
-func WebSocketHandler(broadcaster *service.RedisBroadcaster) fiber.Handler {
-	return websocket.New(func(conn *websocket.Conn) {
-		broadcaster.Register(conn)
-		defer broadcaster.Unregister(conn)
-		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
-				break
-			}
-		}
+// Note - the mcpserver<>streaming_hub are no decoupled by kafka ingest_event topic producer consumer pattern
+// Deprecated: app.Post("/ingest", IngestEvent(broadcaster))
+
+// LoginHandler returns token and clientID
+func LoginHandler(c *fiber.Ctx) error {
+	clientId, token, err := auth.NewSession(24 * time.Hour)
+	if err != nil {
+		log.Printf("Error creating sesssion: %v", err)
+		return fiber.ErrInternalServerError
+	}
+	return c.JSON(fiber.Map{
+		"client_id":  clientId,
+		"token":      token,
+		"expires_in": 86400,
 	})
-}
-
-// WebSocketEndpoint godoc
-// @Summary      WebSocket endpoint for real-time streaming
-// @Description  Upgrade to WebSocket at ws://localhost:4001/ws using a WebSocket client (not Swagger UI).
-// @Tags         websocket
-// @Produce      plain
-// @Success      101 {string} string "Switching Protocols"
-// @Router       /ws [get]
-func WebSocketEndpointDoc(c *fiber.Ctx) error {
-	return c.SendStatus(fiber.StatusSwitchingProtocols)
-}
-
-// NewFiberApp initializes the Fiber app with all routes and handlers
-func NewFiberApp(cfg *config.Config, broadcaster *service.RedisBroadcaster) *fiber.App {
-	app := fiber.New()
-
-	app.Get("/health", HealthCheck)
-
-	app.Use("/ws", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) {
-			c.Locals("allowed", true)
-			return c.Next()
-		}
-		return fiber.ErrUpgradeRequired
-	})
-	app.Get("/ws", WebSocketHandler(broadcaster))
-
-	// Note - the mcpserver<>streaming_hub are no decoupled by kafka ingest_event topic producer consumer pattern
-	// Deprecated: app.Post("/ingest", IngestEvent(broadcaster))
-
-	// Serve Swagger UI at /swagger/index.html
-	app.Get("/swagger/*", swagger.HandlerDefault)
-
-	// Example of using config in a route
-	// app.Get("/config", func(c *fiber.Ctx) error {
-	// 	return c.JSON(fiber.Map{
-	// 		"redis_addr": cfg.RedisAddr,
-	// 		"kafka_brokers": cfg.KafkaBrokers,
-	// 	})
-	// })
-
-	return app
 }

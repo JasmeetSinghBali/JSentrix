@@ -799,7 +799,11 @@ Go streaming_hub (KafkaConsumer)
 RedisBroadcaster -> WebSocket clients (Electron app)
 
 
-secure commun btween electron client and golang traefik /ws websocket setup
+Secure commun btween electron client and golang traefik /ws websocket setup
+- setup /login and Require clientid<>token for WebSocket connections by ws minimalistic middelware in Go. ✅
+- update electron ui to use new /login and connect to /ws with client_id and token stored in zustand ✅
+- Enable HTTPS/443 and WSS in Traefik. <LATER FOR PROD>
+- Update Electron client to use wss:// and pass the token. <LATER FOR PROD>
 ```
 
 
