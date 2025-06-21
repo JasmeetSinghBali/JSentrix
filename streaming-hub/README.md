@@ -48,7 +48,11 @@ streaming-hub/
 ├── internal/
 │   ├── delivery/
 │   │   ├── http/
-│   │   │   └── handler.go      # HTTP & WebSocket handlers
+│   │   │   └── handler.go      # HTTP handlers
+│   │   ├── ws/
+│   │   │   └── handler.go      # Websocket handlers
+│   │   │   └── middleware.go   # websocket middleware
+│   │   └── delivery.go         # NewFiberApp initializes the Fiber app with all http/ws routes & handlers
 │   ├── service/
 │   │   └── redis_broadcaster.go      # Broadcasting logic
 |   |   └── kafka_consumer.go         # kafka ingest_event consumer from mcp_server
@@ -58,6 +62,8 @@ streaming-hub/
 │       └── config.go           # Config loading (env, flags)
 │   └── redis/
 │       └── redis.go            # redis go client instance
+│   └── auth/
+│       └── session_store.go    # session_store clientstreamhubwstokens:abc123 = 7f8a9c1e2d...   (the token)
 ├── docs/
 │   └── swagger.yaml            # OpenAPI/Swagger spec
 ├── test/
@@ -74,8 +80,9 @@ streaming-hub/
 ## Endpoints
 
 - `GET /health` — Health check
+- `POST /login` - Login returns token(ttl) and clientId
 - `GET /ws` — WebSocket endpoint for clients
-- `POST /ingest` — Ingest events (from MCP server)
+- Deprecated: `POST /ingest` — Ingest events (from MCP server) as MCP_SERVER and streaming_hub comm is now via kafka events with confluent-kafka and redisBroadcasting to the clients attached to streaming_hub instances/replicas
 
 ## Architecture
 
@@ -146,3 +153,10 @@ Without it, only a subset of your clients would get updates.
 ```
 
 
+## Redis Keyspace With All Three Patterns
+```bash
+Key                                 Example	Type	Used by	            Purpose
+clientstreamhubwstokens:abc123	     String	        streaming-hub	WebSocket session token for a client
+active_streams	                      Set	        mcp_server	    Tracks active streaming session IDs
+triageevents	                     PubSub	        streaming-hub	Channel name for real-time broadcasting
+```

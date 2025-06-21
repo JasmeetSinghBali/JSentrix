@@ -6,6 +6,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { useWsAuthStore } from '@/shared/store';
 
 // interface for a single tool object
 interface Tool {
@@ -88,6 +89,24 @@ export default React.memo((props: any) => {
         }
     };
 
+    // Replace with actual streaming-hub endpoint in production
+    const STREAMING_HUB_URL = "http://localhost";
+    // Login to streaming-hub and get client_id/token
+    const loginToStreamingHub = async () => {
+        try {
+            const response = await fetch(`${STREAMING_HUB_URL}/login`, {
+                method: "POST",
+            });
+            const data = await response.json();
+            useWsAuthStore.getState().setAuth(data.client_id,data.token);
+            return data;
+        } catch (error) {
+            console.error("Error logging in to streaming-hub:", error);
+        }
+    };
+
+    const {clientId, token} = useWsAuthStore();
+
     // Connect to Go fiber websocket and handle incoming messages
     // also reconnects settimeout minimalistic logic if ws connection drops due to any reason
     useEffect(() => {
@@ -97,28 +116,37 @@ export default React.memo((props: any) => {
         const RECONNECT_INTERVAL = 3000; // ms
 
         function connect() {
-            ws = new WebSocket('ws://localhost/ws');
-            wsRef.current = ws;
+            if(clientId && token){
+                ws = new WebSocket(
+                    `ws://localhost/ws?client_id=${encodeURIComponent(clientId)}&token=${encodeURIComponent(token)}`);
+                wsRef.current = ws;
 
-            ws.onopen = () => {
-                console.log('WebSocket connected to Go Fiber');
-            };
+                ws.onopen = () => {
+                    console.log('WebSocket connected to Go Fiber');
+                };
 
-            ws.onmessage = (event) => {
-                setLogs(prev => [...prev, event.data]);
-            };
+                ws.onmessage = (event) => {
+                    setLogs(prev => [...prev, event.data]);
+                };
 
-            ws.onerror = (err) => {
-                console.error('WebSocket error:', err);
-            };
+                ws.onerror = (err) => {
+                    console.error('WebSocket error:', err);
+                };
 
-            ws.onclose = (event) => {
-                console.log('WebSocket closed', event.reason);
-                if (shouldReconnect) {
-                    reconnectTimeout = setTimeout(connect, RECONNECT_INTERVAL);
-                    console.log(`Attempting to reconnect in ${RECONNECT_INTERVAL / 1000}s...`);
-                }
-            };
+                ws.onclose = (event) => {
+                    console.log('WebSocket closed', event.reason, event.code);
+                    // if server closes due to auth error then clear credentials from zustand
+                    if(event.code === 4001){ // invalid token/session
+                        useWsAuthStore.getState().clearAuth();
+                        shouldReconnect = false;
+                        return;
+                    }
+                    if (shouldReconnect) {
+                        reconnectTimeout = setTimeout(connect, RECONNECT_INTERVAL);
+                        console.log(`Attempting to reconnect in ${RECONNECT_INTERVAL / 1000}s...`);
+                    }
+                };    
+            }
         }
 
         connect();
@@ -146,8 +174,12 @@ export default React.memo((props: any) => {
     }, [at]); 
 
     useEffect(() => {
+        // login to mcp_server via gateway
         login('admin@example.com', 'ChangeThisSecurePassword123!');
         // login('user@example.com', 'testpassword');
+
+        // login to streaming-hub for /ws websocket connection establisment
+        loginToStreamingHub()
     }, []);
 
 

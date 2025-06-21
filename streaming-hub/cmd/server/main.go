@@ -17,16 +17,16 @@ import (
 	"time"
 
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/config"
-	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/delivery/http"
+	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/delivery"
 	myredis "github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/redis"
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/service"
 )
 
 func main() {
-	// Load application configurations
+	// --- Load application configurations ---
 	cfg := config.Load()
 
-	// Initialize redis singleton
+	// --- Initialize redis singleton ---
 	if err := myredis.Init(cfg); err != nil {
 		log.Fatalf("Failed to initialize Redis: %v", err)
 	}
@@ -48,13 +48,14 @@ func main() {
 		}
 	}()
 
-	// Initialize fiber app
-	app := http.NewFiberApp(cfg, broadcaster)
+	// --- Initialize fiber app ---
+	// Assembles all HTTP/WebSocket routes and middleware.
+	app := delivery.NewFiberApp(cfg, broadcaster)
 
+	// --- Fiber Server Graceful shutdown ---
 	// channel to listen to interupt/terminate signals
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	// Start server in goroutine
 	go func() {
 		log.Printf("Starting server on %s", cfg.Port)
@@ -66,7 +67,6 @@ func main() {
 			log.Fatalf("streaming-hub failed to start: %v", err)
 		}
 	}()
-
 	// wait for shutdown signal
 	<-quit
 	log.Println("Shutting down streaming-hub...")

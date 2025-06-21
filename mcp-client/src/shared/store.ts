@@ -1,19 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface BearState {
-  bears: number
-  increase: (by: number) => void
+interface WsAuthState {
+  clientId: string | null;
+  token: string | null;
+  setAuth: (clientId: string, token: string) => void;
+  clearAuth: ()=> void;
 }
 
-const useBearStore = create<BearState>()(
-    persist(
-      (set) => ({
-        bears: 0,
-        increase: (by) => set((state) => ({ bears: state.bears + by })),
-      }),
-      {
-        name: 'bear-storage',
-      },
-    ),
-)
+export const useWsAuthStore = create<WsAuthState>()(
+   persist(
+    (set) => ({
+      clientId: null,
+      token: null,
+      setAuth: (clientId,token)=>set({clientId,token}),
+      clearAuth: ()=> set({clientId: null, token: null})
+    }),
+    {
+      name: 'auth-storage' // key in localStorage
+    }
+   )
+);

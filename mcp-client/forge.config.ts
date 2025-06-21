@@ -35,7 +35,7 @@ const config: ForgeConfig = {
         ],
       },
       // 🎈 MAKE SURE TO REMOVE IN PRODUCTION/IN CASE THIS HAS TO BE RUN ONLINE
-      devContentSecurityPolicy: "default-src 'self' 'unsafe-eval' 'unsafe-inline' data: http://localhost:8000 ws://localhost:*; connect-src 'self' http://localhost:8080 ws://localhost:*;",
+      devContentSecurityPolicy: "default-src 'self' 'unsafe-eval' 'unsafe-inline' data: http://localhost:8000 ws://localhost:*; connect-src 'self' http://localhost:8080 http://localhost ws://localhost:*;",
     }),
     // Fuses are used to enable/disable various Electron functionality
     // at package time, before code signing the application

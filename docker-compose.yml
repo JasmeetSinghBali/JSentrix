@@ -111,6 +111,12 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
+      - "traefik.http.middlewares.cors.headers.accessControlAllowMethods=*"
+      - "traefik.http.middlewares.cors.headers.accessControlAllowOriginList=http://localhost:3000"
+      - "traefik.http.middlewares.cors.headers.accessControlAllowHeaders=*"
+      - "traefik.http.middlewares.cors.headers.accessControlMaxAge=100"
+      - "traefik.http.middlewares.cors.headers.addVaryHeader=true"
+      - "traefik.http.routers.streaming-hub.middlewares=cors"
       - "traefik.http.routers.streaming-hub.rule=PathPrefix(`/`)"
       - "traefik.http.services.streaming-hub.loadbalancer.server.port=4001"
       - "traefik.http.services.streaming-hub.loadbalancer.sticky=false" # ensures round-robin load balancing sticky=false
