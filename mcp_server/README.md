@@ -59,7 +59,9 @@ mcp_server/
 |── agents/
 │   ├── __init__.py
 |   └── message_a2aserializer.py           # Base class for robust agent-to-agent (A2A) message serialization
-|   ├── base_agent.py 
+|   ├── base_agent.py
+|   ├── intake_agent.py
+|   ├── intake_messages.py 
 |
 |── application/
 │   ├── __init__.py
@@ -102,7 +104,6 @@ mcp_server/
 |    ├── __init__.py
 | 
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
-├── docker-compose.yml     # startup neo4j docker continer
 ├── .env                   # Neo4j credentials
 
 ```

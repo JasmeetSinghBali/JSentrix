@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # MCP Server
     MCP_SERVER_HOST: str = Field(default="localhost", env="MCP_SERVER_HOST")
-    MCP_SERVER_PORT: int = Field(default=9000, env="MCP_SERVER_PORT")
+    MCP_SERVER_PORT: int = Field(default=9001, env="MCP_SERVER_PORT")
 
     # Logging
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")

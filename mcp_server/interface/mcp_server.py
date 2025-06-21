@@ -109,6 +109,38 @@ class ToolInvokeRequest(BaseModel):
     arguments: dict = {}
 
 
+def call_tool(tool_func, arguments):
+    sig = inspect.signature(tool_func)
+    param_names = list(sig.parameters.keys())
+    param_len = len(param_names)
+
+    # Prepare dummy stream if needed
+    class DummyStream:
+        async def send(self, msg):
+            pass
+
+    # Prepare the positional arguments list
+    args_list = []
+
+    # Case 1: streaminges/abortinges (with optional stream/context)
+    if param_len >= 1 and param_names[0] == "args":
+        args_list.append(arguments)
+        # If 'stream' is in signature, append dummy or None
+        if param_len >= 2 and param_names[1] == "stream":
+            args_list.append(DummyStream())
+        # If 'context' is in signature, append None
+        if param_len >= 3 and param_names[2] == "context":
+            args_list.append(None)
+        # If 'registry' is in signature, append None
+        if param_len >= 4 and param_names[3] == "registry":
+            args_list.append(None)
+        return tool_func(*args_list)
+    else:
+        # Case 2: add/ping and other classic tools
+        filtered_args = {k: v for k, v in arguments.items() if k in param_names}
+        return tool_func(**filtered_args)
+
+
 # --- Utility for extracting tool fn for seemless tool invocation by tool_name and req.arguments ----
 async def invoke_registered_tools(tool_manager, tool_name: str, arguments: dict):
     """
@@ -126,8 +158,7 @@ async def invoke_registered_tools(tool_manager, tool_name: str, arguments: dict)
     # the actual callable tool Python func
     tool_func = tool_obj.fn
     try:
-        result = tool_func(**arguments)
-        # if result is coroutine eq to promise then await it
+        result = call_tool(tool_func, arguments)
         if inspect.iscoroutine(result):
             result = await result
         return result
@@ -196,12 +227,7 @@ async def jsonrpc_endpoint(request: Request):
         if not tool_obj:
             raise Exception("Method not found")
         tool_func = tool_obj.fn
-        if isinstance(params, dict):
-            result = tool_func(**params)
-        elif isinstance(params, list):
-            result = tool_func(*params)
-        else:
-            result = tool_func()
+        result = call_tool(tool_func, params)
         if inspect.iscoroutine(result):
             result = await result
         return {"jsonrpc": "2.0", "result": result, "id": rpc_id}

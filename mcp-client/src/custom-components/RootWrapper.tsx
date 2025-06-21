@@ -7,6 +7,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { useWsAuthStore } from '@/shared/store';
+import { useStreamingesIdStore } from '@/shared/store';
 
 // interface for a single tool object
 interface Tool {
@@ -24,9 +25,7 @@ interface ToolsState {
 export default React.memo((props: any) => {
 
     const [at, setAt] = useState<string>();
-    
     const [tools, setTools] = useState<ToolsState>();
-
     const [logs, setLogs] = useState<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
 
@@ -107,6 +106,29 @@ export default React.memo((props: any) => {
 
     const {clientId, token} = useWsAuthStore();
 
+    const { streamId, setStreamId, clearStreamId } = useStreamingesIdStore();
+
+    // --- Start streaming and schedule abort after 4 seconds ---
+    const startAndAbortStreaming = async (accessToken: string) => {
+        const res = await invokeTool(accessToken, "streaminges", {
+            arguments: { source: "faker" }
+        });
+        if (res?.result?.stream_id) {
+            setStreamId(res.result.stream_id);
+            setTimeout(async () => {
+                await invokeTool(accessToken, "abortinges", {
+                    arguments: { stream_id: res.result.stream_id }
+                });
+                // clear streamid after abort
+                clearStreamId(); 
+            }, 4000);
+        } else {
+            console.error("No stream_id returned from streaminges!", res);
+        }
+    };
+
+    
+
     // Connect to Go fiber websocket and handle incoming messages
     // also reconnects settimeout minimalistic logic if ws connection drops due to any reason
     useEffect(() => {
@@ -170,6 +192,7 @@ export default React.memo((props: any) => {
                     b: 3
                 }
             });
+            startAndAbortStreaming(at);
         }
     }, [at]); 
 
@@ -198,6 +221,11 @@ export default React.memo((props: any) => {
                             </React.Fragment>
                         ))}
                     </ul>
+                    {streamId && (
+                        <div>
+                            <b>Active stream_id:</b> <code>{streamId}</code>
+                        </div>
+                    )}
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>
