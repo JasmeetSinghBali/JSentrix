@@ -521,12 +521,12 @@ Ensure they can be invoked by the Electron app (via Gateway → MCP Server).
 
 Provide hooks for auditors to start/stop streaming from electron mcp-client.
 
-Phase 3: Intake Agent
-Build the Intake Agent using the BaseAgent abstraction.
+Phase 3: Intake Agent ✅
+Build the Intake Agent using the BaseAgent abstraction. ✅
 
-Integrate with a mock transaction stream (using faker) and this streams enable/disable a/c to the streaminges/abortinges tool call but button click in electron app that makes rest request via gateway->jsonrpc-> mcp server
+Integrate with a mock transaction stream (using faker) and this streams enable/disable a/c to the streaminges/abortinges tool call but button click in electron app that makes rest request via gateway->jsonrpc-> mcp server ✅
 
-Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant.
+Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant. 
 
 Pass enriched transactions to the next phase.
 
@@ -799,7 +799,7 @@ Go streaming_hub (KafkaConsumer)
 RedisBroadcaster -> WebSocket clients (Electron app)
 
 
-Secure commun btween electron client and golang traefik /ws websocket setup
+Secure commun btween electron client and golang traefik /ws websocket setup ✅
 - setup /login and Require clientid<>token for WebSocket connections by ws minimalistic middelware in Go. ✅
 - update electron ui to use new /login and connect to /ws with client_id and token stored in zustand ✅
 - Enable HTTPS/443 and WSS in Traefik. <LATER FOR PROD>
@@ -813,7 +813,7 @@ Secure commun btween electron client and golang traefik /ws websocket setup
 - Add MCP-specific validation hooks
 ```
 
-🎯 Phase-3 i.e First Agent Intake Agent
+🎯 Phase-3 i.e First Agent Intake Agent ✅
 ```bash
 #Approach Phase-3 Intake Agent
 * Only admin users can invoke streaminges/abortinges and specify the intake source.
@@ -827,8 +827,8 @@ Secure commun btween electron client and golang traefik /ws websocket setup
 * Allow only one Intake Agent instance (or one per configured source, if ever expand).
 * Document clearly in your UI and API that only admins can control the stream.
 # How Downstream (Kafka, streaming-hub) Works in This Model
-* Intake Agent pushes events to a shared Kafka topic (e.g., triageevents).
-* streaming-hub subscribes to this topic and broadcasts events to all connected clients.
+* Intake Agent pushes events to a shared Kafka topic (e.g., ingest_topic).
+* streaming-hub subscribes to this topic and broadcasts events to all connected clients via pub sub redis channel triageevents.
 * Electron clients (admin or regular users) receive the same events in real time.
 
 
@@ -839,7 +839,13 @@ Electron App (Admin)
       │
       ▼
 Gateway (FastAPI)
-  - Auth & RBAC
+  - Auth & RBAC tool invocation only for superadmin
+  - <streaminges> generates a stream_id and injects user_id | <abortinges> injects user_id, but does not generate a new stream_id.
+  - forwards:
+        <streaminges>{ "source": "faker", "stream_id": "...", "user_id": "1234566789" }
+        <abortinges>{ "stream_id": "...", "user_id": "123456789" }
+  - <streaminges>Returns the stream_id in the response for client reference.
+        Note: <abortinges>The returned stream_id from streaminges response must be used for aborting the stream.
   - Calls MCP server via JSON-RPC
       │
       ▼
@@ -861,12 +867,12 @@ IntakeAgent
   - Publishes events to Kafka
       │
       ▼
-Kafka ("triageevents" topic)
+Kafka ("ingest_topic" topic)
       │
       ▼
 Streaming-hub
   - Subscribes to Kafka
-  - Broadcasts events to all Electron clients (admin & non-admin)
+  - Broadcasts events to all Electron clients (admin & non-admin) with internal redisBroadcaster pub/sub "triageevents" redis channel 
       │
       ▼
 Electron App (all users)
@@ -882,17 +888,17 @@ Electron App (all users)
 ```
 
 
-In the tools layer (streaminges, abortinges):
+In the tools layer (streaminges, abortinges): ✅
 
-Perform role/authorization checks.
+- Perform role/authorization checks. ✅
 
-Manage the stream registry (add/remove/check stream_id).
+- Manage the stream registry (add/remove/check stream_id). ✅
 
-Call the agent’s stream or abort method with the correct context and arguments.
+- Call the agent’s stream or abort method with the correct context and arguments. ✅
 
-In the agent:
+In the agent: ✅
 
-Implement the stream and abort methods to handle the business logic of starting/stopping streaming, using the passed arguments (e.g., stream_id, source).
+- Implement the stream and abort methods to handle the business logic of starting/stopping streaming, using the passed arguments (e.g., stream_id, source). ✅
 
 > Future possible feature upd
 ```bash

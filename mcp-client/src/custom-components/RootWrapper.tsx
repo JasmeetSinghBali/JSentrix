@@ -44,6 +44,15 @@ export default React.memo((props: any) => {
 
     const login = async (username: string, password: string) => {
         try {
+            // abort previous stream if any (before changing token)
+            const currentToken = at;
+            const existingStreamId = streamId;
+            if (currentToken && existingStreamId) {
+                await invokeTool(currentToken, "abortinges", {
+                    arguments: { stream_id: existingStreamId }
+                });
+                clearStreamId();
+            }
             const response2 = await fetch("http://localhost:8080/auth/token", {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -110,12 +119,10 @@ export default React.memo((props: any) => {
 
     // --- Start streaming and schedule abort after 4 seconds ---
     const startAndAbortStreaming = async (accessToken: string) => {
-        // Abort any previous stream first
+        // Skip if a stream is already active
         if (streamId) {
-            await invokeTool(accessToken, "abortinges", {
-                arguments: { stream_id: streamId }
-            });
-            clearStreamId();
+            console.log("Stream already active, skipping new stream start.");
+            return;
         }
         // Now start a new stream
         const res = await invokeTool(accessToken, "streaminges", {
