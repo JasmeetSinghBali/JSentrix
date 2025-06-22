@@ -526,9 +526,11 @@ Build the Intake Agent using the BaseAgent abstraction. ✅
 
 Integrate with a mock transaction stream (using faker) and this streams enable/disable a/c to the streaminges/abortinges tool call but button click in electron app that makes rest request via gateway->jsonrpc-> mcp server ✅
 
-Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant. 
+Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant. ✅ 
 
-Pass enriched transactions to the next phase.
+Pass enriched transactions to the next phase as list of enriched transactions with relevant prior retrieved ordered mmory event to langchain agent directly ✅
+
+Setup deadletter queue to avoid malformed events processing does not interfere the ingest_topic
 
 Phase 4: Assessment & Prioritization Agent (LangChain)
 Build the Assessment Agent using LangChain.
@@ -536,6 +538,7 @@ Build the Assessment Agent using LangChain.
 Score and prioritize transactions using prior memory, Neo4j data, user risk, and business rules.
 
 Apply dynamic scoring, decay, and sorting.
+<Make sure to look at 2 and 3 of the # test-core-1: Rag pipeline in test_jsentrix_core.py>
 
 Forward high-priority transactions to the Action Agent.
 

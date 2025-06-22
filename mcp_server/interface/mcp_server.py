@@ -29,6 +29,12 @@ from utils.lifecycle import shutdown_all, async_shutdown_all
 from tools.basic_tools import ping, add
 from tools.streaming_tools import streaminges, abortinges
 
+# qdrant
+from infrastructure.qdrant_setup import safe_create_memory_collection
+
+# 🚀 Ensure Qdrant collection memory_events exists
+safe_create_memory_collection()
+
 # --- MCP setup ---
 logger = get_logger("jsentrix")
 mcp = FastMCP("TransactionMonitorMCP")

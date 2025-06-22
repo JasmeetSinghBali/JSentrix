@@ -34,6 +34,15 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ---
 
+## What is home-brew(in-house just used open source depend to make it alive though) in JSentrix !!
+
+- [x] a real time use case project how an AI system can be engineered to automate and augment human capabilities in a tx analysis system that is based on business compliance/clauses  
+- [x] custom knowledge base prep and ingestion pipeline
+- [x] custom retrieval pipelines with score&decay, reranking, filter+metadata ...
+- [x] triage custom flow setup with multistep intake of txn streams
+- [x] minimal but effective a2a compliant agent-to-agent communication inspired by agent card and mcp compliance protocols
+- [x] self-improving event memory store to improve system analysis capacity the more it analyze the txn streams as time progresses to improve system for the next time it analyze the txns
+
 ## Core Features
 
 - **Local-Only Operation:** No third-party APIs or cloud dependencies; all data, models, and memory are local.
@@ -59,19 +68,25 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
 | 8    | ~~Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system~~|
 | 9    | ~~Setup support jsonrpc2.0 for comm b/w gateway and mcp_server with rest backw compat~~               |
-| 10    | Setup streminges and abortinges tool for mcp server and fdagent with notification intake and analysis capacity
-| 11    | Add A2A workflow (investigation, notification, action)                                            |
-| 12    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.   |
+| 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                               |
+| 11    | Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent    |
+| 12    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server                                                                   |
+| 13    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.                                                                                                      |
 
 ---
 
 ## Tech Stack
 
-- **Electron** (React/TypeScript) - Desktop app & MCP client
-- **Python** - MCP server, agent orchestration via Langchain
+- **Electron+Typescript** (React/TypeScript) - Desktop app & MCP client
+- **Python+FastMCP+FastAPI** - MCP server, agent orchestration via Langchain
+- **Golang+Fiber+Traefik** - Fiber streaming-hub multiple replicas with traefik as proxy server and load balancer
 - **Ollama** - Local LLMs for analysis(qwen3:1.7b) + summary(Gemma3:1b)
-- **neo4j** - Local graph database 
-- **customMemory Event via Qdrant** - Local agent memory event wired with custom configs and setup
+- **Langchain + Llamaindex** - for Triage Self improving custom agent setup with MCP and a2a compliance and custom agent orchestration and jsentrix custom flow setup with custom retrievers, score and decay patterns, reranking etc...
+- **neo4j** - Local graph database for knowledge base clauses
+- **postgresql** - Client/Electron user login both admin/non-admin users via gateway
+- **qdrant** - store past inferenced and processed events stored in memory for future txn processing in triage self improving jsentrix flow
+- **redis** - pub/sub channel broadcasting internal streaming-hub with FAN out pattern sending single consumed message by kafka partition to other streaming-hub replica subscribers of process,events by mcp_server and its agents to client electron ui realtime events streaming via websocket
+- **kafka** - single/dedicated streaming-hub replica for consuming events published/forwarded by mcp_server agents and processes
 - **Docker** - Deployment and local orchestration
 - **Sphinix** - Docs
 - **OpenTelemetry** Tracing and Instrumentation
@@ -127,6 +142,9 @@ http://localhost:8080/docs
 
 # mcp_server
 http://localhost:9001
+
+# streaming-hub (exposed via traefik with Load balancer not directly)
+http://localhost/health
 
 # to prep neo4j knowledge base with initial clauses
 python generate_sample.py # generate data/sample_clause.pdf

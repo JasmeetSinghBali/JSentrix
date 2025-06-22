@@ -7,6 +7,7 @@ Exposes reusable a2a message serialization base for agents
 import json
 from datetime import datetime, date
 from typing import Any, Type, TypeVar, Dict
+from pydantic import BaseModel
 
 # T can be any type unless its subclass of A2AMessageSerializable or itself as this generalized type is bounded to the same
 T = TypeVar("T", bound="A2AMessageSerializable")
@@ -64,6 +65,10 @@ class A2AMessageSerializable:
             return [cls._serialize_value(v) for v in value]
         elif isinstance(value, dict):
             return {k: cls._serialize_value(v) for k, v in value.items()}
+        elif isinstance(value, BaseModel):
+            return (
+                value.model_dump()
+            )  # 📌 allows pydantic model like MemoryEvent to be serialized properly wihout the need of manual pre-dump
         else:
             return value
 

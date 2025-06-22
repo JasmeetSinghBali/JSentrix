@@ -120,10 +120,10 @@ export default React.memo((props: any) => {
     // --- Start streaming and schedule abort after 4 seconds ---
     const startAndAbortStreaming = async (accessToken: string) => {
         // Skip if a stream is already active
-        if (streamId) {
-            console.log("Stream already active, skipping new stream start.");
-            return;
-        }
+        // if (streamId) {
+        //     console.log("Stream already active, skipping new stream start.");
+        //     return;
+        // }
         // Now start a new stream
         const res = await invokeTool(accessToken, "streaminges", {
             arguments: { source: "faker" }
