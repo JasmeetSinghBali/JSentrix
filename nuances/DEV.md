@@ -502,7 +502,7 @@ Electron App
 ---
 
 
-> ## 📌Abstracted Phases for Triage Flow
+> ## 🎈 Abstracted Phases for Triage Flow
 
 ```bash
 Phase 1: Core Agent Abstraction ✅
@@ -514,21 +514,23 @@ Provide a consistent interface for setup, invocation, streaming, and aborting.
 
 Make it modular, reusable, and MCP + A2A compliant.
 
-Phase 2: Tooling Integration
+Phase 2: Tooling Integration ✅
 Implement new tools: streaminges and abortinges as callable endpoints.
 
 Ensure they can be invoked by the Electron app (via Gateway → MCP Server).
 
 Provide hooks for auditors to start/stop streaming from electron mcp-client.
 
-Phase 3: Intake Agent
-Build the Intake Agent using the BaseAgent abstraction.
+Phase 3: Intake Agent ✅
+Build the Intake Agent using the BaseAgent abstraction. ✅
 
-Integrate with a mock transaction stream (using faker) and this streams enable/disable a/c to the streaminges/abortinges tool call but button click in electron app that makes rest request via gateway->jsonrpc-> mcp server
+Integrate with a mock transaction stream (using faker) and this streams enable/disable a/c to the streaminges/abortinges tool call but button click in electron app that makes rest request via gateway->jsonrpc-> mcp server ✅
 
-Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant.
+Validate, enrich transactions, attach metadata, and retrieve prior memory events from Qdrant. ✅ 
 
-Pass enriched transactions to the next phase.
+Pass enriched transactions to the next phase as list of enriched transactions with relevant prior retrieved ordered mmory event to langchain agent directly ✅
+
+Setup deadletter queue to avoid malformed events processing does not interfere the ingest_topic ✅
 
 Phase 4: Assessment & Prioritization Agent (LangChain)
 Build the Assessment Agent using LangChain.
@@ -536,6 +538,7 @@ Build the Assessment Agent using LangChain.
 Score and prioritize transactions using prior memory, Neo4j data, user risk, and business rules.
 
 Apply dynamic scoring, decay, and sorting.
+<Make sure to look at 2 and 3 of the # test-core-1: Rag pipeline in test_jsentrix_core.py>
 
 Forward high-priority transactions to the Action Agent.
 
@@ -721,7 +724,7 @@ Files to Modify:
 
 
 
-> ## 🎈 Phase 2 Tooling Integration e2e (dev/stream-abort-tool)
+> ## Phase 2 Tooling Integration e2e (dev/stream-abort-tool)
 
 ```bash
 Electron App
@@ -799,26 +802,112 @@ Go streaming_hub (KafkaConsumer)
 RedisBroadcaster -> WebSocket clients (Electron app)
 
 
-Secure commun btween electron client and golang traefik /ws websocket setup
+Secure commun btween electron client and golang traefik /ws websocket setup ✅
 - setup /login and Require clientid<>token for WebSocket connections by ws minimalistic middelware in Go. ✅
 - update electron ui to use new /login and connect to /ws with client_id and token stored in zustand ✅
 - Enable HTTPS/443 and WSS in Traefik. <LATER FOR PROD>
 - Update Electron client to use wss:// and pass the token. <LATER FOR PROD>
 ```
 
-
-🎯 then Phase-3 i.e First Agent Intake Agent
-NOTE- these 3 steps shud follow for all type of agents
+> ## 🎈 These 3 steps shud follow for all type of agents setup
 ```bash
-dev-core/triage-agent-{intake/assesment...}:
 - Create concrete agent class that extends the BaseAgent and JsonRpcAgentMixin class for this agent a/c to the triage flow
 - Implement A2A message types for this agent
 - Add MCP-specific validation hooks
+
+```
+
+```bash
+🎯 Phase-3 i.e First Agent Intake Agent ✅
+
+#Approach Phase-3 Intake Agent
+* Only admin users can invoke streaminges/abortinges and specify the intake source.
+* Only one Intake Agent runs at a time, managed by the admin.
+* Regular users connect to the streaming-hub and see the events broadcast by the Intake Agent (via Kafka), but cannot start/stop or customize the stream.
+* All events are broadcast to all connected clients (admin and non-admin).
+* Intake Agent can be configured with a custom source by the admin, but not by regular users.
+# Best Practices for This Model
+* Enforce role checks at the gateway/MCP server so only admins can invoke streaminges/abortinges.
+* Tag events with metadata (e.g., source, admin user, timestamp) for traceability
+* Allow only one Intake Agent instance (or one per configured source, if ever expand).
+* Document clearly in your UI and API that only admins can control the stream.
+# How Downstream (Kafka, streaming-hub) Works in This Model
+* Intake Agent pushes events to a shared Kafka topic (e.g., ingest_topic).
+* streaming-hub subscribes to this topic and broadcasts events to all connected clients via pub sub redis channel triageevents.
+* Electron clients (admin or regular users) receive the same events in real time.
+
+
+Electron App (Admin)
+      │
+      ▼
+[1] POST /tools/{tool_name}/invoke (REST)
+      │
+      ▼
+Gateway (FastAPI)
+  - Auth & RBAC tool invocation only for superadmin
+  - <streaminges> generates a stream_id and injects user_id | <abortinges> injects user_id, but does not generate a new stream_id.
+  - forwards:
+        <streaminges>{ "source": "faker", "stream_id": "...", "user_id": "1234566789" }
+        <abortinges>{ "stream_id": "...", "user_id": "123456789" }
+  - <streaminges>Returns the stream_id in the response for client reference.
+        Note: <abortinges>The returned stream_id from streaminges response must be used for aborting the stream.
+  - Calls MCP server via JSON-RPC
+      │
+      ▼
+[2] mcp_jsonrpc.call(tool_name, arguments)
+      │
+      ▼
+MCP Server (FastMCP)
+  - Tool registry: mcp.tool("streaminges")(streaminges)
+      │
+      ▼
+[3] streaminges/abortinges tool handler
+  - Validates stream_id
+  - Registers/aborts stream in Redis registry
+  - Calls IntakeAgent.stream()/abort()
+      │
+      ▼
+IntakeAgent
+  - Starts/stops streaming loop
+  - Publishes events to Kafka
+      │
+      ▼
+Kafka ("ingest_topic" topic)
+      │
+      ▼
+Streaming-hub
+  - Subscribes to Kafka
+  - Broadcasts events to all Electron clients (admin & non-admin) with internal redisBroadcaster pub/sub "triageevents" redis channel 
+      │
+      ▼
+Electron App (all users)
+  - Receives and displays events
+
+* The admin Electron client triggers the flow.
+* Gateway enforces RBAC and proxies to MCP server via JSON-RPC.
+* MCP server calls the appropriate tool handler (streaminges/abortinges).
+* The handler starts/stops the IntakeAgent’s streaming.
+* IntakeAgent publishes events to Kafka.
+* Streaming-hub broadcasts those events to all Electron clients (admin and regular).
+
+
+
+
+In the tools layer (streaminges, abortinges): ✅
+
+- Perform role/authorization checks. ✅
+
+- Manage the stream registry (add/remove/check stream_id). ✅
+
+- Call the agent’s stream or abort method with the correct context and arguments. ✅
+
+In the agent: ✅
+
+- Implement the stream and abort methods to handle the business logic of starting/stopping streaming, using the passed arguments (e.g., stream_id, source). ✅
 ```
 
 
-
-> Future possible feature upd
+> ##  Future possible feature upd
 ```bash
 sep branch
 HYDE RAG retrieval strategy for pre-screening 
@@ -826,3 +915,4 @@ https://zilliz.com/learn/improve-rag-and-information-retrieval-with-hyde-hypothe
 https://ollama.com/library/phi3
 
 ```
+

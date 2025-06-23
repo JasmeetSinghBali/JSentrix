@@ -10,6 +10,7 @@ from core.config.settings import settings
 import httpx
 from typing import TypedDict
 from infrastructure.jsonrpc.jsonrpc_client import JsonRpcClient
+import uuid
 
 router = APIRouter()
 
@@ -50,10 +51,42 @@ async def invoke_tool(
     """
     Invoke a tool (protected superadmin only)
     REST-in, JSON-RPC-out to MCP server.
+
+    Example:
+        streaminges:
+
+        Client sends { "arguments": { "source": "faker" } }
+
+        Gateway generates a stream_id and injects user_id.
+
+        Gateway forwards:
+        { "source": "faker", "stream_id": "...", "user_id": "1234566789" }
+
+        Returns the stream_id in the response for client reference.
+        Note: The returned stream_id must be used for aborting the stream.
+
+        abortinges:
+
+        Client sends { "arguments": { "stream_id": "..." } } (using the stream_id from the start response)
+
+        Gateway injects user_id, but does not generate a new stream_id.
+
+        Gateway forwards:
+        { "stream_id": "...", "user_id": "123456789" }
     """
     try:
+        arguments = req.get("arguments", {}) or {}
+
+        # For streaminges, generate a new stream_id if not provided
+        if tool_name == "streaminges":
+            arguments["stream_id"] = str(uuid.uuid4())
+
+        # For abortinges, expect stream_id to be provided by client (from previous start)
+        # Always inject user_id for audit/logging
+        arguments["user_id"] = current_user.id
+
         # Use JSON-RPC for backend comm, keep REST for client
-        result = await mcp_jsonrpc.call(tool_name, req.get("arguments", {}))
+        result = await mcp_jsonrpc.call(tool_name, arguments)
         return {"result": result}
     except Exception as e:
         raise HTTPException(

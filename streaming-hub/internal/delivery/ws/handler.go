@@ -47,6 +47,7 @@ func WebSocketHandler(broadcaster *service.RedisBroadcaster) func(*websocket.Con
 			return
 		}
 
+		// Register client conn with redisbroadcaster
 		broadcaster.Register(conn)
 		defer func() {
 			broadcaster.Unregister(conn)
@@ -58,9 +59,30 @@ func WebSocketHandler(broadcaster *service.RedisBroadcaster) func(*websocket.Con
 			}
 		}()
 
+		// Add ping/pong handlers for connection health heartbeat mech and help detection of dead conn faster
+		conn.SetPingHandler(func(message string) error {
+			log.Printf("Recieved ping from %s", clientID)
+			return conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(time.Second))
+		})
+		conn.SetPongHandler(func(message string) error {
+			log.Printf("Recieved pong from %s", clientID)
+			return nil
+		})
+		// Main message handling loop
 		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
+			msgType, msg, err := conn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+					log.Printf("Unexpected close for %s: %v", clientID, err)
+				}
 				break
+			}
+
+			// Handle incoming messages i.e messages sent from the websocket client to the server for example if electron client sends a message
+			switch msgType {
+			case websocket.TextMessage:
+				log.Printf("Recieved msg from %s: %s", clientID, string(msg))
+				// 🎈 custom message processing logic can go here
 			}
 		}
 	}

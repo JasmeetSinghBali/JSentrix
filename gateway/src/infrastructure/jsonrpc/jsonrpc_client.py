@@ -1,6 +1,5 @@
 """
 gateway/src/infrastructure/jsonrpc/jsonrpc_client.py
-Password hashing and verification using bcrypt.
 """
 
 import httpx

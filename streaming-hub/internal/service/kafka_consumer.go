@@ -4,11 +4,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/model"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -57,10 +59,16 @@ func (kc *KafkaConsumer) StartConsuming(ctx context.Context, broadcaster *RedisB
 			}
 			switch e := ev.(type) {
 			case *kafka.Message:
-				log.Printf("Received Kafka message: %s", string(e.Value))
-				// Broadcast the raw event to all websocket clients(electron)
-				broadcaster.Broadcast(e.Value)
-				log.Printf("Broadcasted event to WebSocket clients: %s", string(e.Value))
+				log.Printf("🔍 Raw kafka message: %s", string(e.Value))
+				var event model.Event
+				if err := json.Unmarshal(e.Value, &event); err != nil {
+					log.Printf("Failed to parse event: %v", err)
+				} else {
+					log.Printf("Received Kafka message: %s", string(e.Value))
+					// Broadcast the raw event to all websocket clients(electron)
+					broadcaster.Broadcast(e.Value)
+					log.Printf("Broadcasted event to WebSocket clients: %s", string(e.Value))
+				}
 			case kafka.Error:
 				log.Printf("Kafka error: %v", e)
 			}

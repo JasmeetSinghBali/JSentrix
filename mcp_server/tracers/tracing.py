@@ -1,4 +1,6 @@
 """
+mcp_server/tracers/tracing.py
+
 Tracing setup for the MCP Server service.
 - Automatically instruments FastAPI routes.
 - Provides a tracer for custom spans.

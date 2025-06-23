@@ -51,7 +51,8 @@ mcp_server/
 |     |── redis_stream_registry.py     # AsyncStream registery to track active streaming sessions for all agents and parts in mcp_server
 |     |── kafka
 |       ├── __init__.py
-│       ├── producer_singleton.py       kafka producer publish to shared topic b/w mcp_server and streaming_hub
+│       ├── producer_singleton.py   # kafka producer publish to shared topic b/w mcp_server and streaming_hub
+│       ├── topic_initializer.py    # ingest_topic and ingest_topic_dlq topic create at startup mcp_server
 |
 |── domain/
 │   ├── __init__.py
@@ -59,7 +60,9 @@ mcp_server/
 |── agents/
 │   ├── __init__.py
 |   └── message_a2aserializer.py           # Base class for robust agent-to-agent (A2A) message serialization
-|   ├── base_agent.py 
+|   ├── base_agent.py
+|   ├── intake_agent.py
+|   ├── intake_messages.py 
 |
 |── application/
 │   ├── __init__.py
@@ -95,6 +98,10 @@ mcp_server/
 |   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
 |   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
 |
+|── workers/
+│   ├── __init__.py
+|   └── dlq_retry_worker.py   # dead letter queue failed published events worker proecessor pushes to ingest_topic_dlq with retry/resend to original topic with serializable guards for json and malformed data events ingest_topic
+|
 └── tests/                    # test dir
 |    ├── __init__.py
 |
@@ -102,7 +109,6 @@ mcp_server/
 |    ├── __init__.py
 | 
 ├── generate_sample.py     # generate sample clauses of 3 types- prohibited, limit and reporting
-├── docker-compose.yml     # startup neo4j docker continer
 ├── .env                   # Neo4j credentials
 
 ```

@@ -7,6 +7,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { useWsAuthStore } from '@/shared/store';
+import { useStreamingesIdStore } from '@/shared/store';
 
 // interface for a single tool object
 interface Tool {
@@ -24,9 +25,7 @@ interface ToolsState {
 export default React.memo((props: any) => {
 
     const [at, setAt] = useState<string>();
-    
     const [tools, setTools] = useState<ToolsState>();
-
     const [logs, setLogs] = useState<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
 
@@ -45,6 +44,15 @@ export default React.memo((props: any) => {
 
     const login = async (username: string, password: string) => {
         try {
+            // abort previous stream if any (before changing token)
+            const currentToken = at;
+            const existingStreamId = streamId;
+            if (currentToken && existingStreamId) {
+                await invokeTool(currentToken, "abortinges", {
+                    arguments: { stream_id: existingStreamId }
+                });
+                clearStreamId();
+            }
             const response2 = await fetch("http://localhost:8080/auth/token", {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -107,6 +115,36 @@ export default React.memo((props: any) => {
 
     const {clientId, token} = useWsAuthStore();
 
+    const { streamId, setStreamId, clearStreamId } = useStreamingesIdStore();
+
+    // --- Start streaming and schedule abort after 4 seconds ---
+    const startAndAbortStreaming = async (accessToken: string) => {
+        // Skip if a stream is already active
+        if (streamId) {
+            console.log("Stream already active, skipping new stream start.");
+            invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
+            clearStreamId();
+        }
+        // Now start a new stream
+        const res = await invokeTool(accessToken, "streaminges", {
+            arguments: { source: "faker" }
+        });
+        if (res?.result?.stream_id) {
+            setStreamId(res.result.stream_id);
+            setTimeout(async () => {
+                await invokeTool(accessToken, "abortinges", {
+                    arguments: { stream_id: res.result.stream_id }
+                });
+                // clear streamid after abort
+                clearStreamId(); 
+            }, 20000);
+        } else {
+            console.error("No stream_id returned from streaminges!", res);
+        }
+    };
+
+    
+
     // Connect to Go fiber websocket and handle incoming messages
     // also reconnects settimeout minimalistic logic if ws connection drops due to any reason
     useEffect(() => {
@@ -155,7 +193,15 @@ export default React.memo((props: any) => {
         return () => {
             shouldReconnect = false;
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            if (ws) ws.close();
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            // Abort any running stream on unmount
+            if (streamId && at) {
+                invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
+                clearStreamId();
+            }
         };
     }, []);
 
@@ -170,6 +216,7 @@ export default React.memo((props: any) => {
                     b: 3
                 }
             });
+            startAndAbortStreaming(at);
         }
     }, [at]); 
 
@@ -198,6 +245,11 @@ export default React.memo((props: any) => {
                             </React.Fragment>
                         ))}
                     </ul>
+                    {streamId && (
+                        <div>
+                            <b>Active stream_id:</b> <code>{streamId}</code>
+                        </div>
+                    )}
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>

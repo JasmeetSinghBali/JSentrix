@@ -6,9 +6,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"sync"
 
+	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/model"
 	myredis "github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/redis"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/redis/go-redis/v9"
@@ -103,10 +105,19 @@ func (b *RedisBroadcaster) subscribe() {
 
 // dispatch sends the message to all connected WebSocket clients.
 func (b *RedisBroadcaster) dispatch(msg []byte) {
+	var event model.Event
+	if err := json.Unmarshal(msg, &event); err != nil {
+		log.Printf("Invalid event format: %v", err)
+		return
+	}
+
+	// 🎈 event can be processed here if needed before sending it to electron clients
+	processed, _ := json.Marshal(event)
+
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	for conn := range b.clients {
-		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+		if err := conn.WriteMessage(websocket.TextMessage, processed); err != nil {
 			log.Printf("[WebSocket] Failed to send message to client %p: %v. Removing client.", conn, err)
 			conn.Close()
 			delete(b.clients, conn) // on failed conn that websocket client is removed

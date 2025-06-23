@@ -8,6 +8,7 @@ interface WsAuthState {
   clearAuth: ()=> void;
 }
 
+// --- Websocket clientId<>token store
 export const useWsAuthStore = create<WsAuthState>()(
    persist(
     (set) => ({
@@ -20,4 +21,25 @@ export const useWsAuthStore = create<WsAuthState>()(
       name: 'auth-storage' // key in localStorage
     }
    )
+);
+
+
+// --- Streaminges Stream ID Store ---
+interface StreamingesIdState {
+  streamId: string | null;
+  setStreamId: (id: string) => void;
+  clearStreamId: () => void;
+}
+
+export const useStreamingesIdStore = create<StreamingesIdState>()(
+  persist(
+    (set) => ({
+      streamId: null,
+      setStreamId: (id) => set({ streamId: id }),
+      clearStreamId: () => set({ streamId: null }),
+    }),
+    {
+      name: 'streaminges-id-storage',
+    }
+  )
 );
