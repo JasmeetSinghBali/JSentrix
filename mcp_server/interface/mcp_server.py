@@ -32,6 +32,22 @@ from tools.streaming_tools import streaminges, abortinges
 # qdrant
 from infrastructure.qdrant_setup import safe_create_memory_collection
 
+# kafka topic initializer imports
+from infrastructure.kafka.topic_initializer import ensure_kafka_topics_exist
+
+from utils.logger import get_logger
+
+logger = get_logger("jsentrix_mcpserver_entry")
+
+# ✅ Ensure necessary Kafka topics are created before starting DLQ workers
+try:
+    ensure_kafka_topics_exist(
+        bootstrap_servers=os.getenv("KAFKA_BROKER", "localhost:29092"),
+        topic_names=["ingest_topic", "ingest_topic_dlq"],
+    )
+except Exception as e:
+    logger.warning(f"⚠️ Kafka topic initialization skipped or failed: {e}")
+
 # 🚀 Ensure Qdrant collection memory_events exists
 safe_create_memory_collection()
 
@@ -102,7 +118,13 @@ import uvicorn
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Optionally, place any startup code here
-    yield
+    from workers.dlq_retry_worker import dlq_background_retry_loop
+
+    # start+register its own shutdown callback
+    await dlq_background_retry_loop()
+
+    yield  # pause checkpoint until server is running
+
     # Shutdown async_shutdown_all already handles both sync and async callbacks
     await async_shutdown_all()
 

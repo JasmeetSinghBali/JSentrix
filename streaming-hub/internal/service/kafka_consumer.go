@@ -59,6 +59,7 @@ func (kc *KafkaConsumer) StartConsuming(ctx context.Context, broadcaster *RedisB
 			}
 			switch e := ev.(type) {
 			case *kafka.Message:
+				log.Printf("🔍 Raw kafka message: %s", string(e.Value))
 				var event model.Event
 				if err := json.Unmarshal(e.Value, &event); err != nil {
 					log.Printf("Failed to parse event: %v", err)

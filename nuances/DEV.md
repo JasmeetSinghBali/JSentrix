@@ -502,7 +502,7 @@ Electron App
 ---
 
 
-> ## 📌Abstracted Phases for Triage Flow
+> ## 🎈 Abstracted Phases for Triage Flow
 
 ```bash
 Phase 1: Core Agent Abstraction ✅
@@ -530,7 +530,7 @@ Validate, enrich transactions, attach metadata, and retrieve prior memory events
 
 Pass enriched transactions to the next phase as list of enriched transactions with relevant prior retrieved ordered mmory event to langchain agent directly ✅
 
-Setup deadletter queue to avoid malformed events processing does not interfere the ingest_topic
+Setup deadletter queue to avoid malformed events processing does not interfere the ingest_topic ✅
 
 Phase 4: Assessment & Prioritization Agent (LangChain)
 Build the Assessment Agent using LangChain.
@@ -724,7 +724,7 @@ Files to Modify:
 
 
 
-> ## 🎈 Phase 2 Tooling Integration e2e (dev/stream-abort-tool)
+> ## Phase 2 Tooling Integration e2e (dev/stream-abort-tool)
 
 ```bash
 Electron App
@@ -814,10 +814,12 @@ Secure commun btween electron client and golang traefik /ws websocket setup ✅
 - Create concrete agent class that extends the BaseAgent and JsonRpcAgentMixin class for this agent a/c to the triage flow
 - Implement A2A message types for this agent
 - Add MCP-specific validation hooks
+
 ```
 
-🎯 Phase-3 i.e First Agent Intake Agent ✅
 ```bash
+🎯 Phase-3 i.e First Agent Intake Agent ✅
+
 #Approach Phase-3 Intake Agent
 * Only admin users can invoke streaminges/abortinges and specify the intake source.
 * Only one Intake Agent runs at a time, managed by the admin.
@@ -888,7 +890,7 @@ Electron App (all users)
 * IntakeAgent publishes events to Kafka.
 * Streaming-hub broadcasts those events to all Electron clients (admin and regular).
 
-```
+
 
 
 In the tools layer (streaminges, abortinges): ✅
@@ -902,8 +904,10 @@ In the tools layer (streaminges, abortinges): ✅
 In the agent: ✅
 
 - Implement the stream and abort methods to handle the business logic of starting/stopping streaming, using the passed arguments (e.g., stream_id, source). ✅
+```
 
-> Future possible feature upd
+
+> ##  Future possible feature upd
 ```bash
 sep branch
 HYDE RAG retrieval strategy for pre-screening 

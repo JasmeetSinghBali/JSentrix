@@ -25,6 +25,8 @@ from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 
 from domain.models import MemoryEvent
 
+from tracers.tracing import get_tracer
+
 
 logger = get_logger("intake_agent")
 
@@ -114,49 +116,56 @@ class IntakeAgent(
         Generates and forwards/publishes mock transactions while the stream is active in registry.
         Each enriched transaction is passed to streaming hub and downstream assessment agent.
         """
+        tracer = get_tracer()
         try:
             while await registry.is_active(stream_id):
                 try:
-                    # fake/mock txn generator
-                    txn = IntakeInput(
-                        txn_id=self.fake.uuid4(),
-                        amount=self.fake.pyfloat(
-                            left_digits=3, right_digits=2, positive=True
-                        ),
-                        source=source,
-                    )
-                    # 📌 custom agent context can be extended here
-                    context = AgentContext(
-                        request_id=self.fake.uuid4(),
-                        user_id="system",  # 📌 Or pass admin/user actual id in case the agent is directly invoked from client side
-                        timestamp=datetime.now(timezone.utc),
-                    )
-                    # invoke with error wrapper
-                    output = await self._safe_invoke(txn, context)
+                    with tracer.start_as_current_span(
+                        f"txn_stream.{stream_id}"
+                    ) as span:
+                        # fake/mock txn generator
+                        txn = IntakeInput(
+                            txn_id=self.fake.uuid4(),
+                            amount=self.fake.pyfloat(
+                                left_digits=3, right_digits=2, positive=True
+                            ),
+                            source=source,
+                        )
+                        # 📌 custom agent context can be extended here
+                        # span_id + trace_id
+                        context = AgentContext(
+                            request_id=self.fake.uuid4(),
+                            user_id="system",  # 📌 Or pass admin/user actual id in case the agent is directly invoked from client side
+                            timestamp=datetime.now(timezone.utc),
+                            trace_id=span.get_span_context().trace_id,
+                            span_id=span.get_span_context().span_id,
+                        )
+                        # invoke with error wrapper
+                        output = await self._safe_invoke(txn, context)
 
-                    # 🎈 forward to langchain assessment agent here so that assesment can also happen event by event as they are consume and processed by intake agent
-                    # enriched_data now looks like {enriched_txn: {},prior_events: [MemoryEvent, MemoryEvent],stream_id: ""}
-                    # NOTE- assessment_agent.invoke() shud be implemented using A2A architecture (i.e., it either:
-                    # uses A2AMessageSerializable or
-                    # serializes the payload using to_dict() or to_json() internally),
-                    # so that _serialize_value() in A2AMessageSerializable will automatically convert the MemoryEvent instances using .model_dump() when it's serialized — so no need to do it manually anymore.
-                    # await self.assessment_agent.invoke(enriched_data)
+                        # 🎈 forward to langchain assessment agent here so that assesment can also happen event by event as they are consume and processed by intake agent
+                        # enriched_data now looks like {enriched_txn: {},prior_events: [MemoryEvent, MemoryEvent],stream_id: ""}
+                        # NOTE- assessment_agent.invoke() shud be implemented using A2A architecture (i.e., it either:
+                        # uses A2AMessageSerializable or
+                        # serializes the payload using to_dict() or to_json() internally),
+                        # so that _serialize_value() in A2AMessageSerializable will automatically convert the MemoryEvent instances using .model_dump() when it's serialized — so no need to do it manually anymore.
+                        # await self.assessment_agent.invoke(enriched_data)
 
-                    # force serialization before pushing to external kafka/ui
-                    # Enrich and forward
-                    # output.to_dict() => {
-                    # "enriched_txn": {...},
-                    # "prior_events": [dict, dict, ...]
-                    # }
-                    # NOTE- When leaving the agent boundary (Kafka, socket, DB, HTTP): use .to_dict() or .to_json()
-                    # When staying inside the agent system (A2A calls): just pass the object directly
-                    enriched_data = (
-                        output.to_dict()
-                    )  # this includes .model_dump() on MemoryEvent
-                    enriched_data["stream_id"] = stream_id
+                        # force serialization before pushing to external kafka/ui
+                        # Enrich and forward
+                        # output.to_dict() => {
+                        # "enriched_txn": {...},
+                        # "prior_events": [dict, dict, ...]
+                        # }
+                        # NOTE- When leaving the agent boundary (Kafka, socket, DB, HTTP): use .to_dict() or .to_json()
+                        # When staying inside the agent system (A2A calls): just pass the object directly
+                        enriched_data = (
+                            output.to_dict()
+                        )  # this includes .model_dump() on MemoryEvent
+                        enriched_data["stream_id"] = stream_id
 
-                    # --- Forward to streaming-hub via forwarder event by event ---
-                    await self._forward_with_fallback(enriched_data, stream_id)
+                        # --- Forward to streaming-hub via forwarder event by event ---
+                        await self._forward_with_fallback(enriched_data, stream_id)
 
                 except AgentFatalError as e:
                     logger.critical(f"[Intake] Fatal error in stream {stream_id}: {e}")
@@ -238,20 +247,20 @@ class IntakeAgent(
             ) from e
 
     async def _forward_with_fallback(self, data: dict, stream_id: str):
-        """Forward with retry and fallback handling"""
-        try:
-            await forward_event_to_streaming_hub(
-                {
-                    "event": "transaction",
-                    "message": "Mock transaction event",
-                    "stream_id": stream_id,
-                    "data": data,
-                }
+        """
+        Forward with retry and fallback handling
+        """
+        event_payload = {
+            "event": "transaction",
+            "message": "Mock transaction event",
+            "stream_id": stream_id,
+            "data": data,
+        }
+        success = await forward_event_to_streaming_hub(event_payload)
+        if not success:
+            logger.warning(
+                f"[ForwardWithFallback] Event failed to forward and was sent to DLQ: stream_id={stream_id}"
             )
-        except Exception as e:
-            logger.error(f"Critical forwarding error: {e}")
-            # 🎈 Implement dead-letter queue or other recovery
-            # await self._store_in_fallback_queue(data)
 
     async def _handle_fatal_error(
         self, stream_id: str, error: AgentFatalError, registry
