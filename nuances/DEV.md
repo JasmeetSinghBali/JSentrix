@@ -540,7 +540,7 @@ Score and prioritize transactions using prior memory, Neo4j data, user risk, and
 Apply dynamic scoring, decay, and sorting.
 <Make sure to look at 2 and 3 of the # test-core-1: Rag pipeline in test_jsentrix_core.py>
 
-Forward high-priority transactions to the Action Agent.
+Forward high-priority transactions only to the Action Agent not all txn incoming from intakeAgent.
 
 Phase 5: Analysis/Action Agent (LlamaIndex)
 Build the Action Agent using LlamaIndex.

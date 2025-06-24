@@ -56,7 +56,9 @@ import asyncio
 # --- Type variables for input/output message typ ---
 InputType = TypeVar("InputType", bound=A2AMessageSerializable)
 OutputType = TypeVar("OutputType", bound=A2AMessageSerializable)
-ContextType = TypeVar("ContextType")
+ContextType = TypeVar(
+    "ContextType"
+)  # 📌 unbounded from AgentContext for flexiblity for agent that dont need context passing downstream
 
 
 class AgentContext(A2AMessageSerializable):

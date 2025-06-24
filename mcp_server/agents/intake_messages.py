@@ -1,4 +1,6 @@
-# mcp_server/agents/intake_messages.py
+"""
+mcp_server/agents/intake_messages.py
+"""
 
 from .message_a2aserializer import A2AMessageSerializable
 
