@@ -195,6 +195,8 @@ class GraphMemoryRetriever:
         Async version of get_relevant. Runs the sync method in a thread pool to avoid blocking the event loop.
         """
         loop = asyncio.get_running_loop()
+        # 📌 Defaults to ThreadPoolExecutor as passed None to run_in_executor
+        # offloads the get_relevant to seprate thread
         return await loop.run_in_executor(
             None,
             self.get_relevant,

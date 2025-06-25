@@ -907,12 +907,74 @@ In the agent: ✅
 ```
 
 
+> ## 🎈 Electron UI Features Additions
+```bash
+1.) Dynamic config 
+
+# passed by end user in payload at time of calling streminges for that stream from electron to say include medium prior events also along with the default high prior one's
+# a modal with source, priority selection could be done before calling the streaminges tool from the electron client by the admin
+
+the AgentContext then wud require a config key in assessment agent
+also the input for intake agent wud also have config optional key so that can be forwarded to agent context of the assessment agent
+```
+
 > ##  Future possible feature upd
 ```bash
+
 sep branch
-HYDE RAG retrieval strategy for pre-screening 
+1.) HYDE RAG retrieval strategy for pre-screening 
 https://zilliz.com/learn/improve-rag-and-information-retrieval-with-hyde-hypothetical-document-embeddings
 https://ollama.com/library/phi3
+
+sep branch
+2.)  live stream connection different mode setup (bypassing Kafka pub-sub fanout default) between MCP server and Electron
+
+example-
+{
+  "mode": "auto" | "interactive",
+  "stream_id": "...",
+  ...
+}
+then inside intake_agent._mock_stream_loop or other stream source loop
+if mode == "interactive":
+    await stream.send({"event": "txn_ready_for_review", "data": enriched_data})
+    feedback = await stream.recv()  # Blocking until user responds
+    if not feedback["approved"]:
+        continue  # skip or log rejected txn
+Or even route through an optional HITLReviewAgent that gates messages based on a WebSocket session.
+
+
+Interactive A2A Evaluation / Human-in-the-Loop (HITL) Review
+Scenario:
+Before forwarding enriched input to another agent (e.g. assessment agent), a human analyst could:
+
+review/edit enriched txn,
+
+reject/approve prior events,
+
+choose override config for downstream agent.
+
+Flow:
+Electron ↔ Gateway (WebSocket) ↔ MCP Server (stream-aware tool)
+
+Agent streams enriched txn + prior events.
+
+Client renders interactive UI.
+
+User edits/approves → sends feedback via WebSocket → MCP tool resumes agent flow.
+
+✅ Benefit: Pausing/resuming agent flows based on human feedback.
+
+
+🎯 interactive/HITL evaluation mode introduces a parallel operational mode that's ideal for:
+manual audits,
+regulatory compliance tasks,
+AI quality control before action.
+
+# in contrast the current default automated E2E mode with Kafka + streaming-hub with:
+# continuous background ingestion,
+# agent chaining,
+# high-throughput processing without human latency or intervention.
 
 ```
 

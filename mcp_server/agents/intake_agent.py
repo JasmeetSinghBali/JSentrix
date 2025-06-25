@@ -27,6 +27,10 @@ from domain.models import MemoryEvent
 
 from tracers.tracing import get_tracer
 
+from .assessment_messages import AssessmentInput
+
+from .assessment_agent import AssessmentAgent
+
 
 logger = get_logger("intake_agent")
 
@@ -40,7 +44,7 @@ class IntakeAgent(
     - Passes enriched txn + prior events to Langchain Assessment Agent
     """
 
-    def __init__(self, assessment_agent=None):
+    def __init__(self, assessment_agent: AssessmentAgent = None):
         BaseAgent.__init__(self, "intake-agent-v1")
         JsonRpcAgentMixin.__init__(self)
         self._stream_tasks = {}  # {stream_id: asyncio.Task}
@@ -110,7 +114,9 @@ class IntakeAgent(
         prior_events = await self.retrieve_prior_events(enriched)
         return IntakeOutput(enriched, prior_events)
 
-    async def _mock_stream_loop(self, stream_id: str, source: str, registry):
+    async def _mock_stream_loop(
+        self, stream_id: str, source: str, registries: List[Any], config: dict
+    ):
         """
         Background task:
         Generates and forwards/publishes mock transactions while the stream is active in registry.
@@ -118,7 +124,18 @@ class IntakeAgent(
         """
         tracer = get_tracer()
         try:
-            while await registry.is_active(stream_id):
+            while True:
+                actives = [
+                    (type(reg).__name__, await reg.is_active(stream_id))
+                    for reg in registries
+                ]
+                logger.debug(f"[Stream Check] Statuses: {actives}")
+                # 📌 Only continue streaming if all registries- active_streams_registry & agent_graph_registry agree this stream is still active.
+                if not all(status for _, status in actives):
+                    logger.info(
+                        f"⛔ Stream {stream_id} will terminate — not all registries are active."
+                    )
+                    break
                 try:
                     with tracer.start_as_current_span(
                         f"txn_stream.{stream_id}"
@@ -132,24 +149,42 @@ class IntakeAgent(
                             source=source,
                         )
                         # 📌 custom agent context can be extended here
-                        # span_id + trace_id
+                        # span_id + trace_id + config(by end admin user)
                         context = AgentContext(
                             request_id=self.fake.uuid4(),
                             user_id="system",  # 📌 Or pass admin/user actual id in case the agent is directly invoked from client side
                             timestamp=datetime.now(timezone.utc),
                             trace_id=span.get_span_context().trace_id,
                             span_id=span.get_span_context().span_id,
+                            config=config,
                         )
                         # invoke with error wrapper
                         output = await self._safe_invoke(txn, context)
 
-                        # 🎈 forward to langchain assessment agent here so that assesment can also happen event by event as they are consume and processed by intake agent
+                        # 📌 forward to langchain assessment agent here so that assesment can also happen event by event as they are consume and processed by intake agent
                         # enriched_data now looks like {enriched_txn: {},prior_events: [MemoryEvent, MemoryEvent],stream_id: ""}
                         # NOTE- assessment_agent.invoke() shud be implemented using A2A architecture (i.e., it either:
                         # uses A2AMessageSerializable or
                         # serializes the payload using to_dict() or to_json() internally),
                         # so that _serialize_value() in A2AMessageSerializable will automatically convert the MemoryEvent instances using .model_dump() when it's serialized — so no need to do it manually anymore.
-                        # await self.assessment_agent.invoke(enriched_data)
+                        if not self.assessment_agent:
+                            logger.warning(
+                                "[IntakeAgent] Assessment agent not set — skipping compliance evaluation."
+                            )
+                            raise AgentInvocationError(
+                                f"[IntakeAgent] Assessment agent not set for txnID: {txn.id} — skipping compliance evaluation",
+                                self.agent_id,
+                            )
+                        if self.assessment_agent:
+                            assessment_input = AssessmentInput(
+                                transaction=output.enriched_txn,
+                                prior_events=output.prior_events,
+                                stream_id=stream_id,
+                                context=context,
+                            )
+                            await self.assessment_agent.invoke(
+                                assessment_input, context
+                            )
 
                         # force serialization before pushing to external kafka/ui
                         # Enrich and forward
@@ -168,10 +203,12 @@ class IntakeAgent(
                         await self._forward_with_fallback(enriched_data, stream_id)
 
                 except AgentFatalError as e:
+                    # 📌 critical - stream breaks
                     logger.critical(f"[Intake] Fatal error in stream {stream_id}: {e}")
-                    await self._handle_fatal_error(stream_id, e, registry)
+                    await self._handle_fatal_error(stream_id, e, registries)
                     break
                 except Exception as e:
+                    # 📌 recoverable - continue loop
                     logger.error(
                         f" [Intake] Recoverable error in stream {stream_id}: {e}"
                     )
@@ -188,19 +225,24 @@ class IntakeAgent(
         """
         Start streaming mock transactions for a given stream_id and source.
         Args:
-            input: dict with keys 'stream_id' (str), 'source' (str, optional)
+            input: dict with keys 'stream_id' (str), 'source' (str, optional), 'registry' (list), 'config' (dict,optional)
         """
         stream_id = input.get("stream_id")
         source = input.get("source", "faker")
-        registry = input.get("registry")  # Should be passed in by the tool layer
+        registries = input.get("registry")  # Should be passed in by the tool layer
+        config = input.get("config", {})
 
-        if not stream_id or not registry:
-            raise AgentInvocationError("stream_id and registry required", self.agent_id)
+        if not stream_id or not registries or not isinstance(registries, list):
+            raise AgentInvocationError(
+                "stream_id and registry list required", self.agent_id
+            )
         if stream_id in self._stream_tasks:
             return {"result": "Streaming already running for this stream_id."}
 
         # Start background streaming task
-        task = asyncio.create_task(self._mock_stream_loop(stream_id, source, registry))
+        task = asyncio.create_task(
+            self._mock_stream_loop(stream_id, source, registries, config)
+        )
         self._stream_tasks[stream_id] = task
         return {
             "result": "Streaming started.",
@@ -263,18 +305,30 @@ class IntakeAgent(
             )
 
     async def _handle_fatal_error(
-        self, stream_id: str, error: AgentFatalError, registry
+        self, stream_id: str, error: AgentFatalError, registries: List[Any]
     ):
         """Handle unrecoverable errors"""
         # 1. Log critical error
         logger.critical(f"Terminating stream {stream_id} due to fatal error")
 
-        # 2. 🎈 Notify event to electron ui via  new event forward_event_to_streaming_hub
+        try:
+            # 2. Remove from registry
+            for registry in registries:
+                if await registry.is_active(stream_id):
+                    await registry.remove(stream_id)
+                    logger.info(
+                        f"✅ Removed stream_id {stream_id} from {registry.__class__.__name__}"
+                    )
+        except Exception as e:
+            logger.error(
+                f"⚠️ Error removing from registries for stream {stream_id}: {e}"
+            )
 
-        # 3. Remove from registry
-        if await registry.is_active(stream_id):
-            await registry.remove(stream_id)
-
-        # 4. Cancel background task
-        if task := self._stream_tasks.pop(stream_id, None):
+        # 3. Cancel background task
+        task = self._stream_tasks.pop(stream_id, None)
+        if task:
             task.cancel()
+            logger.info(
+                f"✅ Cancelled background running intake agent loop task for stream_id {stream_id}"
+            )
+            # 4. 🎈 Notify event to electron ui via  new event forward_event_to_streaming_hub

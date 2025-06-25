@@ -1,20 +1,22 @@
 """
-application/run_pipeline.py
+mcp_server/application/run_pipeline.py
 
 Batch ingestion pipeline for compliance clauses:
 - Converts PDFs to Markdown.
 - Extracts clauses from Markdown.
 - Enriches clauses with NLP metadata.
-- Loads enriched clauses and relationship created into Neo4j.
+- Loads enriched clauses and relationships into Neo4j.
 
 Dependency:
-    - neo4j shud be up&running
+    - Neo4j must be up & running.
 
 Usage:
-    Sync:  python -m application.run_pipeline --data-dir ./custom_data
-    Async: python -m application.run_pipeline --async --data-dir ./custom_data
-    Benchmark:
-    time python -m application.run_pipeline --async --data-dir ./test_data
+    - Run standalone (sync):
+        python -m application.run_pipeline --data-dir ./custom_data
+    - Run standalone (async):
+        python -m application.run_pipeline --async --data-dir ./custom_data
+    - Run as part of MCP server startup (async):
+        The pipeline will automatically run during MCP server startup lifecycle.
 """
 
 import os
@@ -28,7 +30,12 @@ from utils.logger import get_logger
 from infrastructure.ingestion.pdf_to_md import pdf_to_markdown
 from infrastructure.ingestion.unstructured_md import extract_clauses_from_md
 from infrastructure.ingestion.enrich import enrich_clause
-from infrastructure.ingestion.load import load_to_neo4j, async_load_to_neo4j
+from infrastructure.ingestion.load import (
+    load_to_neo4j,
+    async_load_to_neo4j,
+    async_get_clause_count,
+    get_clause_count,
+)
 
 logger = get_logger("jsentrix")
 load_dotenv()
@@ -67,6 +74,10 @@ def process_pdf_sync(pdf_path: str) -> List[dict]:
 # --- Pipeline Controllers ---
 async def async_process_pdfs(data_dir: Optional[str] = None) -> None:
     """Async pipeline controller with concurrency control"""
+    clause_count = await async_get_clause_count()
+    if clause_count > 1:
+        logger.info(f"Neo4j already has {clause_count} clauses. Skipping ingestion.")
+        return
     data_dir = data_dir or os.path.join(SCRIPT_DIR, "../data")
     pdf_files = glob(os.path.join(os.path.abspath(data_dir), "*.pdf"))
 
@@ -86,6 +97,10 @@ async def async_process_pdfs(data_dir: Optional[str] = None) -> None:
 
 def sync_process_pdfs(data_dir: Optional[str] = None) -> None:
     """Original sync pipeline controller"""
+    clause_count = get_clause_count()
+    if clause_count > 1:
+        logger.info(f"Neo4j already has {clause_count} clauses. Skipping ingestion.")
+        return
     data_dir = data_dir or os.path.join(SCRIPT_DIR, "../data")
     data_dir = os.path.abspath(data_dir)
     pdf_files = glob(os.path.join(data_dir, "*.pdf"))

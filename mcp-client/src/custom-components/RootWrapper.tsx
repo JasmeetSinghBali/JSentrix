@@ -29,6 +29,10 @@ export default React.memo((props: any) => {
     const [logs, setLogs] = useState<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
 
+    const streamStartedRef = useRef<boolean>(false)
+
+    const [streamCountdown, setStreamCountdown] = useState<number | null>(null);
+
     const whoami = async (token: string) => {
         try {
             const response = await fetch("http://localhost:8080/auth/me", {
@@ -119,29 +123,48 @@ export default React.memo((props: any) => {
 
     // --- Start streaming and schedule abort after 4 seconds ---
     const startAndAbortStreaming = async (accessToken: string) => {
-        // Skip if a stream is already active
+        if (streamStartedRef.current) {
+            console.log("Stream already starting or active, skipping.");
+            return;
+        }
+
+        streamStartedRef.current = true;
+
+        // If streamId exists, abort first
         if (streamId) {
-            console.log("Stream already active, skipping new stream start.");
-            invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
+            console.log("Existing stream found, aborting...");
+            await invokeTool(accessToken, "abortinges", {
+                arguments: { stream_id: streamId }
+            });
             clearStreamId();
         }
-        // Now start a new stream
-        const res = await invokeTool(accessToken, "streaminges", {
-            arguments: { source: "faker" }
-        });
-        if (res?.result?.stream_id) {
-            setStreamId(res.result.stream_id);
-            setTimeout(async () => {
-                await invokeTool(accessToken, "abortinges", {
-                    arguments: { stream_id: res.result.stream_id }
-                });
-                // clear streamid after abort
-                clearStreamId(); 
-            }, 20000);
-        } else {
-            console.error("No stream_id returned from streaminges!", res);
+
+        try {
+            const res = await invokeTool(accessToken, "streaminges", {
+                arguments: { source: "faker" }
+            });
+
+            if (res?.result?.stream_id) {
+                setStreamId(res.result.stream_id);
+                setStreamCountdown(20); // trigger stream countdown useEffect
+                setTimeout(async () => {
+                    await invokeTool(accessToken, "abortinges", {
+                        arguments: { stream_id: res.result.stream_id }
+                    });
+                    clearStreamId();
+                    streamStartedRef.current = false;
+                    setStreamCountdown(null);
+                }, 20000);
+            } else {
+                console.error("No stream_id returned from streaminges!", res);
+                streamStartedRef.current = false;
+            }
+        } catch (err) {
+            console.error("Error in startAndAbortStreaming:", err);
+            streamStartedRef.current = false;
         }
     };
+
 
     
 
@@ -229,6 +252,22 @@ export default React.memo((props: any) => {
         loginToStreamingHub()
     }, []);
 
+    
+    useEffect(() => {
+        if (streamCountdown === null) return;
+
+        if (streamCountdown <= 0) {
+            setStreamCountdown(null);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setStreamCountdown((prev) => (prev !== null ? prev - 1 : null));
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [streamCountdown]);
+
 
     return (
         <div className='h-[100vh] w-[100%]'>
@@ -248,6 +287,11 @@ export default React.memo((props: any) => {
                     {streamId && (
                         <div>
                             <b>Active stream_id:</b> <code>{streamId}</code>
+                            {streamCountdown !== null && (
+                                <div style={{ marginTop: '0.5em' }}>
+                                    ⏳ Stream ends in <b>{streamCountdown}s</b>
+                                </div>
+                            )}
                         </div>
                     )}
                 </ResizablePanel>

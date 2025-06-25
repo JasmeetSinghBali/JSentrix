@@ -117,16 +117,39 @@ import uvicorn
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Optionally, place any startup code here
-    from workers.dlq_retry_worker import dlq_background_retry_loop
+    try:
+        # startup phase
+        from workers.dlq_retry_worker import dlq_background_retry_loop
+        from workers.cleanup_unused_agent_graphs import cleanup_unused_graphs
+        from application.run_pipeline import async_process_pdfs
 
-    # start+register its own shutdown callback
-    await dlq_background_retry_loop()
+        # dlq, cleanup.agentgraphs bg workers
+        asyncio.create_task(dlq_background_retry_loop())
+        asyncio.create_task(cleanup_unused_graphs())
 
-    yield  # pause checkpoint until server is running
+        logger.info("✅ [MCP-fastapi] workers started successfully in lifespan")
 
-    # Shutdown async_shutdown_all already handles both sync and async callbacks
-    await async_shutdown_all()
+        # async ingestion pipeline on startup to prep neo4j knowledge base source of truth
+        try:
+            await async_process_pdfs()  # uses default data dir or configure as needed
+            logger.info("✅ Compliance clause ingestion pipeline completed on startup")
+        except Exception as e:
+            logger.error(f"❌ Compliance ingestion pipeline failed on startup: {e}")
+
+        yield  # pause checkpoint until server is running
+    except Exception as startup_error:
+        logger.critical(f"❌ [MCP-fastapi] server startup failed: {startup_error}")
+        raise startup_error  # abort server start
+    finally:
+        # shutdown phase
+        try:
+            logger.info("🧹 [MCP-fastapi] server initiating graceful shutdown...")
+            # Shutdown async_shutdown_all already handles both sync and async callbacks
+            await async_shutdown_all()
+        except Exception as shutdown_error:
+            logger.error(
+                f"⚠️ Error during [MCP-fastapi] server shutdown: {shutdown_error}"
+            )
 
 
 app = FastAPI(title="MCP Server API", lifespan=lifespan)

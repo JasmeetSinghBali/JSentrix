@@ -74,6 +74,9 @@ class AgentContext(A2AMessageSerializable):
         timestamp: datetime,
         trace_id: Optional[str] = None,
         span_id: Optional[str] = None,
+        config: Optional[
+            Dict[str, Any]
+        ] = None,  # every agent intake, assessment, action have access to context.config to alter the processing if dynamic config are provided from the end admin user from electron client
     ):
         self.request_id = request_id
         self.user_id = user_id
@@ -81,6 +84,7 @@ class AgentContext(A2AMessageSerializable):
         # for opentelemetry tracing
         self.trace_id = trace_id
         self.span_id = span_id
+        self.config = config
 
 
 class BaseAgent(ABC, Generic[InputType, OutputType, ContextType]):

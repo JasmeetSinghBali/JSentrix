@@ -65,10 +65,16 @@ class AsyncKafkaProducer:
         value = json.dumps(event).encode("utf-8")
 
         def ack(err, msg):
-            if err:
-                loop.call_soon_threadsafe(future.set_exception, KafkaException(err))
-            else:
-                loop.call_soon_threadsafe(future.set_result, msg)
+            # 📌 guard for future is already completed
+            def complete():
+                if future.done():
+                    return  # Prevent InvalidStateError
+                if err:
+                    future.set_exception(KafkaException(err))
+                else:
+                    future.set_result(msg)
+
+            loop.call_soon_threadsafe(complete)
 
         try:
             self._producer.produce(topic=topic, value=value, on_delivery=ack)

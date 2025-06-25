@@ -9,6 +9,8 @@ import os
 from dotenv import load_dotenv
 import redis.asyncio as redis
 
+__all__ = ["AsyncStreamRegistry", "active_streams_registry"]
+
 load_dotenv()
 
 
@@ -53,3 +55,7 @@ class AsyncStreamRegistry:
     async def close(self):
         if self._redis:
             await self._redis.aclose()
+
+
+# Singleton registry instance
+active_streams_registry = AsyncStreamRegistry()
