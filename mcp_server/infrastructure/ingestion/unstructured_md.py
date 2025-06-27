@@ -11,6 +11,7 @@ Usage:
     clauses = extract_clauses_from_md("path/to/clauses.md")
 """
 
+import os
 import re
 from domain.models import Clause, ClauseMetaData
 from typing import List
@@ -79,7 +80,7 @@ def extract_clauses_from_md(md_path) -> List[Clause]:
             references=refs,
             amends=amends,
             overrides=overrides,
-            source=md_path,
+            source=os.path.basename(md_path),
             title=title.strip() if title else None,
             clause_id=cid,
         )
