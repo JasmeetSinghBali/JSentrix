@@ -52,6 +52,7 @@ mcp_server/
 |     |── agent_graph_store.py      # in-memory AgentGraph holds actual agent instances 
 # (e.g., IntakeAgent, AssessmentAgent, ActionAgent) potentially state (like in-memory buffers or coroutines). Redis cannot serialize this.
 |     |── redis_stream_registry.py     # AsyncStream registery to track active streaming sessions for all agents and parts in mcp_server
+|     |── redis_streams.py     # Reusab pubsub Redis Streams client usage- ex assessment>actionagent
 |     |── kafka
 |       ├── __init__.py
 │       ├── producer_singleton.py   # kafka producer publish to shared topic b/w mcp_server and streaming_hub
@@ -104,10 +105,12 @@ mcp_server/
 |   └── relevance_scorer.py   # Default logger singleton instance and custom logger get_logger new instance
 |   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
 |   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
+|   └── serialize_exceptions.py    # serialize python excep to dict for external transport with fallback 
 |
 |── workers/ # background workers
 │   ├── __init__.py
 |   └── cleanup_unused_agent_graphs.py  # cleanup dangling zombies in-memory agent_graph objects 
+|   └── assessed_events_stream_worker.py  # Async Redis Streams consumer worker for yielding assessed events to the action agent shud be registerd in the action_agent.py __init__.  
 |   └── dlq_retry_worker.py   # dead letter queue failed published events worker proecessor pushes to ingest_topic_dlq with retry/resend to original topic with serializable guards for json and malformed data events ingest_topic
 |
 └── tests/                    # test dir

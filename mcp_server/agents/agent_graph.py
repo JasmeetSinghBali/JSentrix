@@ -9,6 +9,7 @@ enabling per-client control, scaling, and state encapsulation
 
 from agents.intake_agent import IntakeAgent
 from agents.assessment_agent import AssessmentAgent
+from .base_agent import AgentContext
 
 # from agents.action_agent import ActionAgent
 
@@ -30,6 +31,12 @@ class AgentGraph:
 
     def get_assessment(self) -> AssessmentAgent:
         return self.assessment_agent
+
+    async def abort(self, stream_id: str, context: AgentContext):
+        if hasattr(self, "intake_agent"):
+            await self.intake_agent.abort({"stream_id": stream_id}, context)
+        # If adding assessment → action → other agents later:
+        # await self.assessment_agent.abort(...) if hasattr(self, "assessment_agent")
 
     # def get_action(self) -> ActionAgent:
     #     return self.action_agent

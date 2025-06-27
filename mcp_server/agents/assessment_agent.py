@@ -3,6 +3,7 @@ mcp_server/agents/assessment_agent.py
 """
 
 from typing import Dict, List, Any
+from datetime import datetime, timezone
 from utils.logger import get_logger
 from .base_agent import (
     BaseAgent,
@@ -17,6 +18,9 @@ from domain.models import MemoryEvent
 from domain.config_models import PriorityLevel
 import uuid
 from llama_index.core.schema import Document
+
+from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
+from infrastructure.redis_streams import RedisStreams
 
 logger = get_logger("assessment_agent")
 
@@ -116,6 +120,9 @@ class AssessmentAgent(
         Returns:
             AssessmentOutput
         """
+        config = context.config or {}
+        assessment_type = config.get("assessment_type", "default")
+
         self.validate_input(input, context)
         # --- step1: hybrid retrieval using langchain retrv ---
         raw_query = f"Compliance check for {input.transaction.get("amount")} transfer from {input.transaction.get("source")}"
@@ -155,25 +162,7 @@ class AssessmentAgent(
         reasons = [f"Score {score} based on rules and retrieval"]
 
         # --- step4: forward only high priority doc to Action Agent ---
-        if self.action_agent and priority == PriorityLevel.HIGH:
-            # pass this doc as raw dict for a2a
-            await self.action_agent.invoke_assessment_result(
-                AssessmentOutput(
-                    score=score,
-                    priority=priority,
-                    reasons=reasons,
-                    assessment_id=f"assess-{uuid.uuid4()}",
-                    llamaindex_docs=[
-                        Document(text=doc.page_content, metadata=doc.metadata)
-                        for doc in langchain_docs
-                    ],
-                    dynamic_metadata=dynamic_metadata_by_clause_id,
-                    metadata={"stream_id": input.stream_id},
-                ),
-                context,
-            )
-
-        return AssessmentOutput(
+        output = AssessmentOutput(
             score=score,
             priority=priority,
             reasons=reasons,
@@ -185,12 +174,79 @@ class AssessmentAgent(
             dynamic_metadata=dynamic_metadata_by_clause_id,
             metadata={"stream_id": input.stream_id},
         )
+        # 📌 Real-time forward to streaming hub
+        await self._forward_with_fallback(output.to_dict(), input.stream_id)
+
+        if self.action_agent and priority == PriorityLevel.HIGH:
+            if assessment_type == "default" and self.action_agent:
+                # 🎈 update this when implement action_agent.py
+                # pass this as direct a2a message to action agent
+                # await self.action_agent.invoke_assessment_result(
+                #     output,
+                #     context,
+                # )
+                pass
+            elif assessment_type == "redistream":
+                # produce output and context to the downstream action agent
+                try:
+                    redis_streams = RedisStreams()
+                    await redis_streams.produce(
+                        "assessed_events_stream",
+                        {
+                            "output": output.to_dict(),
+                            "context": context.to_dict(),
+                        },
+                    )
+                    # 🎈 NOTE- action_agent at __init__ shud register the consumer via the bg worker reff: mcp_server/workers/assessed_events_stream_worker.py
+                    # below shud be in action agent __init__
+                    # redis_streams = RedisStreams()
+                    # async for msg_id, data in assessed_events_consumer_worker(
+                    #     consumer=consumer_name,
+                    #     redis_streams=redis_streams
+                    # ):
+                    #     await take_action(data)
+                    #     await redis_streams.ack("assessed_events_stream", "action_agents", msg_id)
+                    # await redis_streams.close()
+                    # --------------------------------------------------
+                finally:
+                    await redis_streams.close()
+
+            else:
+                logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
+
+        return output
+
+    async def _forward_with_fallback(self, data: dict, stream_id: str):
+        """
+        Forward enriched output to Redis Stream (fallback enabled)
+
+        Flow:
+        Agent → forward_event_to_streaming_hub(event) 🚀
+           → Kafka "ingest_topic" (ONLY used for streaming-hub dispatch)
+               → Go streaming-hub
+                   → Redis Pub/Sub
+                       → WebSocket clients
+        """
+        event_payload = {
+            "event": "2️⃣[AssessmentAgent]",
+            "message": "Real-time assessment event",
+            "stream_id": stream_id,  # 📌 Critical for targeted fanout
+            "data": data,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",  # ISO 8601 UTC
+            "agent": "assessment-agent",  # 💫 Agent identifier for filtering the events in ui client or telemetry logs
+            "level": "info",  # log severity
+        }
+        success = await forward_event_to_streaming_hub(event_payload)
+        if not success:
+            logger.warning(
+                f"[ForwardWithFallback] Event failed to forward and was sent to DLQ: stream_id={stream_id}"
+            )
 
     # Optionally, implement streaming via async queue/callback if batch or high throughpu
     # For streaming output:
     # async def stream(self, input: AssessmentInput, context: AgentContext):
     #     # Not implemented for now; could use async queue/yield pattern for real streamiing
 
-    # For ActionAgent, implement:
+    # 🎈 For ActionAgent, implement:
     # async def invoke_assessment_result(self, assessment_output: AssessmentOutput, conte
-    #     # This method would be called by AssessmentAgent for high-priority txns.
+    #     # This method would be called by AssessmentAgent for high-priority txns to send the assessment_output via a2a directly to action agent

@@ -17,6 +17,7 @@ import faker
 
 from utils.logger import get_logger
 from utils.embedding_utils import get_langchain_embedding_model
+from utils.serialize_exception import serialize_error
 
 from application.retrievers.memory_event_retriever import MemoryEventRetriever
 from infrastructure.memory_event_repository import MemoryEventRepository
@@ -161,6 +162,22 @@ class IntakeAgent(
                         # invoke with error wrapper
                         output = await self._safe_invoke(txn, context)
 
+                        # 📌 force serialization before pushing to external kafka/ui
+                        # Enrich and forward
+                        # output.to_dict() => {
+                        # "enriched_txn": {...},
+                        # "prior_events": [dict, dict, ...]
+                        # }
+                        # NOTE- When leaving the agent boundary (Kafka, socket, DB, HTTP): use .to_dict() or .to_json()
+                        # When staying inside the agent system (A2A calls): just pass the object directly
+                        enriched_data = (
+                            output.to_dict()
+                        )  # this includes .model_dump() on MemoryEvent
+                        enriched_data["stream_id"] = stream_id
+
+                        # --- Forward to streaming-hub via forwarder event by event ---
+                        await self._forward_with_fallback(enriched_data, stream_id)
+
                         # 📌 forward to langchain assessment agent here so that assesment can also happen event by event as they are consume and processed by intake agent
                         # enriched_data now looks like {enriched_txn: {},prior_events: [MemoryEvent, MemoryEvent],stream_id: ""}
                         # NOTE- assessment_agent.invoke() shud be implemented using A2A architecture (i.e., it either:
@@ -185,22 +202,6 @@ class IntakeAgent(
                             await self.assessment_agent.invoke(
                                 assessment_input, context
                             )
-
-                        # force serialization before pushing to external kafka/ui
-                        # Enrich and forward
-                        # output.to_dict() => {
-                        # "enriched_txn": {...},
-                        # "prior_events": [dict, dict, ...]
-                        # }
-                        # NOTE- When leaving the agent boundary (Kafka, socket, DB, HTTP): use .to_dict() or .to_json()
-                        # When staying inside the agent system (A2A calls): just pass the object directly
-                        enriched_data = (
-                            output.to_dict()
-                        )  # this includes .model_dump() on MemoryEvent
-                        enriched_data["stream_id"] = stream_id
-
-                        # --- Forward to streaming-hub via forwarder event by event ---
-                        await self._forward_with_fallback(enriched_data, stream_id)
 
                 except AgentFatalError as e:
                     # 📌 critical - stream breaks
@@ -253,7 +254,7 @@ class IntakeAgent(
     @jsonrpc_method
     async def abort(self, input: dict, context: AgentContext) -> dict:
         """
-        Stop streaming for a given stream_id.
+        Stops/Cancels the running streming loop task.
         Args:
             input: dict with key 'stream_id' (str)
         """
@@ -293,10 +294,13 @@ class IntakeAgent(
         Forward with retry and fallback handling
         """
         event_payload = {
-            "event": "transaction",
-            "message": "Mock transaction event",
+            "event": "1️⃣[IntakeAgent]",
+            "message": "Mock transaction enriched event",
             "stream_id": stream_id,
             "data": data,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",  # ISO 8601 UTC
+            "agent": "intake-agent",  # 💫 Agent identifier for filtering the events in ui client or telemetry logs
+            "level": "info",
         }
         success = await forward_event_to_streaming_hub(event_payload)
         if not success:
@@ -331,4 +335,18 @@ class IntakeAgent(
             logger.info(
                 f"✅ Cancelled background running intake agent loop task for stream_id {stream_id}"
             )
-            # 4. 🎈 Notify event to electron ui via  new event forward_event_to_streaming_hub
+        # 4. Notify error event to electron ui via  new event with log error
+        event_payload = {
+            "event": "🛑ERROR: 1️⃣[IntakeAgent] or 2️⃣[AssessmentAgent]",
+            "message": "error event intake or assessment agent",
+            "stream_id": stream_id,
+            "data": serialize_error(error),
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",  # ISO 8601 UTC
+            "agent": "intake-agent",  # 💫 Agent identifier for filtering the events in ui client or telemetry logs
+            "level": "error",
+        }
+        success = await forward_event_to_streaming_hub(event_payload)
+        if not success:
+            logger.warning(
+                f"[ForwardWithFallback] Event failed to forward and was sent to DLQ: stream_id={stream_id}"
+            )

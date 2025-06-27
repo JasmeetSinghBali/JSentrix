@@ -33,7 +33,8 @@ func NewKafkaConsumer(brokers, groupID, topic string) (*KafkaConsumer, error) {
 	return &KafkaConsumer{consumer: c, topic: topic}, nil
 }
 
-// StartConsuming runs the consumer loop and broadcasts messages to all clients.
+// StartConsuming runs the consumer loop and broadcasts messages to (depracated)all clients.
+// <improv> broadcasts messages to relevant stream clients only
 func (kc *KafkaConsumer) StartConsuming(ctx context.Context, broadcaster *RedisBroadcaster) error {
 	err := kc.consumer.SubscribeTopics([]string{kc.topic}, nil)
 	if err != nil {
@@ -62,19 +63,23 @@ func (kc *KafkaConsumer) StartConsuming(ctx context.Context, broadcaster *RedisB
 				log.Printf("🔍 Raw kafka message: %s", string(e.Value))
 				var event model.Event
 				if err := json.Unmarshal(e.Value, &event); err != nil {
-					log.Printf("Failed to parse event: %v", err)
+					log.Printf("❌ Failed to parse event: %v", err)
+				} else if event.StreamID == "" {
+					log.Printf("⚠️ Kafka event missing stream_id. Skipping...")
 				} else {
-					log.Printf("Received Kafka message: %s", string(e.Value))
-					// Broadcast the raw event to all websocket clients(electron)
-					broadcaster.Broadcast(e.Value)
-					log.Printf("Broadcasted event to WebSocket clients: %s", string(e.Value))
+					log.Printf("✅ Received Kafka event parsed message for stream: '%s' : '%s' ", event.StreamID, string(e.Value))
+					// <depracated>Broadcast the raw event to all websocket clients(electron)
+					// broadcaster.Broadcast(e.Value)
+					// Broadcat to only the intended stream clients group
+					broadcaster.BroadcastToStream(event.StreamID, &event)
+					log.Printf("Broadcasted event to dedicated WebSocket clients stream group: %s", string(e.Value))
 				}
 			case kafka.Error:
 				log.Printf("Kafka error: %v", e)
 			}
 		}
 	}
-	log.Println("Closing Kafka consumer...")
+	log.Println("🛑 Closing Kafka consumer...")
 	kc.consumer.Close()
 	return nil
 }

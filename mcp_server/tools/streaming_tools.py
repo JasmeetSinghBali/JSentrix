@@ -130,18 +130,25 @@ async def abortinges(args: Dict, stream=None, context=None) -> Dict:
         return {"error": msg}
 
     if await active_streams_registry.is_active(stream_id):
-        
+        # remove from active registry
         await active_streams_registry.remove(stream_id)
         await agent_graph_registry.remove(stream_id)
         logger.info(f"Aborted stream {stream_id} by user {user_id}")
         
+        # Grab and abort running agent task
         graph = agent_graphs.pop(stream_id, None)
         if graph:
             agent_context = AgentContext(request_id=str(uuid.uuid4()), user_id=user_id, timestamp=None)
             # Stop the agent's streaming task
-            await graph.intake_agent.abort({"stream_id": stream_id}, agent_context)
+            await graph.abort(stream_id, agent_context) # centeralize call
         
-        await stream.send({"event": "stream_aborted", "stream_id": stream_id, "aborted_by": user_id})
+        if stream:
+            await stream.send({
+                "event": "stream_aborted",
+                "stream_id": stream_id,
+                "aborted_by": user_id,
+            })
+        
         return {"aborted": True, "stream_id": stream_id}
 
     else:

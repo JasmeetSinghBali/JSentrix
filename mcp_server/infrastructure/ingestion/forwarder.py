@@ -44,11 +44,15 @@ async def forward_event_to_streaming_hub(
     Returns:
         bool: True if the event was sent successfully, False otherwise
     """
+    logger.info(f"🚀 Sending to Kafka: {event}")
     try:
         if isinstance(event, str):
             event = json.loads(event)
         # wait_for to avoid streaming pipeline getting hijacked by some broker/netowrk/infinite retry loops
-        await asyncio.wait_for(kafka_producer.produce("ingest_topic", event), timeout=5)
+        res = await asyncio.wait_for(
+            kafka_producer.produce("ingest_topic", event), timeout=5
+        )
+        logger.info(f"✅ Kafka send result: {res}")
         return True
     except Exception as e:
         logger.error(f"failed to forward event to kafka: {e}")

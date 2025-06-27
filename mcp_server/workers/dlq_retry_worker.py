@@ -112,6 +112,6 @@ async def dlq_background_retry_loop():
             try:
                 await _dlq_task # actually executes the cancellation of the task by explicit throwing off CancelledError for clean cancellation
             except asyncio.CancelledError:
-                logger.ifo("🛑 DLQ retry task shutdown cleanly")
+                logger.info("🛑 DLQ retry task shutdown cleanly")
     
     register_shutdown_callback(stop_dlq_task)
