@@ -23,6 +23,19 @@ func WebSocketHandler(broadcaster *service.RedisBroadcaster) func(*websocket.Con
 			return
 		}
 
+		// Extract stream_id from fiber locals
+		streamID, ok := conn.Locals("stream_id").(string)
+		if !ok {
+			log.Printf("Missing stream_id for client %s", clientID)
+			conn.WriteControl(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(4002, "Missing stream_id"),
+				time.Now().Add(time.Second),
+			)
+			conn.Close()
+			return
+		}
+
 		// Check TTL
 		ttl, err := auth.GetTTL(clientID)
 		if err != nil || ttl <= 0 {
@@ -47,10 +60,10 @@ func WebSocketHandler(broadcaster *service.RedisBroadcaster) func(*websocket.Con
 			return
 		}
 
-		// Register client conn with redisbroadcaster
-		broadcaster.Register(conn)
+		// 📌 Register client conn with redisbroadcaster for stream-specific group
+		broadcaster.RegisterForStream(streamID, conn)
 		defer func() {
-			broadcaster.Unregister(conn)
+			broadcaster.UnregisterFromStream(streamID, conn)
 			// delete the session on disconnect
 			if err := auth.DeleteSession(clientID); err != nil {
 				log.Printf("Failed to delete session for %s: %v", clientID, err)

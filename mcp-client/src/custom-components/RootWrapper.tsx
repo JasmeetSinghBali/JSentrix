@@ -1,5 +1,5 @@
 'use client';
-
+// mcp-client/src/custom-components/RootWrapper.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ResizableHandle,
@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/resizable";
 import { useWsAuthStore } from '@/shared/store';
 import { useStreamingesIdStore } from '@/shared/store';
+import LogTerminal from './LogTerminal';
+import { Button } from '@/components/ui/button';
 
 // interface for a single tool object
 interface Tool {
@@ -28,6 +30,16 @@ export default React.memo((props: any) => {
     const [tools, setTools] = useState<ToolsState>();
     const [logs, setLogs] = useState<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
+
+    const streamStartedRef = useRef<boolean>(false)
+
+    const [streamCountdown, setStreamCountdown] = useState<number | null>(null);
+    
+    const [intakeLogs, setIntakeLogs] = useState<string[]>([]);
+    const [assessmentLogs, setAssessmentLogs] = useState<string[]>([]);
+
+    const shouldScrollToTop = streamCountdown === 0;
+
 
     const whoami = async (token: string) => {
         try {
@@ -119,29 +131,48 @@ export default React.memo((props: any) => {
 
     // --- Start streaming and schedule abort after 4 seconds ---
     const startAndAbortStreaming = async (accessToken: string) => {
-        // Skip if a stream is already active
+        if (streamStartedRef.current) {
+            console.log("Stream already starting or active, skipping.");
+            return;
+        }
+
+        streamStartedRef.current = true;
+
+        // If streamId exists, abort first
         if (streamId) {
-            console.log("Stream already active, skipping new stream start.");
-            invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
+            console.log("Existing stream found, aborting...");
+            await invokeTool(accessToken, "abortinges", {
+                arguments: { stream_id: streamId }
+            });
             clearStreamId();
         }
-        // Now start a new stream
-        const res = await invokeTool(accessToken, "streaminges", {
-            arguments: { source: "faker" }
-        });
-        if (res?.result?.stream_id) {
-            setStreamId(res.result.stream_id);
-            setTimeout(async () => {
-                await invokeTool(accessToken, "abortinges", {
-                    arguments: { stream_id: res.result.stream_id }
-                });
-                // clear streamid after abort
-                clearStreamId(); 
-            }, 20000);
-        } else {
-            console.error("No stream_id returned from streaminges!", res);
+
+        try {
+            const res = await invokeTool(accessToken, "streaminges", {
+                arguments: { source: "faker" }
+            });
+
+            if (res?.result?.stream_id) {
+                setStreamId(res.result.stream_id);
+                setStreamCountdown(20); // trigger stream countdown useEffect
+                setTimeout(async () => {
+                    await invokeTool(accessToken, "abortinges", {
+                        arguments: { stream_id: res.result.stream_id }
+                    });
+                    clearStreamId();
+                    streamStartedRef.current = false;
+                    setStreamCountdown(null);
+                }, 20000);
+            } else {
+                console.error("No stream_id returned from streaminges!", res);
+                streamStartedRef.current = false;
+            }
+        } catch (err) {
+            console.error("Error in startAndAbortStreaming:", err);
+            streamStartedRef.current = false;
         }
     };
+
 
     
 
@@ -154,9 +185,9 @@ export default React.memo((props: any) => {
         const RECONNECT_INTERVAL = 3000; // ms
 
         function connect() {
-            if(clientId && token){
+            if(clientId && token && streamId){
                 ws = new WebSocket(
-                    `ws://localhost/ws?client_id=${encodeURIComponent(clientId)}&token=${encodeURIComponent(token)}`);
+                    `ws://localhost/ws?client_id=${encodeURIComponent(clientId)}&token=${encodeURIComponent(token)}&stream_id=${encodeURIComponent(streamId)}`);
                 wsRef.current = ws;
 
                 ws.onopen = () => {
@@ -164,7 +195,21 @@ export default React.memo((props: any) => {
                 };
 
                 ws.onmessage = (event) => {
-                    setLogs(prev => [...prev, event.data]);
+                    try {
+                        const parsed = JSON.parse(event.data);
+                        // pretty print stringify
+                        const fullMessage = JSON.stringify(parsed, null, 2);
+
+                        if (parsed.agent === "intake-agent") {
+                            setIntakeLogs(prev => [...prev, `🟢 IntakeAgent:\n${fullMessage}`]);
+                        } else if (parsed.agent === "assessment-agent") {
+                            setAssessmentLogs(prev => [...prev, `🟣 AssessmentAgent:\n${fullMessage}`]);
+                        } else {
+                            setIntakeLogs(prev => [...prev, `🟡 UnknownAgent:\n${fullMessage}`]);
+                        }
+                    } catch (err) {
+                        setIntakeLogs(prev => [...prev, `⚠️ Malformed event:\n${event.data}`]);
+                    }
                 };
 
                 ws.onerror = (err) => {
@@ -187,7 +232,11 @@ export default React.memo((props: any) => {
             }
         }
 
-        connect();
+        // 📌 wait for streamId, token, clientId then connect make a websocket connect to streaming-hub
+        // NOTE- the streamId only becomes available when the end user calls the streaminges tool
+        if (clientId && token && streamId){
+            connect();
+        }
 
         // Cleanup on unmount
         return () => {
@@ -203,7 +252,7 @@ export default React.memo((props: any) => {
                 clearStreamId();
             }
         };
-    }, []);
+    }, [clientId, token, streamId]);
 
     useEffect(() => {
         if (at) {
@@ -229,6 +278,22 @@ export default React.memo((props: any) => {
         loginToStreamingHub()
     }, []);
 
+    
+    useEffect(() => {
+        if (streamCountdown === null) return;
+
+        if (streamCountdown <= 0) {
+            setStreamCountdown(null);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setStreamCountdown((prev) => (prev !== null ? prev - 1 : null));
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [streamCountdown]);
+
 
     return (
         <div className='h-[100vh] w-[100%]'>
@@ -248,28 +313,40 @@ export default React.memo((props: any) => {
                     {streamId && (
                         <div>
                             <b>Active stream_id:</b> <code>{streamId}</code>
+                            {streamCountdown !== null && (
+                                <div style={{ marginTop: '0.5em' }}>
+                                    ⏳ Stream ends in <b>{streamCountdown}s</b>
+                                </div>
+                            )}
                         </div>
                     )}
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>
-                    <div>
-                        <h3>Transaction Monitor (Real-Time Events)</h3>
-                        <div style={{
-                            height: '90vh',
-                            overflowY: 'auto',
-                            background: '#1a1a1a',
-                            color: '#e0e0e0',
-                            padding: '1em',
-                            borderRadius: '8px'
-                        }}>
-                            {logs.length === 0 && <div>No events yet.</div>}
-                            {logs.map((log, idx) => (
-                                <div key={idx} style={{marginBottom: '0.5em'}}>{log}</div>
-                            ))}
-                        </div>
+                    <div className="grid grid-cols-2 gap-6 p-2">
+                        <LogTerminal
+                        title="IntakeAgent Logs"
+                        emoji="🟢"
+                        logs={intakeLogs}
+                        onClear={() => setIntakeLogs([])}
+                        bgColor="#102010"
+                        textColor="#aaffaa"
+                        limit={150}
+                        clearable
+                        />
+                        <LogTerminal
+                        title="AssessmentAgent Logs"
+                        emoji="🟣"
+                        logs={assessmentLogs}
+                        onClear={() => setAssessmentLogs([])}
+                        bgColor="#201020"
+                        textColor="#ddaaff"
+                        limit={150}
+                        clearable
+                        />
                     </div>
                 </ResizablePanel>
+
             </ResizablePanelGroup>
         </div>
     );

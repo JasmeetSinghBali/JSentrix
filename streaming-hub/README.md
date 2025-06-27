@@ -27,6 +27,7 @@ pattern ensures scalable real-time architectures where all frontend clients to g
 ```
 
 ```bash
+<DEPRECATED> (BROADCAST-TO-ALL)
 Kafka Topic
     │
     │ (one streaming-hub instance consumes each event)
@@ -37,6 +38,16 @@ Redis Channel (Pub/Sub)
     ▼
 WebSocket Clients (on all instances)
 
+<CURRENT> (BROADCAST-TO-STREAM)
+Kafka Topic
+    │
+    │ (one streaming-hub instance consumes each event)
+    ▼
+Redis Channel (Pub/Sub)
+    │
+    │ (all streaming-hub instances subscribe)
+    ▼
+Only WebSocket Clients In event.StreamID group
 
 ```
 
@@ -64,6 +75,8 @@ streaming-hub/
 │       └── redis.go            # redis go client instance
 │   └── auth/
 │       └── session_store.go    # session_store clientstreamhubwstokens:abc123 = 7f8a9c1e2d...   (the token)
+│   └── utils/
+│       └── kafka.go    # ensures all kafka-topic exist before the kafka consumer register in diff stream-hub instances
 ├── docs/
 │   └── swagger.yaml            # OpenAPI/Swagger spec
 ├── test/

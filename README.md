@@ -1,23 +1,24 @@
 # JSentrix
-# Autonomous Transaction Monitoring & Fraud Response System (Local-Only, Multi-Agent, MCP&A2A-Compliant)
+# Autonomous Transaction Monitoring & Fraud Response System (Private, Multi-Agent, MCP&A2A-Compliant)
 
-## Overview
+### 📌 Overview
 
-This project is a fully local, privacy-preserving, multi-agent system for real-time transaction monitoring and fraud response, built for bank/fintech IT teams.  
+This project is a fully local, privacy-preserving, multi-agent system for real-time transaction monitoring and fraud response with approach rule based agentic graph system (AGS) built for use case with bank/fintech IT teams and can be further extended and inspired from to develop fully customizable multi agentic and multi modal flow in other domains.  
 It leverages the **Model Context Protocol (MCP)** for modular integrations, runs all AI models and data stores locally, and features an **Electron desktop app** (for IT staff) for monitoring.
 
 ---
 
-## Architecture
+## 🏭 Architecture
 
-- **Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
-- **MCP Server(s):** Python backend for now single MCP-server wrapped by fastapi http api that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
+- **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
+- **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
 - **Gateway FastAPI:** Act a minimal proxy gateway service that enables interaction between MCP Server and Electron app.
+- **Go+Fiber Streaming Hub with traefik setup:** Acts as centralized real time notification and event dispatcher knitted with kafka and redis fan out pub-sub pattern with multiple streaming-hub instance scalability for each client asssociated to streaming-hub get all events and behind traefik
 - **Local Data/Models/LLM:** All LLMs (Ollama), vector DB (Qdrant), and graph clause memory (neo4j) run locally-no cloud or API keys.
 
 ---
 
-## End-to-End Flow
+## 🚦 End-to-End Flow
 
 1. **IT staff launches Electron app** on their workstation.
 2. **Electron MCP client** connects to the local MCP server via localhost.
@@ -34,16 +35,21 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ---
 
-## What is home-brew(in-house just used open source depend to make it alive though) in JSentrix !!
+## 💫 What is home-brew(in-house just used open source depend to make it alive though) !!
 
 - [x] a real time use case project how an AI system can be engineered to automate and augment human capabilities in a tx analysis system that is based on business compliance/clauses  
 - [x] custom knowledge base prep and ingestion pipeline
 - [x] custom retrieval pipelines with score&decay, reranking, filter+metadata ...
 - [x] triage custom flow setup with multistep intake of txn streams
+- [x] each stream_id gets an isolated Intake → Assessment → Action agent flow,
+enabling per-client control, scaling, and state encapsulation
 - [x] minimal but effective a2a compliant agent-to-agent communication inspired by agent card and mcp compliance protocols
 - [x] self-improving event memory store to improve system analysis capacity the more it analyze the txn streams as time progresses to improve system for the next time it analyze the txns
 
-## Core Features
+---
+
+
+## 💫 Core Features
 
 - **Local-Only Operation:** No third-party APIs or cloud dependencies; all data, models, and memory are local.
 - **MCP-Based Integration:** Modular, protocol-driven access to data sources and tools.
@@ -55,58 +61,8 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ---
 
-## MVP Milestones Tracks
 
-|Track | Milestone                                                                                         |  
-|------|-------------------------------------------------------------------------------------------------- |  
-| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~                                                                                                         |
-| 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~       |
-| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                                                                                 |
-| 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
-| 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
-| 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
-| 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
-| 8    | ~~Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system~~|
-| 9    | ~~Setup support jsonrpc2.0 for comm b/w gateway and mcp_server with rest backw compat~~               |
-| 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                               |
-| 11    | Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent    |
-| 12    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server                                                                   |
-| 13    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.                                                                                                      |
-
----
-
-## Tech Stack
-
-- **Electron+Typescript** (React/TypeScript) - Desktop app & MCP client
-- **Python+FastMCP+FastAPI** - MCP server, agent orchestration via Langchain
-- **Golang+Fiber+Traefik** - Fiber streaming-hub multiple replicas with traefik as proxy server and load balancer
-- **Ollama** - Local LLMs for analysis(qwen3:1.7b) + summary(Gemma3:1b)
-- **Langchain + Llamaindex** - for Triage Self improving custom agent setup with MCP and a2a compliance and custom agent orchestration and jsentrix custom flow setup with custom retrievers, score and decay patterns, reranking etc...
-- **neo4j** - Local graph database for knowledge base clauses
-- **postgresql** - Client/Electron user login both admin/non-admin users via gateway
-- **qdrant** - store past inferenced and processed events stored in memory for future txn processing in triage self improving jsentrix flow
-- **redis** - pub/sub channel broadcasting internal streaming-hub with FAN out pattern sending single consumed message by kafka partition to other streaming-hub replica subscribers of process,events by mcp_server and its agents to client electron ui realtime events streaming via websocket
-- **kafka** - single/dedicated streaming-hub replica for consuming events published/forwarded by mcp_server agents and processes
-- **Docker** - Deployment and local orchestration
-- **Sphinix** - Docs
-- **OpenTelemetry** Tracing and Instrumentation
-
----
-
-## References
-
-- [MCP Protocol](https://github.com/anthropics/mcp)
-- [Ollama](https://ollama.com/)
-- [Langchain](https://python.langchain.com/docs/introduction/)
-- [LlamaIndex](https://docs.llamaindex.ai/en/stable/#introduction)
-- [Neo4j](https://neo4j.com/docs/operations-manual/current/docker/introduction/)
-- [Qdrant](https://qdrant.tech/documentation/)
-- [Electron](https://www.electronjs.org/)
-- [Sphinix](https://www.sphinx-doc.org/en/master/usage/installation.html#pypi-package)
-- [OpenTelemetry](https://opentelemetry.io/docs/languages/python/)
----
-
-## Getting Started
+## 💡 Getting Started
 
 1. **Clone the repo and follow setup instructions for each component in the next step.**
 2. **Start the MCP server and supporting services (Ollama, neo4j) via Docker or local a/c to instructions.**
@@ -146,7 +102,8 @@ http://localhost:9001
 # streaming-hub (exposed via traefik with Load balancer not directly)
 http://localhost/health
 
-# to prep neo4j knowledge base with initial clauses
+# to prep neo4j knowledge base with initial clauses manually
+# 💫 though mcp_server takes care of this automatically on server startup just put a sample_clause.pdf inside data dir
 python generate_sample.py # generate data/sample_clause.pdf
 python application/run_pipeline.py # generate sample_clause.md and prep and injest knowledge base neo4j
 
@@ -161,6 +118,59 @@ docker system prune
 
 
 ---
+
+## 🎯 JSentrix Milestones Tracks
+
+|Track | Milestone                                                                                         |  
+|------|-------------------------------------------------------------------------------------------------- |  
+| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~                                                                                                         |
+| 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~       |
+| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                                                                                 |
+| 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
+| 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
+| 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
+| 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
+| 8    | ~~Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system~~|
+| 9    | ~~Setup support jsonrpc2.0 for comm b/w gateway and mcp_server with rest backw compat~~               |
+| 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                               |
+| 11    | ~~Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent~~   |
+| 12    | ~~Setup Assessment Agent and its peripherals e2e logs shud be streamed for both intake and assessment agent seprately~~                                                                                             |
+| 13    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server                                                                   |
+| 14    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.                                                                                                      |
+
+---
+
+## ⚙️ Tech Stack
+
+- **Electron+Typescript** (React/TypeScript) - Desktop app & MCP client
+- **Python+FastMCP+FastAPI** - MCP server, agent orchestration via Langchain
+- **Golang+Fiber+Traefik** - Fiber streaming-hub multiple replicas with traefik as proxy server and load balancer
+- **Ollama** - Local LLMs for analysis(qwen3:1.7b) + summary(Gemma3:1b)
+- **Langchain + Llamaindex** - for Triage Self improving custom agent setup with MCP and a2a compliance and custom agent orchestration and jsentrix custom flow setup with custom retrievers, score and decay patterns, reranking etc...
+- **neo4j** - Local graph database for knowledge base clauses
+- **postgresql** - Client/Electron user login both admin/non-admin users via gateway
+- **qdrant** - store past inferenced and processed events stored in memory for future txn processing in triage self improving jsentrix flow
+- **redis** - pub/sub channel broadcasting internal streaming-hub with FAN out pattern sending single consumed message by kafka partition to other streaming-hub replica subscribers of process,events by mcp_server and its agents to client electron ui realtime events streaming via websocket
+- **kafka** - single/dedicated streaming-hub replica for consuming events published/forwarded by mcp_server agents and processes
+- **Docker** - Deployment and local orchestration
+- **Sphinix** - Docs
+- **OpenTelemetry** Tracing and Instrumentation
+
+---
+
+## 🔃 References
+
+- [MCP Protocol](https://github.com/anthropics/mcp)
+- [Ollama](https://ollama.com/)
+- [Langchain](https://python.langchain.com/docs/introduction/)
+- [LlamaIndex](https://docs.llamaindex.ai/en/stable/#introduction)
+- [Neo4j](https://neo4j.com/docs/operations-manual/current/docker/introduction/)
+- [Qdrant](https://qdrant.tech/documentation/)
+- [Electron](https://www.electronjs.org/)
+- [Sphinix](https://www.sphinx-doc.org/en/master/usage/installation.html#pypi-package)
+- [OpenTelemetry](https://opentelemetry.io/docs/languages/python/)
+---
+
 
 ## License
 

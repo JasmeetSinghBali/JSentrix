@@ -20,11 +20,16 @@ import (
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/delivery"
 	myredis "github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/redis"
 	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/service"
+	"github.com/JasmeetSinghBali/JSentrix/streaming-hub/internal/utils"
 )
 
 func main() {
 	// --- Load application configurations ---
 	cfg := config.Load()
+
+	// Ensure kafka ingest topic exists
+	// multiple cfg.KafkaAssessmentTopic, cfg.KafkaActionTopic etc.. cud be added for future
+	utils.EnsureKafkaTopics(cfg.KafkaBrokers, []string{cfg.KafkaIngestTopic})
 
 	// --- Initialize redis singleton ---
 	if err := myredis.Init(cfg); err != nil {

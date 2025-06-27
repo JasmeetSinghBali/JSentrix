@@ -37,7 +37,6 @@ services:
           memory: 1G  # Qdrant limited to 1GB RAM
 
 
-
   postgres:
     image: postgres:16
     container_name: postgresjsentrix
@@ -78,6 +77,38 @@ services:
     networks:
       - jsentrix_net
   
+  kafka: # in KRaft mode requires dedicated controller listener in KAFKA_CFG_LISTENERS
+    image: bitnami/kafka:latest
+    container_name: kafkajsentrix
+    ports:
+      - "${KAFKA_DOCKER_PORT}:9092"    # For Docker network (optional to expose)
+      - "${KAFKA_HOST_PORT}:29092"     # For host access i.e mcp_server for kafka producer
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka_data:/bitnami/kafka
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"] # checks kafka broker is ready to serve requests
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - jsentrix_net
+  
   streaming-hub:
     build:
       context: ./streaming-hub
@@ -89,6 +120,8 @@ services:
     # ports:
     #   - "4001:4001" Traefix will handle external access
     depends_on:
+      kafka:
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -140,38 +173,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  kafka: # in KRaft mode requires dedicated controller listener in KAFKA_CFG_LISTENERS
-    image: bitnami/kafka:latest
-    container_name: kafkajsentrix
-    ports:
-      - "${KAFKA_DOCKER_PORT}:9092"    # For Docker network (optional to expose)
-      - "${KAFKA_HOST_PORT}:29092"     # For host access i.e mcp_server for kafka producer
-    environment:
-      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID}
-      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_ALLOW_PLAINTEXT_LISTENER=yes
-    volumes:
-      - kafka_data:/bitnami/kafka
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9092"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - jsentrix_net
-
 
 volumes: # 🎈 remove this in case host bind mount supplied under services-neo4j-volumes section above same approch follow for other service
   neo4j_data:

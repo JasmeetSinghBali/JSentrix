@@ -33,6 +33,32 @@ from typing import List, Dict, Any
 logger = get_logger("jsentrix")
 
 
+def get_clause_count() -> int:
+    """
+    Retrieve the no of compliance clause nodes in neo4j
+    """
+    config = get_neo4j_config()
+    driver = GraphDatabase.driver(
+        config["url"], auth=(config["username"], config["password"])
+    )
+    with driver.session() as session:
+        result = session.run("MATCH (c:ComplianceClause) RETURN count(c) AS count")
+        count = result.single()["count"]
+    driver.close()
+    return count
+
+
+async def async_get_clause_count() -> int:
+    config = get_neo4j_config()
+    driver = get_async_neo4j_driver()
+    async with driver.session() as session:
+        result = await session.run(
+            "MATCH (c:ComplianceClause) RETURN count(c) AS count"
+        )
+        count = (await result.single())["count"]
+    return count
+
+
 def ensure_vector_index(driver, config, dimensions=384):
     index_name = config["index_name"]
     label = config["node_label"]

@@ -1,0 +1,2 @@
+# 🎯 only the tools layer shud be exposed to the outer world i.e gateway for incoming jsonrpc request relayed from electron client at all times
+# never expose the agents directly as access from the electron client shud always be abstracted and accesible via gateway->jsonrpc2.0->mcp_server->toolcall->agent

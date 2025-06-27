@@ -48,7 +48,11 @@ mcp_server/
 │       └── load.py            # LangChain+Neo4j: Embedding & storage
 │     |── qdrant_setup.py      # Create qdrant memory event collection [only to be run once as script]
 │     |── memory_event_repository.py   # Handles low-level Qdrant persistence for MemoryEvent domain objects.
+|     |── agent_graph_registry.py      # Redis-backed registry for active per-stream sessions for AgentGraphs
+|     |── agent_graph_store.py      # in-memory AgentGraph holds actual agent instances 
+# (e.g., IntakeAgent, AssessmentAgent, ActionAgent) potentially state (like in-memory buffers or coroutines). Redis cannot serialize this.
 |     |── redis_stream_registry.py     # AsyncStream registery to track active streaming sessions for all agents and parts in mcp_server
+|     |── redis_streams.py     # Reusab pubsub Redis Streams client usage- ex assessment>actionagent
 |     |── kafka
 |       ├── __init__.py
 │       ├── producer_singleton.py   # kafka producer publish to shared topic b/w mcp_server and streaming_hub
@@ -56,13 +60,17 @@ mcp_server/
 |
 |── domain/
 │   ├── __init__.py
+|   └── config_models.py    # Config model basemodel passed dynamic configs from client side when invoking streaminges like tool
 |   └── models.py           # Clause and ClauseMetaData pydantic validator model
 |── agents/
 │   ├── __init__.py
-|   └── message_a2aserializer.py           # Base class for robust agent-to-agent (A2A) message serialization
+|   └── message_a2aserializer.py        # Base class for robust agent-to-agent (A2A) message serialization
 |   ├── base_agent.py
 |   ├── intake_agent.py
 |   ├── intake_messages.py 
+|   ├── assessment_messages.py
+|   ├── assessment_agent.py
+|   ├── agent_graph.py # Composes a dedicated per-stream agent pipeline for each stream_id isolated Intake → Assessment → Action agent flow enabling per-client control, scaling, and state encapsulation
 |
 |── application/
 │   ├── __init__.py
@@ -97,9 +105,12 @@ mcp_server/
 |   └── relevance_scorer.py   # Default logger singleton instance and custom logger get_logger new instance
 |   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
 |   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
+|   └── serialize_exceptions.py    # serialize python excep to dict for external transport with fallback 
 |
-|── workers/
+|── workers/ # background workers
 │   ├── __init__.py
+|   └── cleanup_unused_agent_graphs.py  # cleanup dangling zombies in-memory agent_graph objects 
+|   └── assessed_events_stream_worker.py  # Async Redis Streams consumer worker for yielding assessed events to the action agent shud be registerd in the action_agent.py __init__.  
 |   └── dlq_retry_worker.py   # dead letter queue failed published events worker proecessor pushes to ingest_topic_dlq with retry/resend to original topic with serializable guards for json and malformed data events ingest_topic
 |
 └── tests/                    # test dir
