@@ -156,6 +156,22 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         logger.info(getattr(response, "response", response))
         logger.info(f"LLM Answer for Transaction {idx+1}: {str(response)}")
 
+        # 📌 step 6 to 9 can be done by a judge agent which uses some other model for inference also generate a structured dict that contains
+        # 🎈 Judge agent shud form strucutre data and have 2nd level inference with diff model
+        # Risk score
+        # Violations
+        # Recommendations
+        # Source metadata
+        # as
+        # return JudgeOutput(
+        #     analysis="Analysis failed",
+        #     risk_score=100,
+        #     violations=["COMPLIANCE_CHECK_FAILED"],
+        #     recommendations=["Review manually"],
+        #     metadata={"error": str(e)},
+        #     judge_id=f"err-{uuid.uuid4()}"
+        # )
+        # the above JudgeOutput will be passed to the summarizer finally to create a report and bg worker that sends that to the ui for now via forward event/ here it could be passed to concerned superadmin/admin, bank staff emails also
         # ---6. Compliance assertions ---
         if idx == 0:
             assert (

@@ -27,9 +27,10 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 5. **Fraud detection agent** (local LLM) analyzes transactions for suspicious patterns.
 6. **If fraud is suspected:**
    - **A2A workflow:**  
-     - Investigation agent gathers more context (customer profile, history).
-     - Notification agent drafts alert for customer or compliance.
-     - Action agent prepares freeze/escalation actions.
+     - Intake Agent starts the stream for consuming txn from the target source as per end-user instructions
+     - Assessment Agent gathers more context (prior memory events and history) along with filtering and passing the high priority transactions only to the action/agent.
+     - Action/analysis agent infers the knowledge base with the provided context from assessment agent and llm inference and  prepares freeze/escalation actions and automatically executes appropriate actions immediately for voilating txns without human intervention.
+     - Action agent output is finally passed to Judge agent for further human in loop downstream flows along with summarization and report via summarizer model for txns that are non-conclusive by the action agent  
 7. **User reviews and approves/denies actions** in the Electron app.
 8. **All actions, alerts, and transaction statuses** are visible in real time on Electron app dashboard.
 

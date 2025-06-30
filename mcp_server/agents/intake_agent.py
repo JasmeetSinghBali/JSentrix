@@ -53,7 +53,6 @@ class IntakeAgent(
 
         self.embedding_model = get_langchain_embedding_model()
         self.retriever = MemoryEventRetriever(MemoryEventRepository())
-        # 🎈 to build and setup assessment_agent langchain for next phase later
         self.assessment_agent = assessment_agent
 
     def validate_input(self, input: IntakeInput, context: AgentContext):
@@ -154,7 +153,7 @@ class IntakeAgent(
                         context = AgentContext(
                             request_id=self.fake.uuid4(),
                             user_id="system",  # 📌 Or pass admin/user actual id in case the agent is directly invoked from client side
-                            timestamp=datetime.now(timezone.utc),
+                            timestamp=datetime.now(timezone.utc).isoformat(),
                             trace_id=span.get_span_context().trace_id,
                             span_id=span.get_span_context().span_id,
                             config=config,

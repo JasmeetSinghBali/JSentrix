@@ -79,6 +79,8 @@ class AssessmentAgent(
 
             # 🎈 here ml/llm custom rules could be used for now minimalistic rule
             # scans for tags key at top level and nested of extra_context
+            # 🎈 though possibility of not passing i.e skipping potential voilating txns to the downstream action agent for analysis is their due to hardcoded business rules here
+            # better way shud be to pass the medium and low priority txn directly to judge agent that way if judge agent make those transaction inconclusive then it can be send for manual review to the user ui where user could then either decide to freeze/flag the txn via invoking the action agent direct method from the ui itself.
             def _extract_tags(evt: MemoryEvent) -> List[str]:
                 tags_top = getattr(evt, "tags", []) or []
                 tags_extra = evt.extra_context.get("tags", []) or []
@@ -161,12 +163,21 @@ class AssessmentAgent(
         priority = self._categorize_priority(score)
         reasons = [f"Score {score} based on rules and retrieval"]
 
-        # --- step4: forward only high priority doc to Action Agent ---
+        # --- step4: conditional forward to ActionAgent or RedisStreams based on config priority and assessment_type ---
+        # defaults config to high value txns in case priority not defined from the end user
+        configured_priorities = config.get("priority", [PriorityLevel.HIGH])
+        if isinstance(configured_priorities, list):
+            configured_priorities = [
+                PriorityLevel(p) if isinstance(p, str) else p
+                for p in configured_priorities
+            ]
+        logger.debug(f"grabbed configured-priorities: {str(configured_priorities)}")
         output = AssessmentOutput(
             score=score,
             priority=priority,
             reasons=reasons,
             assessment_id=f"assess-{uuid.uuid4()}",
+            # langchain doc--> llamaindex docs
             llamaindex_docs=[
                 Document(text=doc.page_content, metadata=doc.metadata)
                 for doc in langchain_docs
@@ -177,11 +188,12 @@ class AssessmentAgent(
         # 📌 Real-time forward to streaming hub
         await self._forward_with_fallback(output.to_dict(), input.stream_id)
 
-        if self.action_agent and priority == PriorityLevel.HIGH:
+        # 📌 foward to downstream action agent if the current txn priority is in configured priority set from the end user ui
+        if priority in configured_priorities:
             if assessment_type == "default" and self.action_agent:
-                # 🎈 update this when implement action_agent.py
+                # 🎈 uncomment this when implement action_agent.py
                 # pass this as direct a2a message to action agent
-                # await self.action_agent.invoke_assessment_result(
+                # await self.action_agent.invoke(
                 #     output,
                 #     context,
                 # )
@@ -213,7 +225,10 @@ class AssessmentAgent(
 
             else:
                 logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
-
+        else:
+            logger.info(
+                f"Txn priority {priority} not in configured filter {configured_priorities}. Skipping downstream send."
+            )
         return output
 
     async def _forward_with_fallback(self, data: dict, stream_id: str):
@@ -241,12 +256,3 @@ class AssessmentAgent(
             logger.warning(
                 f"[ForwardWithFallback] Event failed to forward and was sent to DLQ: stream_id={stream_id}"
             )
-
-    # Optionally, implement streaming via async queue/callback if batch or high throughpu
-    # For streaming output:
-    # async def stream(self, input: AssessmentInput, context: AgentContext):
-    #     # Not implemented for now; could use async queue/yield pattern for real streamiing
-
-    # 🎈 For ActionAgent, implement:
-    # async def invoke_assessment_result(self, assessment_output: AssessmentOutput, conte
-    #     # This method would be called by AssessmentAgent for high-priority txns to send the assessment_output via a2a directly to action agent
