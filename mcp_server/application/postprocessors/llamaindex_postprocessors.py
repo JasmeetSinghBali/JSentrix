@@ -40,7 +40,18 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
         Shared processing logic for async and sync node processing
         """
         for node in nodes:
+            doc_type = node.metadata.get("source", "clause")  # defaults to clause
             original_score = node.metadata.get("score", node.score)
+
+            # 🎈 here custom decay cud be applied for llamaindex doc type prior_event postprocessing node for future
+            if doc_type == "prior_event":
+                logger.debug(
+                    f"Skipping decay for prior_event node with score: {original_score}"
+                )
+                node.metadata["decayed_score"] = original_score
+                node.score = original_score
+                continue
+
             decayed_score = self._scorer.score(node.metadata)
             node.metadata["decayed_score"] = decayed_score
             logger.debug(
@@ -69,6 +80,19 @@ class CustomRelevancePostprocessor(BaseNodePostprocessor):
         for node in nodes:
             try:
                 metadata = node.metadata.copy()
+                doc_type = metadata.get("source", "clause")
+                original_score = metadata.get("score", node.score)
+
+                # 🎈 here custom decay cud be applied for llamaindex doc type prior_event postprocessing node for future
+                if doc_type == "prior_event":
+                    logger.debug(
+                        f"[Async] Skipping decay for prior_event node with score: {original_score}"
+                    )
+                    metadata["decayed_score"] = original_score
+                    node.score = original_score
+                    node.metadata = metadata
+                    processed.append(node)
+                    continue
 
                 # Async score calculation
                 if hasattr(self._scorer, "ascore"):
@@ -141,7 +165,7 @@ class MarkUsedDocsPostprocessor(BaseNodePostprocessor):
 
 class MetadataInjectionPostprocessor(BaseNodePostprocessor):
     """
-    Injects dynamic metadata (eg from langchain) into llamaindex nodes by clause_id
+    Injects dynamic metadata (eg from langchain) into llamaindex nodes by clause_id NOTE- will skip the prior_events as it does not have clause_id
     supports async safe with thread-safe logging
     """
 

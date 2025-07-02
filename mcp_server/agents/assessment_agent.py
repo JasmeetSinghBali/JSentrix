@@ -17,7 +17,10 @@ from .assessment_messages import AssessmentInput, AssessmentOutput
 from domain.models import MemoryEvent
 from domain.config_models import PriorityLevel
 import uuid
-from llama_index.core.schema import Document
+from llama_index.core.schema import Document as LlamaIndexDocument
+
+# from langchain_core.documents import Document as LangChainDocument
+
 
 from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 from infrastructure.redis_streams import RedisStreams
@@ -128,6 +131,8 @@ class AssessmentAgent(
         self.validate_input(input, context)
         # --- step1: hybrid retrieval using langchain retrv ---
         raw_query = f"Compliance check for {input.transaction.get("amount")} transfer from {input.transaction.get("source")}"
+        # 🎈 here langchain_docs cud be wrapped with LangchainDocument like in test core 1 rag test but be aware of the NOTE below
+        # 🎈 NOTE- downstream expects the retriever's native output format (especially for scoring logic, metadata propagation, or postprocessor expectations), re-wrapping with LangChainDocument might strip or reshape fields unintentionally (e.g. type annotations, special subclass behaviors, or internal hooks)
         langchain_docs = await self.retriever.async_get_relevant(
             raw_query, top_k=5, rescore=True
         )
@@ -158,7 +163,9 @@ class AssessmentAgent(
 
         # --- step3: scoring and prioritization ---
         score = self._score_transaction(
-            input.transaction, input.prior_events, langchain_docs
+            input.transaction,
+            input.prior_events,
+            langchain_docs,
         )
         priority = self._categorize_priority(score)
         reasons = [f"Score {score} based on rules and retrieval"]
@@ -172,18 +179,24 @@ class AssessmentAgent(
                 for p in configured_priorities
             ]
         logger.debug(f"grabbed configured-priorities: {str(configured_priorities)}")
+        # 📌 the actual transaction, prior_events i.e input.transaction and input.prior_events shud also be passed on to the action agent as assessment output
         output = AssessmentOutput(
             score=score,
             priority=priority,
             reasons=reasons,
             assessment_id=f"assess-{uuid.uuid4()}",
+            transaction=input.transaction,
+            prior_events=input.prior_events,
             # langchain doc--> llamaindex docs
             llamaindex_docs=[
-                Document(text=doc.page_content, metadata=doc.metadata)
+                LlamaIndexDocument(text=doc.page_content, metadata=doc.metadata)
                 for doc in langchain_docs
             ],
             dynamic_metadata=dynamic_metadata_by_clause_id,
-            metadata={"stream_id": input.stream_id},
+            metadata={
+                "stream_id": input.stream_id,
+                "source": input.transaction.get("source"),
+            },
         )
         # 📌 Real-time forward to streaming hub
         await self._forward_with_fallback(output.to_dict(), input.stream_id)
