@@ -2,9 +2,10 @@
 mcp_server/agents/action_agent.py
 """
 
+import asyncio
 from typing import List
 from .base_agent import BaseAgent, JsonRpcAgentMixin, AgentContext, jsonrpc_method
-from .action_messages import ActionInput, ActionOuput, DecisionLevel
+from .action_messages import ActionInput, ActionOutput, DecisionLevel
 from utils.logger import get_logger
 from application.retrievers.llamaindex_retriever import (
     async_get_llamaindex_query_engine_from_docs,
@@ -14,12 +15,15 @@ import uuid
 from datetime import datetime, timezone
 from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 from domain.models import MemoryEvent
+from domain.config_models import StreamingConfig
 from llama_index.core import Document
 
 logger = get_logger("action_agent")
 
 
-class ActionAgent(BaseAgent[ActionInput, ActionOuput, AgentContext], JsonRpcAgentMixin):
+class ActionAgent(
+    BaseAgent[ActionInput, ActionOutput, AgentContext], JsonRpcAgentMixin
+):
     """
     Action Agent:
     - accepts high priority txns(default) or config.priority member txns from assessment agent
@@ -53,10 +57,128 @@ class ActionAgent(BaseAgent[ActionInput, ActionOuput, AgentContext], JsonRpcAgen
         Include a short justification in natural language.
         """
 
-    @jsonrpc_method
-    async def invoke(self, input: ActionInput, context: AgentContext) -> ActionOuput:
+    # ✅ LLM-heavy logic to
+    async def _handle_llamaindex_analysis(
+        self, input: ActionInput, context: AgentContext
+    ):
+        try:
+            # ---1. Prepare LlamaIndex query engine with augmented (txn+clause docs + prior memory) ---
+            base_docs = input.assessment_output.llamaindex_docs
+            dynamic_metadata = input.assessment_output.dynamic_metadata
+            prior_events = input.assessment_output.prior_events
 
-        assessment_type = context.config.get("assessment_type", "default")
+            llamaindex_docs = list(base_docs)
+
+            for evt in prior_events:
+                try:
+                    content = f"""
+                    Agent: {evt.agent_name}
+                    Timestamp: {evt.timestamp}
+                    Prompt: {evt.prompt}
+                    Response: {evt.llm_response}
+                    Extra Context: {json.dumps(evt.extra_context, indent=2)}
+                    """
+                    metadata = {
+                        "source": "prior_event",
+                        "agent_name": evt.agent_name,
+                        "timestamp": str(evt.timestamp),
+                    }
+                    doc = Document(text=content, metadata=metadata)
+                    # 📌 both regulatory clauses(relevant clauses from assessment agent) + memory-based prior agent responses are embedded, indexed, and searchable by the LlamaIndex query engine during compliance evaluation
+                    llamaindex_docs.append(doc)
+                except Exception as e:
+                    logger.warning(f"Failed to convert prior_event to Document: {e}")
+
+            # --- 2. Init the query engine
+            query_engine = await async_get_llamaindex_query_engine_from_docs(
+                docs=llamaindex_docs, dynamic_metadata_by_clause_id=dynamic_metadata
+            )
+
+            # ---3. Llamaindex processing & LLM inference and analysis
+            transaction = input.assessment_output.transaction
+            structured_query = self._build_compliance_query(transaction)
+
+            try:
+                response = await query_engine.aquery(structured_query)
+            except Exception as e:
+                logger.error(f"LlamaIndex async query failed: {e}")
+                decision = DecisionLevel.ND
+                raw_response = f"LLM query failed due to: {str(e)}"
+                response = None
+
+            if response is None:
+                logger.warning("LlamaIndex query returned None!")
+                decision = DecisionLevel.ND
+                raw_response = "Inference failed"
+            else:
+                raw_response = str(getattr(response, "response", response))
+                raw_upper = raw_response.upper()
+                if "YES" in raw_upper:
+                    decision = DecisionLevel.YES
+                elif "NO" in raw_upper:
+                    decision = DecisionLevel.NO
+                else:
+                    decision = DecisionLevel.ND
+
+            source_nodes = [
+                {"metadata": node.metadata}
+                for node in getattr(response, "source_nodes", [])
+            ]
+
+            clause_hits = [
+                doc.metadata["clause_id"]
+                for doc in base_docs
+                if "clause_id" in doc.metadata
+            ]
+            # 📌 Enrich LLM raw response with clause context for downstream traceability
+            if clause_hits:
+                clause_desc = (
+                    f"\n\n🧠 Matched Clauses (from assessment agent's Neo4j+LangChain retrieval): "
+                    + ", ".join(clause_hits)
+                )
+            else:
+                clause_desc = "\n\n⚠️ No clause IDs matched in base documents."
+            raw_response += clause_desc
+
+            action_output = ActionOutput(
+                action_id=f"action-{uuid.uuid4()}",
+                decision=decision,
+                raw_response=raw_response,
+                source_nodes=source_nodes,
+                context=input.context,
+                clause_hits=clause_hits,  # clause_hits reff for downstream flow and agents i.e which clause matches with the txn via the langchain->llamaindexdocs i.e base_docs from the assessment agent
+            )
+
+            # ---3. Flag txn and notify UI as action agent action if decision is YES ---
+            # 📌 here additional freeze txn or other autonomoous action cud be performed addition to pushing it to ui
+            logger.info(
+                f"[ActionAgent] Final decision: {decision} | Clause Hits: {clause_hits}"
+            )
+            if decision == DecisionLevel.YES:
+                await self._forward_flagged_txn(
+                    action_output.to_dict(),
+                    input.assessment_output.metadata.get("stream_id", "NotDefined"),
+                )
+
+            # ---4. Forward NO/ND to judge agent ---
+            elif decision in [DecisionLevel.NO, DecisionLevel.ND]:
+                await self._forward_to_judge(action_output)
+
+            # ---5. 🎈 Store MemoryEvent as needed maybe both yes and no decisions (Phase 7) ---
+            # if decision == DecisionLevel.YES:
+            #     await self.memory_agent.store_event(...)
+
+        except Exception as e:
+            logger.error(f"[ActionAgent] Failed in background LlamaIndex analysis: {e}")
+
+    @jsonrpc_method
+    async def invoke(self, input: ActionInput, context: AgentContext) -> ActionOutput:
+
+        config = context.config or StreamingConfig()
+        if isinstance(config, dict):
+            assessment_type = config.get("assessment_type", "default")
+        else:
+            assessment_type = config.assessment_type or "default"
 
         if assessment_type == "redistream":
             # 🎈 all the step 1,2,3 and 4 of direct a2a messageing default assessment_type shud now be done inside this block where the consumer is consuming these messages
@@ -69,97 +191,46 @@ class ActionAgent(BaseAgent[ActionInput, ActionOuput, AgentContext], JsonRpcAgen
             #     await take_action(data)
             #     await redis_streams.ack("assessed_events_stream", "action_agents", msg_id)
             # await redis_streams.close()
-            return action_output
+            pass
 
         # 📌 default a2a message passed from assessment agent
         logger.info(
-            f"[ActionAgent] Recieve assessment: {input.assessment_output.assessment_id}"
+            f"[ActionAgent] Recieve assessment : {input.assessment_output.assessment_id}"
         )
 
-        # ---1. Prepare LlamaIndex query engine with augmented (txn+clause docs + prior memory) ---
-        # base docs actually contains the relevant clauses from neo4j passed from the assessment agent
-        base_docs = input.assessment_output.llamaindex_docs
-        dynamic_metadata = input.assessment_output.dynamic_metadata
-        prior_events = input.assessment_output.prior_events
+        # 📌 fire and forget run the analysis in bg task coroutine and if YES then push to streaming hub else to judge agent
+        asyncio.create_task(self._handle_llamaindex_analysis(input, context))
 
-        # new list to avoid mutating original
-        llamaindex_docs = list(base_docs)
-
-        for evt in prior_events:
-            try:
-                content = f"""
-                Agent: {evt.agent_name}
-                Timestamp: {evt.timestamp}
-                Prompt: {evt.prompt}
-                Response: {evt.llm_response}
-                Extra Context: {json.dumps(evt.extra_context, indent=2)}
-                """
-                metadata = {
-                    "source": "prior_event",
-                    "agent_name": evt.agent_name,
-                    "timestamp": str(evt.timestamp),
-                }
-                doc = Document(text=content, metadata=metadata)
-                # 📌 both regulatory clauses(relevant clauses from assessment agent) + memory-based prior agent responses are embedded, indexed, and searchable by the LlamaIndex query engine during compliance evaluation
-                llamaindex_docs.append(doc)
-            except Exception as e:
-                logger.warning(f"Failed to convert prior_event to Document: {e}")
-
-        # --- 2. Init the query engine
-        query_engine = async_get_llamaindex_query_engine_from_docs(
-            docs=llamaindex_docs, dynamic_metadata_by_clause_id=dynamic_metadata
-        )
-
-        # ---3. Llamaindex processing & LLM inference and analysis
-        transaction = input.assessment_output.transaction
-        structured_query = self._build_compliance_query(transaction)
-
-        response = query_engine.query(structured_query)
-
-        if response is None:
-            logger.warning("LlamaIndex query returned None!")
-            decision = DecisionLevel.ND
-            raw_response = "Inference failed"
-        else:
-            raw_response = str(getattr(response, "response", response))
-            raw_upper = raw_response.upper()
-            if "YES" in raw_upper:
-                decision = DecisionLevel.YES
-            elif "NO" in raw_upper:
-                decision = DecisionLevel.NO
-            else:
-                decision = DecisionLevel.ND
-
-        source_nodes = [
-            {"metadata": node.metadata}
-            for node in getattr(response, "source_nodes", [])
-        ]
-
-        action_output = ActionOuput(
+        # 📌 immediate return statement for compliance analysis initiated + send event to streaming-hub to display in ui
+        stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
+        await self._send_analysis_started_event(stream_id)
+        return ActionOutput(
             action_id=f"action-{uuid.uuid4()}",
-            decision=decision,
-            raw_response=raw_response,
-            source_nodes=source_nodes,
+            decision=DecisionLevel.ND,
+            raw_response="Compliance analysis is in progress",
+            source_nodes=[],
             context=input.context,
+            clause_hits=[],
         )
 
-        # ---3. Flag txn and notify UI as action agent action if decision is YES ---
-        # 📌 here additional freeze txn or other autonomoous action cud be performed
-        if decision == DecisionLevel.YES:
-            await self._forward_flagged_txn(
-                action_output.to_dict(),
-                input.assessment_output.metadata.get("stream_id", "NotDefined"),
+    async def _send_analysis_started_event(self, stream_id: str):
+        """
+        Notify UI via streaming hub that compliance analysis is in progress
+        """
+        event = {
+            "event": "3️⃣[ActionAgent]",
+            "message": "🔍 Compliance analysis in progress...",
+            "stream_id": stream_id,
+            "flagged": False,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "agent": "action-agent",
+            "level": "info",
+        }
+        success = await forward_event_to_streaming_hub(event)
+        if not success:
+            logger.warning(
+                f"[NotifyStart]❌ Could not notify UI that analysis started and  was sent to DLQ:. Stream ID: {stream_id}"
             )
-
-        # ---4. Forward NO/ND to judge agent ---
-        elif decision in [DecisionLevel.NO, DecisionLevel.ND]:
-            await self._forward_to_judge(action_output)
-
-        # ---5. 🎈 Store MemoryEvent as needed maybe both yes and no decisions (Phase 7) ---
-        # if decision == DecisionLevel.YES:
-        #     await self.memory_agent.store_event(...)
-
-        return action_output
 
     async def _forward_flagged_txn(self, data: dict, stream_id: str):
         """
@@ -167,12 +238,12 @@ class ActionAgent(BaseAgent[ActionInput, ActionOuput, AgentContext], JsonRpcAgen
         """
         event = {
             "event": "3️⃣[ActionAgent]",
-            "message": f"🚨 Action Taken: {data.decision}",
+            "message": f"🚨 Action Taken: {data['decision']}",
             "stream_id": stream_id,
             "data": data,
             "flagged": True,  # the streaming-hub event dto shud be sync with optional flagged key
             "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
-            "agent": "action-agent",
+            "agent": "action-agent",  # to filter in UI
             "level": "warn",
         }
         success = await forward_event_to_streaming_hub(event)
@@ -181,7 +252,7 @@ class ActionAgent(BaseAgent[ActionInput, ActionOuput, AgentContext], JsonRpcAgen
                 f"[ForwardWithFallback]❌ Event failed to forward and was sent to DLQ: stream_id={stream_id}"
             )
 
-    async def _forward_to_judge(self, output: ActionOuput):
+    async def _forward_to_judge(self, output: ActionOutput):
         """
         Send ND/NO txns to downstream judge agent
         Replace this stub with A2A or RedisStream logic in Phase 6

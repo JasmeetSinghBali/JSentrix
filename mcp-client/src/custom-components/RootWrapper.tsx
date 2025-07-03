@@ -37,6 +37,7 @@ export default React.memo((props: any) => {
     
     const [intakeLogs, setIntakeLogs] = useState<string[]>([]);
     const [assessmentLogs, setAssessmentLogs] = useState<string[]>([]);
+    const [actionLogs, setActionLogs] = useState<string[]>([]);
 
     const shouldScrollToTop = streamCountdown === 0;
 
@@ -154,7 +155,7 @@ export default React.memo((props: any) => {
 
             if (res?.result?.stream_id) {
                 setStreamId(res.result.stream_id);
-                setStreamCountdown(20); // trigger stream countdown useEffect
+                setStreamCountdown(150); // trigger stream countdown useEffect
                 setTimeout(async () => {
                     await invokeTool(accessToken, "abortinges", {
                         arguments: { stream_id: res.result.stream_id }
@@ -162,7 +163,7 @@ export default React.memo((props: any) => {
                     clearStreamId();
                     streamStartedRef.current = false;
                     setStreamCountdown(null);
-                }, 20000);
+                }, 150000); // 150 seconds = 2.5min
             } else {
                 console.error("No stream_id returned from streaminges!", res);
                 streamStartedRef.current = false;
@@ -204,6 +205,8 @@ export default React.memo((props: any) => {
                             setIntakeLogs(prev => [...prev, `🟢 IntakeAgent:\n${fullMessage}`]);
                         } else if (parsed.agent === "assessment-agent") {
                             setAssessmentLogs(prev => [...prev, `🟣 AssessmentAgent:\n${fullMessage}`]);
+                        } else if (parsed.agent === "action-agent") {
+                            setActionLogs(prev => [...prev, `🔴 ActionAgent:\n${fullMessage}`]);
                         } else {
                             setIntakeLogs(prev => [...prev, `🟡 UnknownAgent:\n${fullMessage}`]);
                         }
@@ -323,7 +326,7 @@ export default React.memo((props: any) => {
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>
-                    <div className="grid grid-cols-2 gap-6 p-2">
+                    <div className="grid grid-cols-3 gap-6 p-2">
                         <LogTerminal
                         title="IntakeAgent Logs"
                         emoji="🟢"
@@ -341,6 +344,16 @@ export default React.memo((props: any) => {
                         onClear={() => setAssessmentLogs([])}
                         bgColor="#201020"
                         textColor="#ddaaff"
+                        limit={150}
+                        clearable
+                        />
+                        <LogTerminal
+                        title="ActionAgent Logs"
+                        emoji="🔴"
+                        logs={actionLogs}
+                        onClear={()=>setActionLogs([])}
+                        bgColor="#200010"
+                        textColor="#ffaaaa"
                         limit={150}
                         clearable
                         />

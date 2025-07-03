@@ -12,6 +12,8 @@ from enum import Enum
 
 class ActionInput(A2AMessageSerializable):
     """
+    Wraps output from AssessmentAgent, forwards to JudgeAgent or executes direct action.
+
     A2A compliant input for action agent is the output from assessment agent:
     - assessment_ouptut- llamaindex docs, dynamic metadata...
     - common context from upstream intake->assessment agents or if not passed then defaults to AgentContext in reff to action_agent
@@ -36,7 +38,7 @@ class DecisionLevel(str, Enum):
     NO = "NO"
 
 
-class ActionOuput(A2AMessageSerializable):
+class ActionOutput(A2AMessageSerializable):
     """
     A2A compliant output for action agent for downstream judge agent
     NOTE- Action agent only passes those txn's to the judge agent that are not conclusive i.e marked as "ND" or "NO"
@@ -89,6 +91,7 @@ class ActionOuput(A2AMessageSerializable):
         raw_response: Union[str, Dict[str, Any]],
         context: Optional[AgentContext] = None,
         source_nodes: Optional[List[Dict[str, Any]]] = None,
+        clause_hits: Optional[List[str]] = None,  # e.g., ["C002", "C007"]
     ):
         self.action_id = (
             action_id  # usage: ActionOutput(action_id=f"action-{uuid.uuid4()}",)
@@ -101,3 +104,4 @@ class ActionOuput(A2AMessageSerializable):
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
         self.source_nodes = source_nodes or []
+        self.clause_hits = clause_hits or []

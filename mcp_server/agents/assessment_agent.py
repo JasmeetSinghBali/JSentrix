@@ -14,8 +14,10 @@ from .base_agent import (
 )
 from application.retrievers.langchain_retriever import GraphMemoryRetriever
 from .assessment_messages import AssessmentInput, AssessmentOutput
+from .action_messages import ActionInput
+from .action_agent import ActionAgent
 from domain.models import MemoryEvent
-from domain.config_models import PriorityLevel
+from domain.config_models import PriorityLevel, StreamingConfig
 import uuid
 from llama_index.core.schema import Document as LlamaIndexDocument
 
@@ -38,7 +40,7 @@ class AssessmentAgent(
     - streams high priority txn to ActionAgent
     """
 
-    def __init__(self, action_agent=None):
+    def __init__(self, action_agent: ActionAgent = None):
         """
         Initialize AssessmentAgent with optional downstream action agent
         """
@@ -82,7 +84,7 @@ class AssessmentAgent(
 
             # 🎈 here ml/llm custom rules could be used for now minimalistic rule
             # scans for tags key at top level and nested of extra_context
-            # 🎈 though possibility of not passing i.e skipping potential voilating txns to the downstream action agent for analysis is their due to hardcoded business rules here
+            # 🎈 for future-dev: though possibility of not passing i.e skipping potential voilating txns to the downstream action agent for analysis is their due to hardcoded business rules here
             # better way shud be to pass the medium and low priority txn directly to judge agent that way if judge agent make those transaction inconclusive then it can be send for manual review to the user ui where user could then either decide to freeze/flag the txn via invoking the action agent direct method from the ui itself.
             def _extract_tags(evt: MemoryEvent) -> List[str]:
                 tags_top = getattr(evt, "tags", []) or []
@@ -125,12 +127,32 @@ class AssessmentAgent(
         Returns:
             AssessmentOutput
         """
-        config = context.config or {}
-        assessment_type = config.get("assessment_type", "default")
+        logger.debug(
+            f"🔍 Incoming txn metadata: {input.transaction.get('metadata', {})}"
+        )
+        if input.transaction["metadata"].get("sender") == "SANCTIONED_ENTITY_X":
+            logger.warning(
+                "🚨 Intentional Voilated Transaction detected and matches known sanctioned entity — flagging"
+            )
+
+        config = context.config or StreamingConfig()
+        if isinstance(config, dict):  # backward compatibility fallback
+            assessment_type = config.get("assessment_type", "default")
+        else:  # pydantic model
+            assessment_type = config.assessment_type or "default"
 
         self.validate_input(input, context)
-        # --- step1: hybrid retrieval using langchain retrv ---
-        raw_query = f"Compliance check for {input.transaction.get("amount")} transfer from {input.transaction.get("source")}"
+
+        # --- step1: hybrid retrieval using langchain retrv neo4j---
+        metadata = input.transaction.get("metadata", {})
+        sender = metadata.get("sender", "unknown")
+        receiver = metadata.get("receiver", "unknown")
+        currency = metadata.get("currency", "unknown")
+        raw_query = (
+            f"Compliance check for {input.transaction.get('amount')} {currency} transfer "
+            f"from {sender} to {receiver} via source {input.transaction.get('source')}"
+        )
+
         # 🎈 here langchain_docs cud be wrapped with LangchainDocument like in test core 1 rag test but be aware of the NOTE below
         # 🎈 NOTE- downstream expects the retriever's native output format (especially for scoring logic, metadata propagation, or postprocessor expectations), re-wrapping with LangChainDocument might strip or reshape fields unintentionally (e.g. type annotations, special subclass behaviors, or internal hooks)
         langchain_docs = await self.retriever.async_get_relevant(
@@ -172,7 +194,10 @@ class AssessmentAgent(
 
         # --- step4: conditional forward to ActionAgent or RedisStreams based on config priority and assessment_type ---
         # defaults config to high value txns in case priority not defined from the end user
-        configured_priorities = config.get("priority", [PriorityLevel.HIGH])
+        if isinstance(config, dict):
+            configured_priorities = config.get("priority", [PriorityLevel.HIGH])
+        else:
+            configured_priorities = config.priority or [PriorityLevel.HIGH]
         if isinstance(configured_priorities, list):
             configured_priorities = [
                 PriorityLevel(p) if isinstance(p, str) else p
@@ -202,15 +227,19 @@ class AssessmentAgent(
         await self._forward_with_fallback(output.to_dict(), input.stream_id)
 
         # 📌 foward to downstream action agent if the current txn priority is in configured priority set from the end user ui
+        logger.warning(
+            f"➡️ Priority={priority}, Configured={configured_priorities}, AssessmentType={assessment_type}, ActionAgentExists={bool(self.action_agent)}"
+        )
         if priority in configured_priorities:
             if assessment_type == "default" and self.action_agent:
-                # 🎈 uncomment this when implement action_agent.py
-                # pass this as direct a2a message to action agent
-                # await self.action_agent.invoke(
-                #     output,
-                #     context,
-                # )
-                pass
+                # forward this as direct a2a message to action agent
+                await self.action_agent.invoke(
+                    input=ActionInput(
+                        assessment_output=output, context=context
+                    ),  # wrap assessment output in action for a2a compliant communications
+                    context=context,
+                )
+                return output
             elif assessment_type == "redistream":
                 # produce output and context to the downstream action agent
                 try:
@@ -239,8 +268,8 @@ class AssessmentAgent(
             else:
                 logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
         else:
-            logger.info(
-                f"Txn priority {priority} not in configured filter {configured_priorities}. Skipping downstream send."
+            logger.warning(
+                f"⚠️ Txn priority {priority} not in configured filter {configured_priorities}. Skipping downstream txn send from assessment agent further..."
             )
         return output
 
