@@ -15,5 +15,6 @@ type Event struct {
 	Agent     string          `json:"agent,omitempty" example:"parser-service"`           // optional sender identity
 	Level     string          `json:"level,omitempty" example:"info"`
 	Flagged   bool            `json:"flagged,omitempty"`
+	PostAbort bool            `json:"post_abort,omitempty"`
 	// other fields could be added for consumed kafka event...
 }

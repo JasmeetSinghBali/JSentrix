@@ -145,7 +145,8 @@ export default React.memo((props: any) => {
             await invokeTool(accessToken, "abortinges", {
                 arguments: { stream_id: streamId }
             });
-            clearStreamId();
+            // clearStreamId();
+            // 🎈 The WebSocket handler will handle cleanup after final event.
         }
 
         try {
@@ -160,7 +161,8 @@ export default React.memo((props: any) => {
                     await invokeTool(accessToken, "abortinges", {
                         arguments: { stream_id: res.result.stream_id }
                     });
-                    clearStreamId();
+                    // 🎈 The WebSocket handler will handle cleanup after final event.
+                    // clearStreamId();
                     streamStartedRef.current = false;
                     setStreamCountdown(null);
                 }, 120000); // 120 seconds = 2min
@@ -198,22 +200,61 @@ export default React.memo((props: any) => {
                 ws.onmessage = (event) => {
                     try {
                         const parsed = JSON.parse(event.data);
-                        // pretty print stringify
                         const fullMessage = JSON.stringify(parsed, null, 2);
 
-                        if (parsed.agent === "intake-agent") {
-                            setIntakeLogs(prev => [...prev, `🟢 IntakeAgent:\n${fullMessage}`]);
+                        // 1. Check for ActionAgent final post-abort event
+                        if (
+                            parsed.agent === "action-agent" &&
+                            parsed.post_abort === true &&
+                            parsed.message &&
+                            parsed.message.includes("Final compliance decision")
+                        ) {
+                            setActionLogs(prev => [
+                                ...prev,
+                                `🔴 [POST-ABORT][FINAL] ActionAgent:\n${fullMessage}`
+                            ]);
+                            // Cleanup: clear streamId, close ws, reset state
+                            clearStreamId();
+                            streamStartedRef.current = false;
+                            setStreamCountdown(null);
+                            if (wsRef.current) {
+                                wsRef.current.close();
+                                wsRef.current = null;
+                            }
+                            return;
+                        }
+
+                        // 2. For all other ActionAgent events, mark post-abort if needed
+                        if (parsed.agent === "action-agent") {
+                            const prefix = parsed.post_abort ? "[POST-ABORT] " : "";
+                            setActionLogs(prev => [
+                                ...prev,
+                                `🔴 ${prefix}ActionAgent:\n${fullMessage}`
+                            ]);
+                        } else if (parsed.agent === "intake-agent") {
+                            setIntakeLogs(prev => [
+                                ...prev,
+                                `🟢 IntakeAgent:\n${fullMessage}`
+                            ]);
                         } else if (parsed.agent === "assessment-agent") {
-                            setAssessmentLogs(prev => [...prev, `🟣 AssessmentAgent:\n${fullMessage}`]);
-                        } else if (parsed.agent === "action-agent") {
-                            setActionLogs(prev => [...prev, `🔴 ActionAgent:\n${fullMessage}`]);
+                            setAssessmentLogs(prev => [
+                                ...prev,
+                                `🟣 AssessmentAgent:\n${fullMessage}`
+                            ]);
                         } else {
-                            setIntakeLogs(prev => [...prev, `🟡 UnknownAgent:\n${fullMessage}`]);
+                            setIntakeLogs(prev => [
+                                ...prev,
+                                `🟡 UnknownAgent:\n${fullMessage}`
+                            ]);
                         }
                     } catch (err) {
-                        setIntakeLogs(prev => [...prev, `⚠️ Malformed event:\n${event.data}`]);
+                        setIntakeLogs(prev => [
+                            ...prev,
+                            `⚠️ Malformed event:\n${event.data}`
+                        ]);
                     }
                 };
+
 
                 ws.onerror = (err) => {
                     console.error('WebSocket error:', err);

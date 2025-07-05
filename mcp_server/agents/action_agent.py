@@ -17,6 +17,8 @@ from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 from domain.models import MemoryEvent
 from domain.config_models import StreamingConfig
 from llama_index.core import Document
+from workers.task_registry import task_registry
+from infrastructure.redis_analysis_counter import analysis_counter_registry
 
 logger = get_logger("action_agent")
 
@@ -36,6 +38,8 @@ class ActionAgent(
         BaseAgent.__init__(self, "action-agent-v1")
         JsonRpcAgentMixin.__init__(self)
         self.judge_agent = judge_agent
+        self._final_event_sent = set()
+        self._final_event_lock = asyncio.Lock()
 
     def _build_compliance_query(self, transaction: dict) -> str:
         """
@@ -56,6 +60,35 @@ class ActionAgent(
         3. Respond strictly with: YES / NO / ND.
         Include a short justification in natural language.
         """
+
+    async def _cleanup_final_event_flag(self, stream_id: str, delay: int = 600):
+        await asyncio.sleep(delay)
+        async with self._final_event_lock:
+            self._final_event_sent.discard(stream_id)
+
+    async def _emit_final_post_abort_event(self, stream_id: str):
+        async with self._final_event_lock:
+            if (
+                stream_id in self._final_event_sent
+            ):  # skip re-emitting of final event for the stream_id that was already sent earlier
+                return
+            self._final_event_sent.add(stream_id)
+        # 📌 Register cleanup with global task manager
+        task_registry.add(self._cleanup_final_event_flag(stream_id))
+        event = {
+            "event": "3️⃣[ActionAgent]",
+            "message": "✅ Final compliance decision(s) complete (post-abort)",
+            "stream_id": stream_id,
+            "post_abort": True,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "agent": "action-agent",
+            "level": "info",
+        }
+        success = await forward_event_to_streaming_hub(event)
+        if not success:
+            logger.warning(
+                f"[FinalPostAbort]❌ Could not notify UI of final post-abort event: Stream ID: {stream_id}"
+            )
 
     # ✅ LLM-heavy logic of inferenece and compliance as fire and forget bg task
     async def _handle_llamaindex_analysis(
@@ -172,10 +205,12 @@ class ActionAgent(
                     logger.warning(
                         f"[ActionAgent] Registry not found in context — forwarding anyway"
                     )
+                    is_active = False
                 await self._forward_flagged_txn(
                     action_output.to_dict(),
                     stream_id,
                     input.assessment_output.transaction,
+                    is_active=is_active,
                 )
 
             # ---4. Forward NO/ND to judge agent ---
@@ -188,6 +223,13 @@ class ActionAgent(
 
         except Exception as e:
             logger.error(f"[ActionAgent] Failed in background LlamaIndex analysis: {e}")
+
+        finally:
+            # 📌 Decrement counter and emit final event if this was the last analysis for the stream along with resetting the same
+            count = await analysis_counter_registry.decr(stream_id)
+            if count == 0:
+                await self._emit_final_post_abort_event(stream_id=stream_id)
+                await analysis_counter_registry.reset(stream_id)
 
     @jsonrpc_method
     async def invoke(self, input: ActionInput, context: AgentContext) -> ActionOutput:
@@ -216,11 +258,15 @@ class ActionAgent(
             f"[ActionAgent] Recieve assessment : {input.assessment_output.assessment_id}"
         )
 
+        stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
+
+        # 📌 Increment analysis count for this stream
+        await analysis_counter_registry.incr(stream_id)
+
         # 📌 fire and forget run the analysis in bg task coroutine and if YES then push to streaming hub else to judge agent
         asyncio.create_task(self._handle_llamaindex_analysis(input, context))
 
         # 📌 immediate return statement for compliance analysis initiated + send event to streaming-hub to display in ui
-        stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
         await self._send_analysis_started_event(stream_id)
         return ActionOutput(
             action_id=f"action-{uuid.uuid4()}",
@@ -250,7 +296,9 @@ class ActionAgent(
                 f"[NotifyStart]❌ Could not notify UI that analysis started and  was sent to DLQ:. Stream ID: {stream_id}"
             )
 
-    async def _forward_flagged_txn(self, data: dict, stream_id: str, txn: dict):
+    async def _forward_flagged_txn(
+        self, data: dict, stream_id: str, txn: dict, is_active: bool
+    ):
         """
         Forward flagged txn to streaming hub for UI alert
         """
@@ -268,6 +316,7 @@ class ActionAgent(
             "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "agent": "action-agent",  # to filter in UI
             "level": "warn",
+            "post_abort": not is_active,
         }
         success = await forward_event_to_streaming_hub(event)
         if not success:
