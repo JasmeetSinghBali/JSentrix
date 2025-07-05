@@ -77,6 +77,9 @@ class AgentContext(A2AMessageSerializable):
         config: Optional[
             Dict[str, Any]
         ] = None,  # every agent intake, assessment, action have access to context.config to alter the processing if dynamic config are provided from the end admin user from electron client
+        registry: Optional[
+            List
+        ] = None,  # 📌 graph and stream active registry passed to downstream pipeline and agents for active registry check or processes
     ):
         self.request_id = request_id
         self.user_id = user_id
@@ -85,6 +88,7 @@ class AgentContext(A2AMessageSerializable):
         self.trace_id = trace_id
         self.span_id = span_id
         self.config = config
+        self.registry = registry or []
 
 
 class BaseAgent(ABC, Generic[InputType, OutputType, ContextType]):

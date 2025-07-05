@@ -37,6 +37,9 @@ from infrastructure.kafka.topic_initializer import ensure_kafka_topics_exist
 
 from utils.logger import get_logger
 
+from workers.task_registry import task_registry
+from utils.lifecycle import register_shutdown_callback
+
 logger = get_logger("jsentrix_mcpserver_entry")
 
 # ✅ Ensure necessary Kafka topics are created before starting DLQ workers
@@ -55,6 +58,8 @@ safe_create_memory_collection()
 logger = get_logger("jsentrix")
 mcp = FastMCP("TransactionMonitorMCP")
 
+# Register graceful shutdown callback of background tasks/workers
+register_shutdown_callback(task_registry.shutdown)
 
 # Register tools
 mcp.tool()(ping)
@@ -123,9 +128,9 @@ async def lifespan(app: FastAPI):
         from workers.cleanup_unused_agent_graphs import cleanup_unused_graphs
         from application.run_pipeline import async_process_pdfs
 
-        # dlq, cleanup.agentgraphs bg workers
-        asyncio.create_task(dlq_background_retry_loop())
-        asyncio.create_task(cleanup_unused_graphs())
+        # Register background workers via task registry-- dlq, cleanup.agentgraphs
+        task_registry.add(dlq_background_retry_loop())
+        task_registry.add(cleanup_unused_graphs())
 
         logger.info("✅ [MCP-fastapi] workers started successfully in lifespan")
 
@@ -135,6 +140,8 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Compliance clause ingestion pipeline completed on startup")
         except Exception as e:
             logger.error(f"❌ Compliance ingestion pipeline failed on startup: {e}")
+
+        logger.info(f"📌 Registered background tasks: {len(task_registry.tasks)}")
 
         yield  # pause checkpoint until server is running
     except Exception as startup_error:

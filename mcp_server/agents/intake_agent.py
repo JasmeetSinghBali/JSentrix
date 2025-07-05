@@ -146,8 +146,8 @@ class IntakeAgent(
                         if not hasattr(self, "_stream_iter_count"):
                             self._stream_iter_count = 0
                         self._stream_iter_count += 1
-                        if self._stream_iter_count % 6 == 1:
-                            # Every 6th iteration is a known violating txn
+                        if self._stream_iter_count % 10 == 0:
+                            # Every 10th iteration is a known violating txn
                             txn = IntakeInput(
                                 txn_id=self.fake.uuid4(),
                                 amount=12000.00,

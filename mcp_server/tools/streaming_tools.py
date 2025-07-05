@@ -84,7 +84,8 @@ async def streaminges(args: Dict, stream=None) -> Dict:
             request_id=str(uuid.uuid4()), 
             user_id=user_id, 
             timestamp=None,
-            config=config # inject config into agentcontext will be passed to the agent pipeline
+            config=config, # inject config into agentcontext will be passed to the agent pipeline
+            registry=args.get("registry",[]), # pass registry to downstream pipeline and agents for active stream and graph registry checks or process if needed
         )
         # Start streaming in the agent (non-blocking)
         await graph.intake_agent.stream(

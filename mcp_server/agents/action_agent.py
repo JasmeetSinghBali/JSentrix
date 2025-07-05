@@ -57,10 +57,15 @@ class ActionAgent(
         Include a short justification in natural language.
         """
 
-    # ✅ LLM-heavy logic to
+    # ✅ LLM-heavy logic of inferenece and compliance as fire and forget bg task
     async def _handle_llamaindex_analysis(
         self, input: ActionInput, context: AgentContext
     ):
+        """
+        Handles llm heavy inference and compliance fire and forget
+        continues even after stream has ended i.e abortinges called and stream and agent graph registery has been updated
+        """
+        registry = context.registry[0] if context and context.registry else None
         try:
             # ---1. Prepare LlamaIndex query engine with augmented (txn+clause docs + prior memory) ---
             base_docs = input.assessment_output.llamaindex_docs
@@ -154,10 +159,23 @@ class ActionAgent(
             logger.info(
                 f"[ActionAgent] Final decision: {decision} | Clause Hits: {clause_hits}"
             )
+            stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
             if decision == DecisionLevel.YES:
+                #  instead of relying on graph existence only check stream_id registry, decouple action forwarding from stream lifecycle
+                if registry:
+                    is_active = await registry.is_active(stream_id)
+                    if not is_active:
+                        logger.info(
+                            f"[ActionAgent] Stream {stream_id} inactive — forwarding flagged txn anyway (post-abort)"
+                        )
+                else:
+                    logger.warning(
+                        f"[ActionAgent] Registry not found in context — forwarding anyway"
+                    )
                 await self._forward_flagged_txn(
                     action_output.to_dict(),
-                    input.assessment_output.metadata.get("stream_id", "NotDefined"),
+                    stream_id,
+                    input.assessment_output.transaction,
                 )
 
             # ---4. Forward NO/ND to judge agent ---
@@ -232,15 +250,20 @@ class ActionAgent(
                 f"[NotifyStart]❌ Could not notify UI that analysis started and  was sent to DLQ:. Stream ID: {stream_id}"
             )
 
-    async def _forward_flagged_txn(self, data: dict, stream_id: str):
+    async def _forward_flagged_txn(self, data: dict, stream_id: str, txn: dict):
         """
         Forward flagged txn to streaming hub for UI alert
         """
+        # attach txn inside data
+        data_with_txn = {
+            **data,
+            "txn": txn,  # 📌 original txn data for tracebility/searching in ui for future by sender/reciever
+        }
         event = {
             "event": "3️⃣[ActionAgent]",
             "message": f"🚨 Action Taken: {data['decision']}",
             "stream_id": stream_id,
-            "data": data,
+            "data": data_with_txn,
             "flagged": True,  # the streaming-hub event dto shud be sync with optional flagged key
             "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "agent": "action-agent",  # to filter in UI

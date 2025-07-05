@@ -155,7 +155,7 @@ export default React.memo((props: any) => {
 
             if (res?.result?.stream_id) {
                 setStreamId(res.result.stream_id);
-                setStreamCountdown(150); // trigger stream countdown useEffect
+                setStreamCountdown(120); // trigger stream countdown useEffect
                 setTimeout(async () => {
                     await invokeTool(accessToken, "abortinges", {
                         arguments: { stream_id: res.result.stream_id }
@@ -163,7 +163,7 @@ export default React.memo((props: any) => {
                     clearStreamId();
                     streamStartedRef.current = false;
                     setStreamCountdown(null);
-                }, 150000); // 150 seconds = 2.5min
+                }, 120000); // 120 seconds = 2min
             } else {
                 console.error("No stream_id returned from streaminges!", res);
                 streamStartedRef.current = false;
