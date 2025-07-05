@@ -44,7 +44,7 @@ def is_valid_stream_id(stream_id: Any) -> bool:
         logger.error(f"stream_id validation failed: {e}")
         return False
 
-user_active_streams = {}
+
 
 async def streaminges(args: Dict, stream=None) -> Dict:
     """
@@ -79,10 +79,9 @@ async def streaminges(args: Dict, stream=None) -> Dict:
         except Exception as e:
             logger.error(f"Error aborting old stream {old_stream_id} for user {user_id}: {e}")
 
+    # 📌 Register new stream in both registries-active_streams and agent_graph and user-stream_id
     # Register new stream for user in Redis
     await user_stream_registry.set_stream_id(user_id, stream_id)
-    # 📌 Register new stream in both registries and user-stream_id
-    user_active_streams[user_id] = stream_id
     await active_streams_registry.add(stream_id)
     logger.info(f"🌊 Registered stream_id {stream_id} (started by user: {user_id})")
     await agent_graph_registry.add(stream_id)
