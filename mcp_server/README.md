@@ -52,6 +52,8 @@ mcp_server/
 |     |── agent_graph_store.py      # in-memory AgentGraph holds actual agent instances 
 # (e.g., IntakeAgent, AssessmentAgent, ActionAgent) potentially state (like in-memory buffers or coroutines). Redis cannot serialize this.
 |     |── redis_stream_registry.py     # AsyncStream registery to track active streaming sessions for all agents and parts in mcp_server
+|     |── redis_user_stream_registry.py  # map user with stream_id to mitigate multiple stream invocation and mock stream loop zombie bg loops associated to end user
+|     |── redis_analysis_counter.py    # redis set to keep track of compliance in progress and equal number of decision events emitted post-abort
 |     |── redis_streams.py     # Reusab pubsub Redis Streams client usage- ex assessment>actionagent
 |     |── kafka
 |       ├── __init__.py
@@ -66,11 +68,12 @@ mcp_server/
 │   ├── __init__.py
 |   └── message_a2aserializer.py        # Base class for robust agent-to-agent (A2A) message serialization
 |   ├── base_agent.py
-|   ├── intake_agent.py
-|   ├── intake_messages.py 
+|   ├── intake_messages.py
+|   ├── intake_agent.py 
 |   ├── assessment_messages.py
-|   ├── action_messages.py
 |   ├── assessment_agent.py
+|   ├── action_messages.py
+|   ├── action_agent.py
 |   ├── agent_graph.py # Composes a dedicated per-stream agent pipeline for each stream_id isolated Intake → Assessment → Action agent flow enabling per-client control, scaling, and state encapsulation
 |
 |── application/
@@ -107,10 +110,13 @@ mcp_server/
 |   └── summarizer.py         # Handles long texts via chunking and recursive summarization 
 |   └── embedding_utils.py    # Centralized embedding utility for consistent model/config across the system 
 |   └── serialize_exceptions.py    # serialize python excep to dict for external transport with fallback 
+|   └── background_worker.py    # decorator to register coroutine as bg worker with retry, backoff, gracefull shutdown with task registry and coroutine validations  
 |
 |── workers/ # background workers
 │   ├── __init__.py
 |   └── cleanup_unused_agent_graphs.py  # cleanup dangling zombies in-memory agent_graph objects 
+|   └── task_registry.py  # task_registry is meant for global task management that persists beyond stream-lifecycle (e.g., system-wide retries, cleanup workers) A lightweight centralized task manager to track background tasks
+useful for graceful shutdowns in MCP server.
 |   └── assessed_events_stream_worker.py  # Async Redis Streams consumer worker for yielding assessed events to the action agent shud be registerd in the action_agent.py __init__.  
 |   └── dlq_retry_worker.py   # dead letter queue failed published events worker proecessor pushes to ingest_topic_dlq with retry/resend to original topic with serializable guards for json and malformed data events ingest_topic
 |
