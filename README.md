@@ -27,9 +27,10 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 5. **Fraud detection agent** (local LLM) analyzes transactions for suspicious patterns.
 6. **If fraud is suspected:**
    - **A2A workflow:**  
-     - Investigation agent gathers more context (customer profile, history).
-     - Notification agent drafts alert for customer or compliance.
-     - Action agent prepares freeze/escalation actions.
+     - Intake Agent starts the stream for consuming txn from the target source as per end-user instructions
+     - Assessment Agent gathers more context (prior memory events and history) along with filtering and passing the high priority transactions only to the action/agent.
+     - Action/analysis agent infers the knowledge base with the provided context from assessment agent and llm inference and  prepares freeze/escalation actions and automatically executes appropriate actions immediately for voilating txns without human intervention.
+     - Action agent output is finally passed to Judge agent for further human in loop downstream flows along with summarization and report via summarizer model for txns that are non-conclusive by the action agent  
 7. **User reviews and approves/denies actions** in the Electron app.
 8. **All actions, alerts, and transaction statuses** are visible in real time on Electron app dashboard.
 
@@ -121,22 +122,23 @@ docker system prune
 
 ## 🎯 JSentrix Milestones Tracks
 
-|Track | Milestone                                                                                         |  
-|------|-------------------------------------------------------------------------------------------------- |  
-| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~                                                                                                         |
-| 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~       |
-| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                                                                                 |
-| 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~               |
-| 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                                 |
-| 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~                  |
+|Track | Milestone                                                                                      |  
+|------|----------------------------------------------------------------------------------------------- |  
+| 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~                                                                                                      |
+| 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~    |
+| 3    | ~~Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling~~                                                                                              |
+| 4    | ~~optimiz and expand retrieval interface with relationship traversal cypher utils~~            |
+| 5    | ~~custom flow setup including relevance decay score sort, summarization,memory aware querying~~                                                                                              |
+| 6    | ~~add async support for retrievers, postprocessors, utils downstream pipelines~~               |
 | 7    | ~~sphinix doc and instrumentation with opentellemetry setup~~                                         |
 | 8    | ~~Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agent in system~~|
-| 9    | ~~Setup support jsonrpc2.0 for comm b/w gateway and mcp_server with rest backw compat~~               |
-| 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                               |
+| 9    | ~~Setup support jsonrpc2.0 for comm b/w gateway and mcp_server with rest backw compat~~                                                                                                |
+| 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                           |
 | 11    | ~~Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent~~   |
 | 12    | ~~Setup Assessment Agent and its peripherals e2e logs shud be streamed for both intake and assessment agent seprately~~                                                                                             |
-| 13    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server                                                                   |
-| 14    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit, Dockerize setup.                                                                                                      |
+| 13    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui                                                                                                      |
+| 14    | Setup Judge agent and its comm from action agent along with strucutred txn output to be passed to summarizer                                                                                              |
+| 15    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit.                                                                                                  |
 
 ---
 

@@ -14,7 +14,9 @@ class PriorityLevel(str, Enum):
 
 
 class StreamingConfig(BaseModel):
-    priority: Optional[List[PriorityLevel]] = ["HIGH"]
+    priority: Optional[List[PriorityLevel]] = [
+        "HIGH"
+    ]  # high means only the high priority transactions will be passed forward to the action agent from assessment agent for autonomous actions without human intervention
     source_filters: Optional[List[str]] = (
         None  # ["faker","bank_1","api_custom_bank_2"] for single or multiple source selection in electron client by end user admin
     )

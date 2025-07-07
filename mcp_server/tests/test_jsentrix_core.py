@@ -22,7 +22,8 @@ from application.retrievers.llamaindex_retriever import (
     get_llamaindex_query_engine_from_docs,
 )
 from llama_index.llms.ollama import Ollama
-from llama_index.core.schema import Document
+from llama_index.core.schema import Document as LlamaIndexDocument
+from langchain_core.documents import Document as LangChainDocument
 from utils.neo4j_utils import get_neo4j_config
 from utils.summarizer import T5Summarizer
 
@@ -65,7 +66,7 @@ def build_compliance_query(transaction):
     Transaction details:{transaction}
     First, identify relevant compliance clauses.
     Then explain if any violations exist.
-    Final answer must be: YES or NO followed by a brief explanation.
+    Final answer must be: YES, NO or ND where ND stands for non-deterministic followed by a brief explanation.
     """
 
 
@@ -81,7 +82,7 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         - Neo4j database running and accessible.
         - ingestion run_pipeline completed.
         - ollama qwen3:1.7b and gemma3:1b running locally.
-        - No MCP server or gateway required.
+        - No MCP server or gateway or mcp-client required.
         - Recommended: Run with a clean or test-specific Neo4j instance to avoid data contamination.
     """
     logger.info("Running RAG pipeline test with model: qwen3:1.7b")
@@ -120,6 +121,20 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         )
         assert langchain_docs, "Langchain retrieval failed"
 
+        # 📌 Inject a mock prior_event document manually to check the source "prior_event" skips decay for it
+        prior_event_doc = LangChainDocument(
+            page_content="Previous flagged transaction involving the same sender",
+            metadata={
+                "clause_id": "prior_event_001",
+                "summary": "Prior violation on same entity",
+                "sim_score": 0.95,
+                "score": 0.95,
+                "source": "prior_event",
+                "hybrid_score": 0.95,
+            },
+        )
+        langchain_docs.append(prior_event_doc)
+
         logger.info(f"[LangChain] Retrieved {len(langchain_docs)} documents:")
         for doc in langchain_docs:
             logger.info(
@@ -133,7 +148,7 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
 
         # ---3. Convert LangChain docs to LlamaIndex docs ---
         llamaindex_docs = [
-            Document(text=doc.page_content, metadata=doc.metadata)
+            LlamaIndexDocument(text=doc.page_content, metadata=doc.metadata)
             for doc in langchain_docs
         ]
 
@@ -156,6 +171,22 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
         logger.info(getattr(response, "response", response))
         logger.info(f"LLM Answer for Transaction {idx+1}: {str(response)}")
 
+        # 📌 step 6 to 9 can be done by a judge agent which uses some other model for inference also generate a structured dict that contains
+        # 🎈 Judge agent shud form strucutre data and have 2nd level inference with diff model
+        # Risk score
+        # Violations
+        # Recommendations
+        # Source metadata
+        # as
+        # return JudgeOutput(
+        #     analysis="Analysis failed",
+        #     risk_score=100,
+        #     violations=["COMPLIANCE_CHECK_FAILED"],
+        #     recommendations=["Review manually"],
+        #     metadata={"error": str(e)},
+        #     judge_id=f"err-{uuid.uuid4()}"
+        # )
+        # the above JudgeOutput will be passed to the summarizer finally to create a report and bg worker that sends that to the ui for now via forward event/ here it could be passed to concerned superadmin/admin, bank staff emails also
         # ---6. Compliance assertions ---
         if idx == 0:
             assert (
@@ -199,12 +230,22 @@ def test_jsentrix_rag_pipeline(langchain_retriever, faker):
             assert isinstance(
                 meta.get("hybrid_score"), (float, int)
             ), "hybrid_score missing or not a number"
-            assert (
-                meta["hybrid_score"] <= original_score
-            ), "hybrid_score should be <= original score"
-            assert (
-                meta["decayed_score"] <= original_score
-            ), "decayed_score should be <= original score"
+
+            if meta.get("source", "clause") == "prior_event":
+                logger.debug(f"Skipping score assertions for prior_event node: {meta}")
+                assert (
+                    meta["decayed_score"] == original_score
+                ), "Prior_event decayed_score should equal original"
+                assert (
+                    node.score == original_score
+                ), "Node score should equal original for prior_event"
+            else:
+                assert (
+                    meta["decayed_score"] <= original_score
+                ), "decayed_score should be <= original score"
+                assert (
+                    meta["hybrid_score"] <= original_score
+                ), "hybrid_score should be <= original score"
 
         # ---9. (Optional) Check reranking order ---
         hybrid_scores = [

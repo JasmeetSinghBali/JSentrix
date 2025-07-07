@@ -41,8 +41,11 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
     <div className="flex flex-col gap-2">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="text-md font-semibold">
+        <h3 className="text-md font-semibold flex items-center gap-2">
           {emoji} {title}
+          <span className="ml-2 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+            {logs.length}
+          </span>
         </h3>
         <div className="flex gap-2">
           {clearable && onClear && (
@@ -62,6 +65,7 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
           </Button>
         </div>
       </div>
+
 
       {/* Logs */}
       <ScrollArea className="h-[80vh] rounded-md border border-muted/30 overflow-hidden shadow-inner">

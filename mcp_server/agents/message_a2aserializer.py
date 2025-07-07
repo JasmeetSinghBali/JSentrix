@@ -8,6 +8,7 @@ import json
 from datetime import datetime, date
 from typing import Any, Type, TypeVar, Dict
 from pydantic import BaseModel
+from llama_index.core.schema import Document
 
 # T can be any type unless its subclass of A2AMessageSerializable or itself as this generalized type is bounded to the same
 T = TypeVar("T", bound="A2AMessageSerializable")
@@ -69,6 +70,11 @@ class A2AMessageSerializable:
             return (
                 value.model_dump()
             )  # 📌 allows pydantic model like MemoryEvent to be serialized properly wihout the need of manual pre-dump
+        elif isinstance(value, Document):
+            return {
+                "text": value.text,
+                "metadata": cls._serialize_value(value.metadata),
+            }  # 📌 serialize the llamaindex docs Document type recursivly for its metadata
         else:
             return value
 

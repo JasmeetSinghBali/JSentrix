@@ -25,6 +25,7 @@ from infrastructure.memory_event_repository import MemoryEventRepository
 from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 
 from domain.models import MemoryEvent
+from domain.config_models import StreamingConfig
 
 from tracers.tracing import get_tracer
 
@@ -53,7 +54,6 @@ class IntakeAgent(
 
         self.embedding_model = get_langchain_embedding_model()
         self.retriever = MemoryEventRetriever(MemoryEventRepository())
-        # 🎈 to build and setup assessment_agent langchain for next phase later
         self.assessment_agent = assessment_agent
 
     def validate_input(self, input: IntakeInput, context: AgentContext):
@@ -141,23 +141,58 @@ class IntakeAgent(
                     with tracer.start_as_current_span(
                         f"txn_stream.{stream_id}"
                     ) as span:
-                        # fake/mock txn generator
-                        txn = IntakeInput(
-                            txn_id=self.fake.uuid4(),
-                            amount=self.fake.pyfloat(
-                                left_digits=3, right_digits=2, positive=True
-                            ),
-                            source=source,
-                        )
+                        # ---- fake/mock txn generator -----
+                        # 📌 counter to inject violating txn every N iterations
+                        if not hasattr(self, "_stream_iter_count"):
+                            self._stream_iter_count = 0
+                        self._stream_iter_count += 1
+                        if self._stream_iter_count % 10 == 0:
+                            # Every 10th iteration is a known violating txn
+                            txn = IntakeInput(
+                                txn_id=self.fake.uuid4(),
+                                amount=12000.00,
+                                source=source,
+                                metadata={
+                                    "sender": "SANCTIONED_ENTITY_X",  # voilates clause C2 in neo4j knowledge base
+                                    "receiver": "GB00FAKE12345678901234",
+                                    "currency": "USD",
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                },
+                            )
+                            logger.warning(
+                                f"🚨 Injecting known violating transaction {txn.txn_id}"
+                            )
+                        else:  # normal random txn
+                            txn = IntakeInput(
+                                txn_id=self.fake.uuid4(),
+                                amount=self.fake.pyfloat(
+                                    left_digits=3, right_digits=2, positive=True
+                                ),
+                                source=source,
+                                metadata={
+                                    "sender": self.fake.swift11(),
+                                    "receiver": self.fake.iban(),
+                                    "currency": self.fake.currency_code(),
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                },
+                            )
+
                         # 📌 custom agent context can be extended here
                         # span_id + trace_id + config(by end admin user)
+                        try:
+                            config_obj = StreamingConfig(**config)
+                        except Exception as e:
+                            logger.warning(
+                                f"[IntakeAgent] Invalid streaming config passed: {e}"
+                            )
+                            config_obj = StreamingConfig()  # fallback
                         context = AgentContext(
                             request_id=self.fake.uuid4(),
                             user_id="system",  # 📌 Or pass admin/user actual id in case the agent is directly invoked from client side
-                            timestamp=datetime.now(timezone.utc),
+                            timestamp=datetime.now(timezone.utc).isoformat(),
                             trace_id=span.get_span_context().trace_id,
                             span_id=span.get_span_context().span_id,
-                            config=config,
+                            config=config_obj,
                         )
                         # invoke with error wrapper
                         output = await self._safe_invoke(txn, context)
@@ -199,8 +234,11 @@ class IntakeAgent(
                                 stream_id=stream_id,
                                 context=context,
                             )
+                            logger.warning(
+                                f"[IntakeAgent] context.config={context.config}"
+                            )
                             await self.assessment_agent.invoke(
-                                assessment_input, context
+                                input=assessment_input, context=context
                             )
 
                 except AgentFatalError as e:

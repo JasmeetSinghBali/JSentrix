@@ -52,6 +52,7 @@ class AssessmentOutput(A2AMessageSerializable):
     - Reasoning for decision
     - LlamaIndex-ready document payload (text + metadata)
     - Clause-level structured metadata
+    - Original transaction & prior memory events (passed to ActionAgent)
     - Agent context metadata (stream_id, etc.)
     """
 
@@ -61,6 +62,8 @@ class AssessmentOutput(A2AMessageSerializable):
         priority: PriorityLevel,
         reasons: List[str],
         assessment_id: str,
+        transaction: Dict[str, Any],
+        prior_events: List[MemoryEvent],
         llamaindex_docs: List[Document],
         dynamic_metadata: Dict[str, Dict[str, Any]],
         metadata: Optional[Dict[str, Any]] = None,
@@ -69,6 +72,8 @@ class AssessmentOutput(A2AMessageSerializable):
         self.priority = priority  # "LOW", "MEDIUM", "HIGH"
         self.reasons = reasons
         self.assessment_id = assessment_id
+        self.transaction = transaction
+        self.prior_events = prior_events
         self.llamaindex_docs = (
             llamaindex_docs  # [{"text": ..., "metadata": {...}}, ...]
         )

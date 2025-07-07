@@ -86,7 +86,7 @@ class MemoryEvent(BaseModel):
             llm_response="AML stands for Anti-Money Laundering...",
             relevant_clause_ids=["C1", "C2"],
             scores={"similarity": 0.92},
-            extra_context={"source": "neo4j"}
+            extra_context={"source": "qdrant"}
         )
         print(event.json(indent=2))
     """

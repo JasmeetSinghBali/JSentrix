@@ -37,6 +37,7 @@ export default React.memo((props: any) => {
     
     const [intakeLogs, setIntakeLogs] = useState<string[]>([]);
     const [assessmentLogs, setAssessmentLogs] = useState<string[]>([]);
+    const [actionLogs, setActionLogs] = useState<string[]>([]);
 
     const shouldScrollToTop = streamCountdown === 0;
 
@@ -144,7 +145,8 @@ export default React.memo((props: any) => {
             await invokeTool(accessToken, "abortinges", {
                 arguments: { stream_id: streamId }
             });
-            clearStreamId();
+            // clearStreamId();
+            // 🎈 The WebSocket handler will handle cleanup after final event.
         }
 
         try {
@@ -154,15 +156,16 @@ export default React.memo((props: any) => {
 
             if (res?.result?.stream_id) {
                 setStreamId(res.result.stream_id);
-                setStreamCountdown(20); // trigger stream countdown useEffect
+                setStreamCountdown(120); // trigger stream countdown useEffect
                 setTimeout(async () => {
                     await invokeTool(accessToken, "abortinges", {
                         arguments: { stream_id: res.result.stream_id }
                     });
-                    clearStreamId();
+                    // 🎈 The WebSocket handler will handle cleanup after final event.
+                    // clearStreamId();
                     streamStartedRef.current = false;
                     setStreamCountdown(null);
-                }, 20000);
+                }, 120000); // 120 seconds = 2min
             } else {
                 console.error("No stream_id returned from streaminges!", res);
                 streamStartedRef.current = false;
@@ -197,20 +200,61 @@ export default React.memo((props: any) => {
                 ws.onmessage = (event) => {
                     try {
                         const parsed = JSON.parse(event.data);
-                        // pretty print stringify
                         const fullMessage = JSON.stringify(parsed, null, 2);
 
-                        if (parsed.agent === "intake-agent") {
-                            setIntakeLogs(prev => [...prev, `🟢 IntakeAgent:\n${fullMessage}`]);
+                        // 1. Check for ActionAgent final post-abort event
+                        if (
+                            parsed.agent === "action-agent" &&
+                            parsed.post_abort === true &&
+                            parsed.message &&
+                            parsed.message.includes("Final compliance decision")
+                        ) {
+                            setActionLogs(prev => [
+                                ...prev,
+                                `🔴 [POST-ABORT][FINAL] ActionAgent:\n${fullMessage}`
+                            ]);
+                            // Cleanup: clear streamId, close ws, reset state
+                            clearStreamId();
+                            streamStartedRef.current = false;
+                            setStreamCountdown(null);
+                            if (wsRef.current) {
+                                wsRef.current.close();
+                                wsRef.current = null;
+                            }
+                            return;
+                        }
+
+                        // 2. For all other ActionAgent events, mark post-abort if needed
+                        if (parsed.agent === "action-agent") {
+                            const prefix = parsed.post_abort ? "[POST-ABORT] " : "";
+                            setActionLogs(prev => [
+                                ...prev,
+                                `🔴 ${prefix}ActionAgent:\n${fullMessage}`
+                            ]);
+                        } else if (parsed.agent === "intake-agent") {
+                            setIntakeLogs(prev => [
+                                ...prev,
+                                `🟢 IntakeAgent:\n${fullMessage}`
+                            ]);
                         } else if (parsed.agent === "assessment-agent") {
-                            setAssessmentLogs(prev => [...prev, `🟣 AssessmentAgent:\n${fullMessage}`]);
+                            setAssessmentLogs(prev => [
+                                ...prev,
+                                `🟣 AssessmentAgent:\n${fullMessage}`
+                            ]);
                         } else {
-                            setIntakeLogs(prev => [...prev, `🟡 UnknownAgent:\n${fullMessage}`]);
+                            setIntakeLogs(prev => [
+                                ...prev,
+                                `🟡 UnknownAgent:\n${fullMessage}`
+                            ]);
                         }
                     } catch (err) {
-                        setIntakeLogs(prev => [...prev, `⚠️ Malformed event:\n${event.data}`]);
+                        setIntakeLogs(prev => [
+                            ...prev,
+                            `⚠️ Malformed event:\n${event.data}`
+                        ]);
                     }
                 };
+
 
                 ws.onerror = (err) => {
                     console.error('WebSocket error:', err);
@@ -323,7 +367,7 @@ export default React.memo((props: any) => {
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>
-                    <div className="grid grid-cols-2 gap-6 p-2">
+                    <div className="grid grid-cols-3 gap-6 p-2">
                         <LogTerminal
                         title="IntakeAgent Logs"
                         emoji="🟢"
@@ -341,6 +385,16 @@ export default React.memo((props: any) => {
                         onClear={() => setAssessmentLogs([])}
                         bgColor="#201020"
                         textColor="#ddaaff"
+                        limit={150}
+                        clearable
+                        />
+                        <LogTerminal
+                        title="ActionAgent Logs"
+                        emoji="🔴"
+                        logs={actionLogs}
+                        onClear={()=>setActionLogs([])}
+                        bgColor="#200010"
+                        textColor="#ffaaaa"
                         limit={150}
                         clearable
                         />

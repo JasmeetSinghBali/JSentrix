@@ -541,36 +541,61 @@ Apply dynamic scoring, decay, and sorting. ✅
 <Make sure to look at 2 and 3 of the # test-core-1: Rag pipeline in test_jsentrix_core.py>
 
 Phase 5: Analysis/Action Agent (LlamaIndex)
-Forward high-priority transactions only from Assessment Agent to the Action Agent not all txn incoming from intakeAgent.
+Forward high-priority transactions (default) only from Assessment Agent to the Action Agent not all txn incoming from intakeAgent.
+NOTE- config["priority"] = List set by end user in ui can be usd to overwrite default so that the txn with priority in config["priority"] list will be then forwarded downstream to action agent for autmnomous actions by action agent like freezing/flaging txns without human intervention
 
 Build the Action Agent using LlamaIndex.
 
-Retrieve relevant RAG context, inject dynamic metadata.
+Building llamaindex query engine.
 
 Run LLM for compliance/risk analysis.
 
 Postprocess results and attach all relevant metadata.
 
-Phase 6: Memory Event Storage Agent/Service
+Perform a mock autonmous txn like flagging txn for now forwrding event to client ui with flag key like flagged: true
+
+and Forward "ND" or "NO" decision txns to the judge agent
+
+and also call memory event storage to store the memory events in qdrant for txns that are voilating the clauses and desision is "YES" by llm i.e reff phase 7.
+
+Phase 6: Judge Agent/Service
+
+Judge agent accepts "ND" or "NO" txns from the action agent and shud form strucutre data and have 2nd level/round of inference with diff model for these txns as :
+- Risk score
+- Violations
+- Recommendations
+- Source metadata
+as 
+return JudgeOutput(
+    analysis="Analysis failed",
+    risk_score=100,
+    violations=["COMPLIANCE_CHECK_FAILED"],
+    recommendations=["Review manually"],
+    metadata={"error": str(e)},
+    judge_id=f"err-{uuid.uuid4()}"
+)
+the above JudgeOutput will be passed to the summarizer finally to create a report and bg worker that sends that to the ui for now via forward event/ here it could be passed to concerned superadmin/admin, bank staff emails also
+
+Phase 7: Memory Event Storage Agent/Service
 Build a dedicated agent/service for storing memory events in Qdrant.
 
 Ensure non-blocking, scalable operation (async/offloaded).
 
 Store embeddings and metadata for future retrieval.
 
-Phase 7: Notification & Reporting Microservice (Go + Kafka)
-Design a minimal, robust Go Fiber microservice.
+Phase 8: Notification & Reporting Microservice (Go + Kafka) ✅
+Design a minimal, robust Go Fiber microservice. ✅
 
-Consume Kafka events, process, and stream back to Gateway.
+Consume Kafka events, process, and stream back to Gateway. ✅
 
-Implement immediate notification for high-risk/violated transactions (email/SMS).
+Implement immediate notification for high-risk/violated transactions (email/SMS). 
 
-Phase 8: Audit, Feedback, and Self-Improvement Tools
-Build tools/APIs for querying memory events, reconstructing history, and supporting audits.
+Phase 9: Audit, Feedback, and Self-Improvement Tools 
+Build tools/APIs for querying memory events, reconstructing history, and supporting audits. 
 
 Provide feedback and continuous improvement hooks.
 
-Phase 9: System Integration & Testing
+Phase 10: System Integration & Testing
 End-to-end integration tests.
 
 Robust error handling, logging, and monitoring.

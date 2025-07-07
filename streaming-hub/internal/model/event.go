@@ -14,5 +14,7 @@ type Event struct {
 	Timestamp string          `json:"timestamp,omitempty" example:"2025-06-26T19:23:00Z"` //ISO 8601 timestamp
 	Agent     string          `json:"agent,omitempty" example:"parser-service"`           // optional sender identity
 	Level     string          `json:"level,omitempty" example:"info"`
+	Flagged   bool            `json:"flagged,omitempty"`
+	PostAbort bool            `json:"post_abort,omitempty"`
 	// other fields could be added for consumed kafka event...
 }

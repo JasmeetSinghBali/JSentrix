@@ -1,5 +1,9 @@
 """
 mcp_server/workers/dlq_retry_worker.py
+
+Kafka DLQ retry background worker.
+- Consumes from DLQ_TOPIC and retries original_event to ORIGINAL_TOPIC.
+- If retries exceed max, sends to RETRY_DLQ_TOPIC.
 """
 
 import asyncio
@@ -10,7 +14,7 @@ from typing import Optional
 from confluent_kafka import Consumer, KafkaException
 from infrastructure.kafka.producer_singleton import kafka_producer
 from utils.logger import get_logger
-from utils.lifecycle import register_shutdown_callback
+from utils.background_worker import background_worker
 
 logger = get_logger("dlq_retry_worker")
 
@@ -61,16 +65,13 @@ async def resend_event(event: dict|str, topic: str):
 def extract_retry_count(dlq_payload: dict) -> int:
     return dlq_payload.get("retry_attempts", 0)
 
-# register background loop and its shutdown cancelation
-_dlq_task = None
-
+@background_worker(name="DLQRetryWorker", retry=True, max_retries=-1, backoff_base=2.0)
 async def dlq_background_retry_loop():
-    global _dlq_task
     consumer = get_consumer()
     consumer.subscribe([DLQ_TOPIC])
     logger.info(f"🔁 DLQ retry consumer subscribed to {DLQ_TOPIC}")
 
-    async def worker_loop():
+    try:
         while True:
             msg = consumer.poll(1.0)
             if msg is None:
@@ -103,15 +104,6 @@ async def dlq_background_retry_loop():
             except Exception as e:
                 logger.exception(f"❗ Unexpected error while processing DLQ message: {e}")
     
-    # spawn task and register cleanup
-    _dlq_task = asyncio.create_task(worker_loop())
-
-    async def stop_dlq_task():
-        if _dlq_task:
-            _dlq_task.cancel() # only marks it as cancelled
-            try:
-                await _dlq_task # actually executes the cancellation of the task by explicit throwing off CancelledError for clean cancellation
-            except asyncio.CancelledError:
-                logger.info("🛑 DLQ retry task shutdown cleanly")
-    
-    register_shutdown_callback(stop_dlq_task)
+    finally:
+        consumer.close()
+        logger.info("🛑 DLQ Kafka consumer closed cleanly")

@@ -17,6 +17,7 @@ from utils.lifecycle import register_shutdown_callback
 from infrastructure.redis_stream_registry import active_streams_registry
 from infrastructure.agent_graph_registry import agent_graph_registry
 from infrastructure.agent_graphs_store import agent_graphs
+from infrastructure.redis_user_stream_registry import user_stream_registry
 
 from agents.base_agent import AgentContext, AgentInvocationError
 from agents.agent_graph import AgentGraph
@@ -29,6 +30,7 @@ logger = get_logger("mcp.streaming_tools")
 register_shutdown_callback(active_streams_registry.close)
 # singelton registry instance for all agent graphs
 register_shutdown_callback(agent_graph_registry.close)
+register_shutdown_callback(user_stream_registry.close)
 
 
 def is_valid_stream_id(stream_id: Any) -> bool:
@@ -41,6 +43,7 @@ def is_valid_stream_id(stream_id: Any) -> bool:
     except Exception as e:
         logger.error(f"stream_id validation failed: {e}")
         return False
+
 
 
 async def streaminges(args: Dict, stream=None) -> Dict:
@@ -67,7 +70,18 @@ async def streaminges(args: Dict, stream=None) -> Dict:
         await stream.send({"error": msg})
         return {"error": msg}
     
-    # 📌 Register stream in both registries
+    # Check for existing stream for this user in Redis
+    old_stream_id = await user_stream_registry.get_stream_id(user_id)
+    if old_stream_id and old_stream_id != stream_id:
+        logger.warning(f"⚠️ User {user_id} already has active stream {old_stream_id}, aborting before starting new one.")
+        try:
+            await abortinges({"stream_id": old_stream_id, "user_id": user_id})
+        except Exception as e:
+            logger.error(f"Error aborting old stream {old_stream_id} for user {user_id}: {e}")
+
+    # 📌 Register new stream in both registries-active_streams and agent_graph and user-stream_id
+    # Register new stream for user in Redis
+    await user_stream_registry.set_stream_id(user_id, stream_id)
     await active_streams_registry.add(stream_id)
     logger.info(f"🌊 Registered stream_id {stream_id} (started by user: {user_id})")
     await agent_graph_registry.add(stream_id)
@@ -83,7 +97,9 @@ async def streaminges(args: Dict, stream=None) -> Dict:
         context = AgentContext(
             request_id=str(uuid.uuid4()), 
             user_id=user_id, 
-            timestamp=None
+            timestamp=None,
+            config=config, # inject config into agentcontext will be passed to the agent pipeline
+            registry=args.get("registry",[]), # pass registry to downstream pipeline and agents for active stream and graph registry checks or process if needed
         )
         # Start streaming in the agent (non-blocking)
         await graph.intake_agent.stream(
@@ -141,6 +157,11 @@ async def abortinges(args: Dict, stream=None, context=None) -> Dict:
             agent_context = AgentContext(request_id=str(uuid.uuid4()), user_id=user_id, timestamp=None)
             # Stop the agent's streaming task
             await graph.abort(stream_id, agent_context) # centeralize call
+        
+        if stream_id and user_id:
+            curr = await user_stream_registry.get_stream_id(user_id)
+            if curr == stream_id:
+                await user_stream_registry.remove_stream_id(user_id)
         
         if stream:
             await stream.send({
