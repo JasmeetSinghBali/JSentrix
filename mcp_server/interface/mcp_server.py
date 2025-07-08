@@ -127,10 +127,15 @@ async def lifespan(app: FastAPI):
         from workers.dlq_retry_worker import dlq_background_retry_loop
         from workers.cleanup_unused_agent_graphs import cleanup_unused_graphs
         from application.run_pipeline import async_process_pdfs
+        from agents.action_agent import ActionAgent
+
+        # 📌 multiple global action agent worker consumer of the assessed_events_stream can be registered if needed to scale
+        action_agent = ActionAgent()
 
         # Register background workers via task registry-- dlq, cleanup.agentgraphs
         task_registry.add(dlq_background_retry_loop())
         task_registry.add(cleanup_unused_graphs())
+        task_registry.add(action_agent.start_action_agent_stream_worker())
 
         logger.info("✅ [MCP-fastapi] workers started successfully in lifespan")
 

@@ -19,6 +19,10 @@ from domain.config_models import StreamingConfig
 from llama_index.core import Document
 from workers.task_registry import task_registry
 from infrastructure.redis_analysis_counter import analysis_counter_registry
+from mcp_server.infrastructure.redis_streams import RedisStreams
+from mcp_server.workers.assessed_events_stream_worker import (
+    assessed_events_consumer_worker,
+)
 
 logger = get_logger("action_agent")
 
@@ -231,6 +235,81 @@ class ActionAgent(
                 await self._emit_final_post_abort_event(stream_id=stream_id)
                 await analysis_counter_registry.reset(stream_id)
 
+    async def _process_streamed_action(self, input: ActionInput, context: AgentContext):
+        """
+        This method should contain all the logic (steps 1-4) that is done in the default A2A path.
+        """
+        stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
+        # 📌 start analysis event send event to streaming-hub to display in ui
+        await self._send_analysis_started_event(stream_id)
+        # same  _handle_llamaindex_analysis call for each consumed event like a2a default flow
+        await self._handle_llamaindex_analysis(input, context)
+
+    async def start_action_agent_stream_worker(self):
+        """
+        Start a background worker to consume from the assessed_events_stream and process each event.
+        +-----------------------------+
+        |     Per-Stream AgentGraph   |  (for direct, in-memory A2A)
+        |   (Intake → Assessment)     |
+        |        (stream_id: A)       |
+        +-------------+---------------+
+                    |
+                    | (if assessment_type == "redistream")
+                    v
+        +---------------------------------------------------------------+
+        |                  Redis Stream: assessed_events_stream         |
+        |     [event: {stream_id: A, ...}]   [event: {stream_id: B, ...}]   ...   |
+        +---------------------------------------------------------------+
+                    |
+                    | (global, stateless consumer)
+                    v
+        +---------------------------------------------------+
+        |           ActionAgent Stream Worker(s)            |
+        |  (Consumes events for ANY stream_id, processes    |
+        |   each independently using included context)      |
+        +---------------------------------------------------+
+                    |
+                    v
+        +---------------------------------------------------+
+        |      Downstream: UI, JudgeAgent, etc.             |
+        |  (Events/results tagged with stream_id)           |
+        +---------------------------------------------------+
+
+        """
+        redis_streams = RedisStreams()
+        async for msg_id, data in assessed_events_consumer_worker(
+            redis_streams=redis_streams
+        ):
+            output_dict = data.get("output", {})
+            context_dict = data.get("context", {})
+            stream_id = (output_dict.get("metadata", {}) or {}).get(
+                "stream_id", "NotDefined"
+            )
+
+            logger.info(
+                f"[Worker] Received message from assessed_events_stream: msg_id={msg_id}, stream_id={stream_id}"
+            )
+            try:
+                # Reconstruct ActionInput and AgentContext
+                action_input = ActionInput(
+                    assessment_output=output_dict, context=context_dict
+                )
+                context = AgentContext(**context_dict)
+                await self._process_streamed_action(action_input, context)
+                await redis_streams.ack(
+                    "assessed_events_stream", "action_agents", msg_id
+                )
+                logger.info(
+                    f"[Worker] Successfully processed and acked msg_id={msg_id}, stream_id={stream_id}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"[Worker] Error processing msg_id={msg_id}, stream_id={stream_id}: {e}",
+                    exc_info=True,
+                )
+                # Optionally: push to DLQ or take other recovery action here
+        await redis_streams.close()
+
     @jsonrpc_method
     async def invoke(self, input: ActionInput, context: AgentContext) -> ActionOutput:
 
@@ -240,20 +319,7 @@ class ActionAgent(
         else:
             assessment_type = config.assessment_type or "default"
 
-        if assessment_type == "redistream":
-            # 🎈 all the step 1,2,3 and 4 of direct a2a messageing default assessment_type shud now be done inside this block where the consumer is consuming these messages
-            # 🎈 register the consumer for assessed_events_stream via the bg worker reff: mcp_server/workers/assessed_events_stream_worker.py
-            # redis_streams = RedisStreams()
-            # async for msg_id, data in assessed_events_consumer_worker(
-            #     consumer=consumer_name,
-            #     redis_streams=redis_streams
-            # ):
-            #     await take_action(data)
-            #     await redis_streams.ack("assessed_events_stream", "action_agents", msg_id)
-            # await redis_streams.close()
-            pass
-
-        # 📌 default a2a message passed from assessment agent
+        # 📌 CASE: default a2a message passed from assessment agent
         logger.info(
             f"[ActionAgent] Recieve assessment : {input.assessment_output.assessment_id}"
         )

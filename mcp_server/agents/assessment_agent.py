@@ -2,6 +2,7 @@
 mcp_server/agents/assessment_agent.py
 """
 
+import asyncio
 from typing import Dict, List, Any
 from datetime import datetime, timezone
 from utils.logger import get_logger
@@ -154,7 +155,7 @@ class AssessmentAgent(
         )
 
         # 🎈 here langchain_docs cud be wrapped with LangchainDocument like in test core 1 rag test but be aware of the NOTE below
-        # 🎈 NOTE- downstream expects the retriever's native output format (especially for scoring logic, metadata propagation, or postprocessor expectations), re-wrapping with LangChainDocument might strip or reshape fields unintentionally (e.g. type annotations, special subclass behaviors, or internal hooks)
+        # ⚠️ NOTE- downstream expects the retriever's native output format (especially for scoring logic, metadata propagation, or postprocessor expectations), re-wrapping with LangChainDocument might strip or reshape fields unintentionally (e.g. type annotations, special subclass behaviors, or internal hooks) and break the downstream pipeline and agent flows.
         langchain_docs = await self.retriever.async_get_relevant(
             raw_query, top_k=5, rescore=True
         )
@@ -231,42 +232,45 @@ class AssessmentAgent(
             f"➡️ Priority={priority}, Configured={configured_priorities}, AssessmentType={assessment_type}, ActionAgentExists={bool(self.action_agent)}"
         )
         if priority in configured_priorities:
-            if assessment_type == "default" and self.action_agent:
-                # forward this as direct a2a message to action agent
-                await self.action_agent.invoke(
-                    input=ActionInput(
-                        assessment_output=output, context=context
-                    ),  # wrap assessment output in action for a2a compliant communications
-                    context=context,
-                )
-                return output
-            elif assessment_type == "redistream":
-                # produce output and context to the downstream action agent
-                try:
-                    redis_streams = RedisStreams()
-                    await redis_streams.produce(
-                        "assessed_events_stream",
-                        {
-                            "output": output.to_dict(),
-                            "context": context.to_dict(),
-                        },
-                    )
-                    # 🎈 NOTE- action_agent at __init__ shud register the consumer via the bg worker reff: mcp_server/workers/assessed_events_stream_worker.py
-                    # below shud be in action agent __init__
-                    # redis_streams = RedisStreams()
-                    # async for msg_id, data in assessed_events_consumer_worker(
-                    #     consumer=consumer_name,
-                    #     redis_streams=redis_streams
-                    # ):
-                    #     await take_action(data)
-                    #     await redis_streams.ack("assessed_events_stream", "action_agents", msg_id)
-                    # await redis_streams.close()
-                    # --------------------------------------------------
-                finally:
-                    await redis_streams.close()
+            # 🎈 uncomment
+            # if assessment_type == "default" and self.action_agent:
+            #     # forward this as direct a2a message to action agent
+            #     await self.action_agent.invoke(
+            #         input=ActionInput(
+            #             assessment_output=output, context=context
+            #         ),  # wrap assessment output in action for a2a compliant communications
+            #         context=context,
+            #     )
+            #     return output
+            # elif assessment_type == "redistream":
+            #     # produce output and context to the downstream action agent by publishing the event to redis stream assessed_events_stream
+            #     try:
+            #         redis_streams = RedisStreams()
+            #         await redis_streams.produce(
+            #             "assessed_events_stream",
+            #             {
+            #                 "output": output.to_dict(),
+            #                 "context": context.to_dict(),
+            #             },
+            #         )
+            #     finally:
+            #         await redis_streams.close()
 
-            else:
-                logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
+            # 🎈 just for test redistream e2e flow
+            try:
+                redis_streams = RedisStreams()
+                await redis_streams.produce(
+                    "assessed_events_stream",
+                    {
+                        "output": output.to_dict(),
+                        "context": context.to_dict(),
+                    },
+                )
+            finally:
+                await redis_streams.close()
+            # 🎈 uncomment
+            # else:
+            #     logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
         else:
             logger.warning(
                 f"⚠️ Txn priority {priority} not in configured filter {configured_priorities}. Skipping downstream txn send from assessment agent further..."
