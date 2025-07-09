@@ -9,7 +9,10 @@ import {
 import { useWsAuthStore } from '@/shared/store';
 import { useStreamingesIdStore } from '@/shared/store';
 import LogTerminal from './LogTerminal';
-import { Button } from '@/components/ui/button';
+import Dropdown, { DropdownOption } from "./Dropdown";
+import { RotateCcwIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 
 // interface for a single tool object
 interface Tool {
@@ -39,7 +42,14 @@ export default React.memo((props: any) => {
     const [assessmentLogs, setAssessmentLogs] = useState<string[]>([]);
     const [actionLogs, setActionLogs] = useState<string[]>([]);
 
-    const shouldScrollToTop = streamCountdown === 0;
+    const [assessmentType, setAssessmentType] = useState<'default' | 'redistream'>('default');
+    const [globalLogs, setGlobalLogs] = useState<string[]>([]); // in case of redistream single global log terminal
+
+    const assessmentOptions: DropdownOption[] = [
+        { label: "Default (A2A)", value: "default" },
+        { label: "Redistream (Global Async RediStream)", value: "redistream" },
+    ];
+
 
 
     const whoami = async (token: string) => {
@@ -137,7 +147,6 @@ export default React.memo((props: any) => {
             return;
         }
 
-        streamStartedRef.current = true;
 
         // If streamId exists, abort first
         if (streamId) {
@@ -145,13 +154,21 @@ export default React.memo((props: any) => {
             await invokeTool(accessToken, "abortinges", {
                 arguments: { stream_id: streamId }
             });
-            // clearStreamId();
+            clearStreamId();
+            resetAllLogs();
             // 🎈 The WebSocket handler will handle cleanup after final event.
         }
 
+        streamStartedRef.current = true;
+
         try {
             const res = await invokeTool(accessToken, "streaminges", {
-                arguments: { source: "faker" }
+                arguments: { 
+                    source: "faker",
+                    config: {
+                        assessment_type: assessmentType
+                    } 
+                }
             });
 
             if (res?.result?.stream_id) {
@@ -177,6 +194,13 @@ export default React.memo((props: any) => {
     };
 
 
+    const resetAllLogs = () => {
+        setIntakeLogs([]);
+        setAssessmentLogs([]);
+        setActionLogs([]);
+        setGlobalLogs([]);
+    };
+
     
 
     // Connect to Go fiber websocket and handle incoming messages
@@ -200,7 +224,14 @@ export default React.memo((props: any) => {
                 ws.onmessage = (event) => {
                     try {
                         const parsed = JSON.parse(event.data);
+                        const eventStreamId = parsed.stream_id || (parsed.data && parsed.data.stream_id);
                         const fullMessage = JSON.stringify(parsed, null, 2);
+
+                        // Only log events for the current streamId
+                            if (eventStreamId && eventStreamId !== streamId) {
+                            // Optionally: log or ignore
+                            return;
+                        }
 
                         // 1. Check for ActionAgent final post-abort event
                         if (
@@ -223,7 +254,16 @@ export default React.memo((props: any) => {
                             }
                             return;
                         }
+                        // --- REDISTREAM: Push all events to global log ---
+                        if (assessmentType === "redistream") {
+                            setGlobalLogs(prev => [
+                                ...prev,
+                                `${parsed.agent ? `[${parsed.agent}] ` : ""}${fullMessage}`
+                            ]);
+                            return;
+                        }
 
+                        // --- DEFAULT: Per-agent logs ---
                         // 2. For all other ActionAgent events, mark post-abort if needed
                         if (parsed.agent === "action-agent") {
                             const prefix = parsed.post_abort ? "[POST-ABORT] " : "";
@@ -248,10 +288,17 @@ export default React.memo((props: any) => {
                             ]);
                         }
                     } catch (err) {
-                        setIntakeLogs(prev => [
-                            ...prev,
-                            `⚠️ Malformed event:\n${event.data}`
-                        ]);
+                        if (assessmentType === "redistream") {
+                            setGlobalLogs(prev => [
+                                ...prev,
+                                `⚠️ Malformed event:\n${event.data}`
+                            ]);
+                        } else {
+                            setIntakeLogs(prev => [
+                                ...prev,
+                                `⚠️ Malformed event:\n${event.data}`
+                            ]);
+                        }
                     }
                 };
 
@@ -295,8 +342,9 @@ export default React.memo((props: any) => {
                 invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
                 clearStreamId();
             }
+            resetAllLogs();
         };
-    }, [clientId, token, streamId]);
+    }, [clientId, token, streamId, assessmentType]);
 
     useEffect(() => {
         if (at) {
@@ -312,6 +360,22 @@ export default React.memo((props: any) => {
             startAndAbortStreaming(at);
         }
     }, [at]); 
+
+    useEffect(() => {
+    // On assessmentType change, abort stream and reset logs
+    if (streamId && at) {
+        invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
+        clearStreamId();
+        resetAllLogs();
+    }
+    }, [assessmentType]);
+
+    // reset all logs when new stream starts or the current one ends all logs are cleared
+    useEffect(() => {
+       resetAllLogs();
+    }, [streamId]);
+
+
 
     useEffect(() => {
         // login to mcp_server via gateway
@@ -343,6 +407,26 @@ export default React.memo((props: any) => {
         <div className='h-[100vh] w-[100%]'>
             <ResizablePanelGroup direction="horizontal">
                 <ResizablePanel minSize={25} defaultSize={30}>
+                    <div className='flex items-center gap-2 mb-4'>
+                        <Dropdown
+                            label="Assessment Type"
+                            options={assessmentOptions}
+                            value={assessmentType}
+                            onChange={(v) => setAssessmentType(v as "default" | "redistream")}
+                            buttonClassName="mb-4"
+                        />
+                        {/* 📌 shud be used often before hardrefresh or starting new stream */}
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            title="Reset Sys-Stream"
+                            onClick={resetAllLogs}
+                            className="ml-1"
+                        >
+                            <RotateCcwIcon className="w-5 h-5" />
+                            <span className="sr-only">Reset Sys-Stream</span>    
+                        </Button>
+                    </div>
                     <p>Connected to gateway-server with MCP tools:</p>
                     <br/>
                     <ul style={{
@@ -355,51 +439,80 @@ export default React.memo((props: any) => {
                         ))}
                     </ul>
                     {streamId && (
-                        <div>
-                            <b>Active stream_id:</b> <code>{streamId}</code>
-                            {streamCountdown !== null && (
-                                <div style={{ marginTop: '0.5em' }}>
-                                    ⏳ Stream ends in <b>{streamCountdown}s</b>
-                                </div>
-                            )}
+                    <div className="mt-4 mb-2 p-3 rounded-md bg-muted/40 border border-muted">
+                        <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold text-muted-foreground">Active stream_id:</span>
+                        <code className="px-2 py-0.5 rounded bg-muted text-xs">{streamId}</code>
                         </div>
+                        {streamCountdown !== null && (
+                        <>
+                            <div className="flex items-center gap-2 mt-2 text-base">
+                            <span role="img" aria-label="hourglass">⏳</span>
+                            <span>
+                                Stream ends in <b>{streamCountdown}s</b>
+                            </span>
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground leading-snug">
+                            <b>NOTE:</b> New transactions are <span className="text-destructive">no longer ingested</span> after the stream ends.<br />
+                            However, post-abort-stream analysis events (already in progress before abort) may still arrive until the <b>final post-abort event</b> is emitted by <code>mcp_server</code>.
+                            </div>
+                        </>
+                        )}
+                    </div>
                     )}
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel minSize={30}>
-                    <div className="grid grid-cols-3 gap-6 p-2">
+                    {/* Only use grid when showing multiple logs */}
+                    {assessmentType === "redistream" ? (
+                        <div className="p-2 h-full w-full">
                         <LogTerminal
-                        title="IntakeAgent Logs"
-                        emoji="🟢"
-                        logs={intakeLogs}
-                        onClear={() => setIntakeLogs([])}
-                        bgColor="#102010"
-                        textColor="#aaffaa"
-                        limit={150}
-                        clearable
+                            title="Global Event Log"
+                            emoji="🌐"
+                            logs={globalLogs}
+                            onClear={() => setGlobalLogs([])}
+                            bgColor="#101020"
+                            textColor="#ffffff"
+                            limit={300}
+                            clearable
+                        />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
+                        <LogTerminal
+                            title="IntakeAgent Logs"
+                            emoji="🟢"
+                            logs={intakeLogs}
+                            onClear={() => setIntakeLogs([])}
+                            bgColor="#102010"
+                            textColor="#aaffaa"
+                            limit={150}
+                            clearable
                         />
                         <LogTerminal
-                        title="AssessmentAgent Logs"
-                        emoji="🟣"
-                        logs={assessmentLogs}
-                        onClear={() => setAssessmentLogs([])}
-                        bgColor="#201020"
-                        textColor="#ddaaff"
-                        limit={150}
-                        clearable
+                            title="AssessmentAgent Logs"
+                            emoji="🟣"
+                            logs={assessmentLogs}
+                            onClear={() => setAssessmentLogs([])}
+                            bgColor="#201020"
+                            textColor="#ddaaff"
+                            limit={150}
+                            clearable
                         />
                         <LogTerminal
-                        title="ActionAgent Logs"
-                        emoji="🔴"
-                        logs={actionLogs}
-                        onClear={()=>setActionLogs([])}
-                        bgColor="#200010"
-                        textColor="#ffaaaa"
-                        limit={150}
-                        clearable
+                            title="ActionAgent Logs"
+                            emoji="🔴"
+                            logs={actionLogs}
+                            onClear={()=>setActionLogs([])}
+                            bgColor="#200010"
+                            textColor="#ffaaaa"
+                            limit={150}
+                            clearable
                         />
-                    </div>
-                </ResizablePanel>
+                        </div>
+                    )}
+                    </ResizablePanel>
+
 
             </ResizablePanelGroup>
         </div>

@@ -6,6 +6,7 @@ import asyncio
 from typing import List
 from .base_agent import BaseAgent, JsonRpcAgentMixin, AgentContext, jsonrpc_method
 from .action_messages import ActionInput, ActionOutput, DecisionLevel
+from .assessment_messages import AssessmentOutput
 from utils.logger import get_logger
 from application.retrievers.llamaindex_retriever import (
     async_get_llamaindex_query_engine_from_docs,
@@ -19,8 +20,8 @@ from domain.config_models import StreamingConfig
 from llama_index.core import Document
 from workers.task_registry import task_registry
 from infrastructure.redis_analysis_counter import analysis_counter_registry
-from mcp_server.infrastructure.redis_streams import RedisStreams
-from mcp_server.workers.assessed_events_stream_worker import (
+from infrastructure.redis_streams import RedisStreams
+from workers.assessed_events_stream_worker import (
     assessed_events_consumer_worker,
 )
 
@@ -104,8 +105,15 @@ class ActionAgent(
         """
         registry = context.registry[0] if context and context.registry else None
         try:
+            ao = input.assessment_output
+            if isinstance(ao, dict):
+                stream_id = ao.get("metadata", {}).get("stream_id", "NotDefined")
+            else:
+                stream_id = getattr(ao, "metadata", {}).get("stream_id", "NotDefined")
             # ---1. Prepare LlamaIndex query engine with augmented (txn+clause docs + prior memory) ---
-            base_docs = input.assessment_output.llamaindex_docs
+            base_docs = (
+                input.assessment_output.llamaindex_docs
+            )  # 📌 assessment_output consumed from stream is a dict hence attribute access might fail
             dynamic_metadata = input.assessment_output.dynamic_metadata
             prior_events = input.assessment_output.prior_events
 
@@ -196,7 +204,7 @@ class ActionAgent(
             logger.info(
                 f"[ActionAgent] Final decision: {decision} | Clause Hits: {clause_hits}"
             )
-            stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
+
             if decision == DecisionLevel.YES:
                 #  instead of relying on graph existence only check stream_id registry, decouple action forwarding from stream lifecycle
                 if registry:
@@ -239,7 +247,12 @@ class ActionAgent(
         """
         This method should contain all the logic (steps 1-4) that is done in the default A2A path.
         """
-        stream_id = input.assessment_output.metadata.get("stream_id", "NotDefined")
+        ao = input.assessment_output
+        # 📌 supports both dict and object
+        if isinstance(ao, dict):
+            stream_id = ao.get("metadata", {}).get("stream_id", "NotDefined")
+        else:
+            stream_id = getattr(ao, "metadata", {}).get("stream_id", "NotDefined")
         # 📌 start analysis event send event to streaming-hub to display in ui
         await self._send_analysis_started_event(stream_id)
         # same  _handle_llamaindex_analysis call for each consumed event like a2a default flow
@@ -247,6 +260,9 @@ class ActionAgent(
 
     async def start_action_agent_stream_worker(self):
         """
+        NOTE- In "redistream" mode, you are viewing global compliance events as they happen,
+        regardless of user or stream. For per-user or interactive tracing, switch to "default" mode.
+
         Start a background worker to consume from the assessed_events_stream and process each event.
         +-----------------------------+
         |     Per-Stream AgentGraph   |  (for direct, in-memory A2A)
@@ -290,9 +306,11 @@ class ActionAgent(
                 f"[Worker] Received message from assessed_events_stream: msg_id={msg_id}, stream_id={stream_id}"
             )
             try:
+                # 📌 reconstruct assessment output from consume redistream dict fo downstream consistency
+                assessment_output = AssessmentOutput(**output_dict)
                 # Reconstruct ActionInput and AgentContext
                 action_input = ActionInput(
-                    assessment_output=output_dict, context=context_dict
+                    assessment_output=assessment_output, context=context_dict
                 )
                 context = AgentContext(**context_dict)
                 await self._process_streamed_action(action_input, context)

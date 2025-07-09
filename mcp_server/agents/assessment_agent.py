@@ -27,6 +27,7 @@ from llama_index.core.schema import Document as LlamaIndexDocument
 
 from infrastructure.ingestion.forwarder import forward_event_to_streaming_hub
 from infrastructure.redis_streams import RedisStreams
+from infrastructure.redis_analysis_counter import analysis_counter_registry
 
 logger = get_logger("assessment_agent")
 
@@ -232,45 +233,32 @@ class AssessmentAgent(
             f"➡️ Priority={priority}, Configured={configured_priorities}, AssessmentType={assessment_type}, ActionAgentExists={bool(self.action_agent)}"
         )
         if priority in configured_priorities:
-            # 🎈 uncomment
-            # if assessment_type == "default" and self.action_agent:
-            #     # forward this as direct a2a message to action agent
-            #     await self.action_agent.invoke(
-            #         input=ActionInput(
-            #             assessment_output=output, context=context
-            #         ),  # wrap assessment output in action for a2a compliant communications
-            #         context=context,
-            #     )
-            #     return output
-            # elif assessment_type == "redistream":
-            #     # produce output and context to the downstream action agent by publishing the event to redis stream assessed_events_stream
-            #     try:
-            #         redis_streams = RedisStreams()
-            #         await redis_streams.produce(
-            #             "assessed_events_stream",
-            #             {
-            #                 "output": output.to_dict(),
-            #                 "context": context.to_dict(),
-            #             },
-            #         )
-            #     finally:
-            #         await redis_streams.close()
-
-            # 🎈 just for test redistream e2e flow
-            try:
-                redis_streams = RedisStreams()
-                await redis_streams.produce(
-                    "assessed_events_stream",
-                    {
-                        "output": output.to_dict(),
-                        "context": context.to_dict(),
-                    },
+            if assessment_type == "default" and self.action_agent:
+                # forward this as direct a2a message to action agent
+                await self.action_agent.invoke(
+                    input=ActionInput(
+                        assessment_output=output, context=context
+                    ),  # wrap assessment output in action for a2a compliant communications
+                    context=context,
                 )
-            finally:
-                await redis_streams.close()
-            # 🎈 uncomment
-            # else:
-            #     logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
+                return output
+            elif assessment_type == "redistream":
+                # produce output and context to the downstream action agent by publishing the event to redis stream assessed_events_stream
+                try:
+                    redis_streams = RedisStreams()
+                    # 📌 increment the counter for this stream_id to have compliance in prog event === decision event log counter for this mode just like a2a default mode inside invoke to emit final event for ui to breakoff the ws connection
+                    await analysis_counter_registry.incr(input.stream_id)
+                    await redis_streams.produce(
+                        "assessed_events_stream",
+                        {
+                            "output": output.to_dict(),
+                            "context": context.to_dict(),
+                        },
+                    )
+                finally:
+                    await redis_streams.close()
+            else:
+                logger.warning(f"Unknown assessment_type: {assessment_type}. Skipping")
         else:
             logger.warning(
                 f"⚠️ Txn priority {priority} not in configured filter {configured_priorities}. Skipping downstream txn send from assessment agent further..."
