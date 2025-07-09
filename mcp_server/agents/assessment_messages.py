@@ -64,9 +64,10 @@ class AssessmentOutput(A2AMessageSerializable):
         assessment_id: str,
         transaction: Dict[str, Any],
         prior_events: List[MemoryEvent],
-        llamaindex_docs: List[Document],
+        llamaindex_docs: List,  # Accepts both dicts and document objects
         dynamic_metadata: Dict[str, Dict[str, Any]],
         metadata: Optional[Dict[str, Any]] = None,
+        timestamp: Optional[str] = None,
     ):
         self.score = score
         self.priority = priority  # "LOW", "MEDIUM", "HIGH"
@@ -74,9 +75,11 @@ class AssessmentOutput(A2AMessageSerializable):
         self.assessment_id = assessment_id
         self.transaction = transaction
         self.prior_events = prior_events
-        self.llamaindex_docs = (
-            llamaindex_docs  # [{"text": ..., "metadata": {...}}, ...]
-        )
+        # convrt dicts to Document objects if needed
+        self.llamaindex_docs = [
+            doc if isinstance(doc, Document) else Document(**doc)
+            for doc in llamaindex_docs
+        ]
         self.dynamic_metadata = dynamic_metadata  # {"C001": {...}, ...}
         self.metadata = metadata or {}
-        self.timestamp = datetime.now(timezone.utc).isoformat()
+        self.timestamp = timestamp or datetime.now(timezone.utc).isoformat()

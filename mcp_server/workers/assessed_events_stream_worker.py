@@ -39,7 +39,7 @@ Environment Variables (optional, with defaults):
 
 import asyncio
 import os
-from mcp_server.infrastructure.redis_streams import RedisStreams
+from infrastructure.redis_streams import RedisStreams
 from utils.logger import get_logger
 
 logger = get_logger("assessed_events_stream_worker")
