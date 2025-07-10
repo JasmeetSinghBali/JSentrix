@@ -102,11 +102,15 @@ class MemoryEvent(BaseModel):
     agent_name: str = Field(..., description="Name of the agent")
     prompt: str = Field(..., description="Prompt or query")
     llm_response: str = Field(..., description="LLM or agent response")
+    decision: str = Field(..., description="Compliance decision, e.g., YES/NO/ND")
+    original_transaction: Dict[str, Any] = Field(
+        ..., description="Original transaction data"
+    )
     relevant_clause_ids: List[str] = Field(
         default_factory=list, description="Relevant clause/document IDs"
     )
-    scores: Dict[str, Any] = Field(
-        default_factory=dict, description="Scoring or metadata"
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Assessment and enrichment metadata"
     )
     extra_context: Dict[str, Any] = Field(
         default_factory=dict, description="Any extra context or metadata"

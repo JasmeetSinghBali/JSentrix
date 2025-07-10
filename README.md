@@ -136,9 +136,12 @@ docker system prune
 | 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                           |
 | 11    | ~~Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent~~   |
 | 12    | ~~Setup Assessment Agent and its peripherals e2e logs shud be streamed for both intake and assessment agent seprately~~                                                                                             |
-| 13    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui                                                                                                      |
-| 14    | Setup Judge agent and its comm from action agent along with strucutred txn output to be passed to summarizer                                                                                              |
-| 15    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit.                                                                                                  |
+| 13    | ~~Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui~~                                                                                                    |
+| 14    | ~~redistream config option flow e2e from assessment_agent to action_agent and the logs visiblty persistance of action agent in ui~~                                                                     |
+| 15    | memory event store flow for both Yes and No analyzed txn for future txn in qdrant as self improving cycle and long term memory building                                                                    |
+| 16    | UI: Add search logs terminals intake, assessment and action agent(for action specifically search by sender or reciever), in ui tool list display as nested folder custom struct with tool invocation button for each of them                                                                                           |
+| 17    | Setup Judge agent and its comm from action agent along with strucutred txn output to be passed to summarizer                                                                                              |
+| 18    | final touch up dashboard screen, home screen login page -> dashboard page polish UI                                                                                                     |
 
 ---
 

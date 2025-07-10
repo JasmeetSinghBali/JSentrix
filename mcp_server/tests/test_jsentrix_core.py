@@ -319,15 +319,31 @@ async def test_core_2_async_end_to_end(
     ]
 
     for event_data in mock_events:
+        # Simulate a minimal original transaction for testing
+        mock_txn = {
+            "txn_id": f"txn_{event_data['user_id']}",
+            "amount": 10000 if "YES" in event_data["llm_response"] else 1000,
+            "sender": event_data["prompt"].split("from ")[1].split(" to ")[0],
+            "receiver": event_data["prompt"].split("to ")[1],
+            "currency": event_data["prompt"].split("for ")[1].split(" transfer")[0],
+            "timestamp": "2025-06-02T09:00:00",
+        }
         event = MemoryEvent(
             agent_name="AsyncUniqueAgent",
             prompt=event_data["prompt"],
             llm_response=event_data["llm_response"],
-            scores=event_data["scores"],
+            decision="YES" if "YES" in event_data["llm_response"] else "NO",
+            original_transaction=mock_txn,
             user_id=event_data["user_id"],
+            relevant_clause_ids=[],  # or fill if you want
+            metadata={
+                "risk_score": event_data["scores"]["risk_score"],
+                "test_case": True,
+            },
+            extra_context={},
+            summary=None,
         )
-        summary = await summarizer.async_summarize(event.prompt)
-        event.summary = summary
+        event.summary = await summarizer.async_summarize(event.prompt)
         vector = await asyncio.get_running_loop().run_in_executor(
             None, embedding_model.embed_query, event.prompt
         )
@@ -335,7 +351,7 @@ async def test_core_2_async_end_to_end(
 
     # 2. Simulate a new transaction with unique values
     new_transaction = {
-        "amount": "¥2,000,000",
+        "amount": 10000,
         "sender": "ASYNC_CORP_42",
         "receiver": "SG00ASYNC555888777",
         "currency": "SGD",
@@ -347,22 +363,74 @@ async def test_core_2_async_end_to_end(
     query_vector = await asyncio.get_running_loop().run_in_executor(
         None, embedding_model.embed_query, new_prompt
     )
+    # Add sender, amount, and (optionally) clause_hits to filters
+    filters = {
+        "user_id": "async_unique_user_42",
+        "original_transaction.sender": new_transaction["sender"],
+        "original_transaction.amount": new_transaction["amount"],
+        # Optionally add clause hits if available
+        # "relevant_clause_ids": ["your_clause_id"]
+    }
     relevant_memories = await memory_event_retriever.async_get_events(
         query_vector=query_vector,
-        filters={"user_id": "async_unique_user_42"},
-        top_k=2,
+        filters=filters,
+        top_k=5,
     )
+
+    def is_strong_match(memory, txn, clause_hits=None):
+        if memory.original_transaction["sender"] != txn["sender"]:
+            return False
+        if str(memory.original_transaction["amount"]) != str(txn["amount"]):
+            return False
+        if clause_hits is not None:
+            if not set(clause_hits).issubset(set(memory.relevant_clause_ids)):
+                return False
+        return True
+
+    clause_hits = []  # Fill as needed
+    matching_event = next(
+        (
+            m
+            for m in relevant_memories
+            if is_strong_match(m, new_transaction, clause_hits)
+        ),
+        None,
+    )
+
+    if matching_event:
+        logger.info(
+            f"✅ Cache hit, returning stored decision: {matching_event.decision}"
+        )
+        result = {
+            "decision": matching_event.decision,
+            "llm_response": matching_event.llm_response,
+            "cached-events-result": True,
+            "memory_event_id": matching_event.event_id,
+            "original_transaction": matching_event.original_transaction,
+            "metadata": matching_event.metadata,
+            "summary": matching_event.summary,
+        }
+        # --- Add assertions for the cache hit result ---
+        assert result["cached-events-result"] is True
+        assert result["decision"] == "YES"
+        assert result["original_transaction"]["sender"] == new_transaction["sender"]
+        assert result["original_transaction"]["receiver"] == new_transaction["receiver"]
+        # You can add more assertions as needed
+    else:
+        logger.info("No cache hit, run full analysis...")
 
     logger.info(
         f"\n[ASYNC Memory-Aware Triage] Retrieved {len(relevant_memories)} memories:"
     )
     for memory in relevant_memories:
-        logger.info(f"📝 Memory: {memory.prompt} | Risk: {memory.scores['risk_score']}")
+        logger.info(
+            f"📝 Memory: {memory.prompt} | Risk: {memory.metadata["risk_score"]}"
+        )
 
     # Assert high-risk memory is prioritized
     assert len(relevant_memories) > 0, "No memories retrieved"
     assert any(
-        "ASYNC_CORP_42" in memory.prompt and memory.scores["risk_score"] > 0.9
+        "ASYNC_CORP_42" in memory.prompt and memory.metadata["risk_score"] > 0.9
         for memory in relevant_memories
     ), "High-risk async memory not retrieved"
 
@@ -385,7 +453,7 @@ async def test_core_2_async_end_to_end(
         len(all_events) >= 1
     ), "No events found for user 'async_unique_user_42' with async pagination fetch"
     assert any(
-        "ASYNC_CORP_42" in event.prompt and event.scores["risk_score"] > 0.9
+        "ASYNC_CORP_42" in event.prompt and event.metadata["risk_score"] > 0.9
         for event in all_events
     ), "High-risk async event not found in paginated fetch"
 
