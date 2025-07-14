@@ -270,7 +270,7 @@ class ActionAgent(
                     embedding = await asyncio.get_running_loop().run_in_executor(
                         None, self.embedding_model.embed_query, prompt
                     )
-                    # 🎈 build memory event
+                    # build memory event
                     memory_event = MemoryEvent(
                         user_id=getattr(context, "user_id", None),
                         agent_name="action-agent",
@@ -299,7 +299,15 @@ class ActionAgent(
                             "action_output_id": action_output.action_id,
                         },
                         summary=summary,
+                        source="llm",  # set source="cache" when new txn matches to already existing memory events to skip inference and store the new txn as cached event in qdrant
+                        llm_confidence=getattr(response, "confidence", None),
+                        user_feedback=None,  # cud be set later after user review for ND type decisions forwarded from judge agent to the UI
                     )
+                    # 🎈 when user reviews a decision in ui example ND or other events update event in qdrant
+                    # updated_feedback = {"approved": True, "notes": "User confirmed this is a violation"}
+                    # event.user_feedback = updated_feedback
+                    # await memory_event_repository.update(event)  # You may need to implement an update method
+
                     # Store asynchronously using the task registry to run as bg task
                     task_registry.add(
                         self.memory_event_repository.store(memory_event, embedding)

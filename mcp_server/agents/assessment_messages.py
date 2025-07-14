@@ -28,6 +28,7 @@ class AssessmentInput(A2AMessageSerializable):
     A2A-compliant input for assessment agent containing:
     - Enriched transaction from intake
     - relevant prior events
+    - cache-aware short circuiting fields
     """
 
     def __init__(
@@ -36,13 +37,19 @@ class AssessmentInput(A2AMessageSerializable):
         prior_events: List[MemoryEvent],
         stream_id: str,
         context: Optional[AgentContext] = None,
+        skip_assessment: bool = False,
+        cache_event: Optional[dict] = None,
     ):
         self.transaction = transaction
         self.prior_events = prior_events
         self.stream_id = stream_id
         self.context = context or AgentContext(
-            request_id="n/a", user_id="system", timestamp=datetime.now(timezone.utc)
+            request_id="n/a",
+            user_id="system",
+            timestamp=datetime.now(timezone.utc),
         )
+        self.skip_assessment = skip_assessment
+        self.cache_event = cache_event
 
 
 class AssessmentOutput(A2AMessageSerializable):

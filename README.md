@@ -10,6 +10,10 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ## 🏭 Architecture
 
+<p align="center">
+  <img src="https://github.com/JasmeetSinghBali/JSentrix/tree/stable/nuances/jsentrix_v1_arch_diagram.png?raw=true" />
+</p>
+
 - **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
 - **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
 - **Gateway FastAPI:** Act a minimal proxy gateway service that enables interaction between MCP Server and Electron app.

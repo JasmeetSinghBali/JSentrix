@@ -228,11 +228,50 @@ class IntakeAgent(
                                 self.agent_id,
                             )
                         if self.assessment_agent:
+                            # 📌 Cache aware short-circuiting
+                            # 1. before passing txn to assessment agent check qdrant for prior event matching sender, reciever and amount
+                            # 2. if match found add skip_assessment: True flag and cached event's data/id to the AssessmentInput
+                            # 3. if no match found then proceed as usual
+
+                            # extract sender, reciever and amount from enriched txn
+                            sender = txn.metadata["sender"]
+                            reciever = txn.metadata["receiver"]
+                            amount = txn.amount
+
+                            # Prepare Qdrant filter
+                            filters = {
+                                "original_transaction.sender": sender,
+                                "original_transaction.receiver": reciever,
+                                "original_transaction.amount": amount,
+                            }
+
+                            # Query Qdrant for a matching event
+                            prior_events = await self.retriever.async_get_events(
+                                query_vector=None,  # You can use None or a vector if you want hybrid search
+                                filters=filters,
+                                top_k=1,
+                            )
+
+                            # Determine if this is a cache hit
+                            if prior_events:
+                                logger.info(
+                                    f"[IntakeAgent] Cache hit for txn {txn.txn_id} — skipping assessment."
+                                )
+                                skip_assessment = True
+                                cache_event = prior_events[0]
+                            else:
+                                skip_assessment = False
+                                cache_event = None
+
                             assessment_input = AssessmentInput(
                                 transaction=output.enriched_txn,
                                 prior_events=output.prior_events,
                                 stream_id=stream_id,
                                 context=context,
+                                skip_assessment=skip_assessment,
+                                cache_event=(
+                                    cache_event.model_dump() if cache_event else None
+                                ),
                             )
                             logger.warning(
                                 f"[IntakeAgent] context.config={context.config}"
