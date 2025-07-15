@@ -145,6 +145,42 @@ class AssessmentAgent(
 
         self.validate_input(input, context)
 
+        if getattr(input, "skip_assessment", False):
+            logger.info(
+                f"[AssessmentAgent] Skipping assessment for txn due to cache hit (cache_event_id={getattr(input, 'cache_event', {}).get('event_id', None)})"
+            )
+            cache_event = getattr(input, "cache_event", {})
+            # construct synthetic output for cache case similar to regular output
+            output = AssessmentOutput(
+                score=None,
+                priority=None,
+                reasons=["Cache hit: assessment skipped"],
+                assessment_id=f"cache-{cache_event.get('event_id', str(uuid.uuid4()))}",
+                transaction=input.transaction,
+                prior_events=input.prior_events,
+                llamaindex_docs=[],  # No LLM context needed
+                dynamic_metadata={},
+                metadata={
+                    "stream_id": input.stream_id,
+                    "source": "cache",
+                    "cache_event_id": cache_event.get("event_id"),
+                    "cache_event": cache_event,
+                },
+            )
+            # emit real-time assessment event to streaming hub
+            await self._forward_with_fallback(output.to_dict(), input.stream_id)
+
+            # always forward to downstream action agent for UI and event complet
+            if self.action_agent:
+                await self.action_agent.invoke(
+                    input=ActionInput(
+                        assessment_output=output,
+                        context=context,
+                    ),
+                    context=context,
+                )
+            return output
+
         # --- step1: hybrid retrieval using langchain retrv neo4j---
         metadata = input.transaction.get("metadata", {})
         sender = metadata.get("sender", "unknown")

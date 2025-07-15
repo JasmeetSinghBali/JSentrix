@@ -143,6 +143,81 @@ class ActionAgent(
                 stream_id = ao.get("metadata", {}).get("stream_id", "NotDefined")
             else:
                 stream_id = getattr(ao, "metadata", {}).get("stream_id", "NotDefined")
+
+            # 🎈 better to have a configurable new key as cache: True that end user can send from ui if True then this cache short circuiting else normal flow
+            # 🎈 CASE: if cache_hit then skip all inference steps for this txn and just emit compliance in progress and decision event so that the final abort event can be emitted accordingly and the ui can then cut off the websocket connection from its side
+            metadata = (
+                ao.metadata if hasattr(ao, "metadata") else ao.get("metadata", {})
+            )
+            is_cache_hit = metadata.get("source") == "cache"
+            cache_event = metadata.get("cache_event", {})
+            if is_cache_hit and cache_event:
+                # 1. Emit "compliance in progress" event
+                await self._send_analysis_started_event(stream_id)
+
+                # 2. Build decision output and fire decision event
+                action_output = ActionOutput(
+                    action_id=f"action-{uuid.uuid4()}",
+                    decision=cache_event.get("decision", "CACHE"),
+                    raw_response=cache_event.get(
+                        "llm_response", "Cache hit: decision reused."
+                    ),
+                    source_nodes=cache_event.get("metadata", {}).get(
+                        "source_nodes", []
+                    ),
+                    context=input.context,
+                    clause_hits=cache_event.get("relevant_clause_ids", []),
+                )
+                flagged = cache_event.get("decision", "") == DecisionLevel.YES
+                event = {
+                    "event": "3️⃣[ActionAgent]",
+                    "message": f"🚨 Action Taken: {cache_event.get('decision', 'CACHE')}",
+                    "stream_id": stream_id,
+                    "data": {**action_output.to_dict(), "txn": ao.transaction},
+                    "flagged": flagged,
+                    "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+                    "agent": "action-agent",
+                    "level": "warn" if flagged else "info",
+                    "post_abort": False,
+                }
+                success = await forward_event_to_streaming_hub(event)
+                if not success:
+                    logger.warning(
+                        f"[CacheEvent]❌ Could not notify UI for cache-event Decision event and was sent to DLQ:. Stream ID: {stream_id}"
+                    )
+
+                # 3. Store MemoryEvent with source="cache"
+                memory_event = MemoryEvent(
+                    user_id=getattr(context, "user_id", None),
+                    agent_name="action-agent",
+                    prompt="CACHE_HIT",
+                    llm_response=cache_event.get("llm_response", ""),
+                    decision=cache_event.get("decision", "CACHE"),
+                    original_transaction=ao.transaction,
+                    relevant_clause_ids=cache_event.get("relevant_clause_ids", []),
+                    metadata=cache_event.get("metadata", {}),
+                    extra_context={
+                        "stream_id": stream_id,
+                        "cache_event_id": cache_event.get("event_id"),
+                        "source": "cache",
+                    },
+                    summary="Cache hit: decision reused, no LLM analysis.",
+                    source="cache",
+                    llm_confidence=cache_event.get("llm_confidence"),
+                    user_feedback=cache_event.get("user_feedback"),
+                )
+                # Use a zeroed embedding or retrieve the original one if needed
+                embedding = [0.0] * self.memory_event_repository.vector_size
+                task_registry.add(
+                    self.memory_event_repository.store(memory_event, embedding)
+                )
+
+                count = await analysis_counter_registry.decr(stream_id)
+                if count == 0:
+                    await self._emit_final_post_abort_event(stream_id=stream_id)
+                    await analysis_counter_registry.reset(stream_id)
+                return  # Early exit; skip the rest
+
             # ---1. Prepare LlamaIndex query engine with augmented (txn+clause docs + prior memory) ---
             base_docs = (
                 input.assessment_output.llamaindex_docs
