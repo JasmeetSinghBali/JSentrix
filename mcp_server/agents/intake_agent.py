@@ -33,6 +33,10 @@ from .assessment_messages import AssessmentInput
 
 from .assessment_agent import AssessmentAgent
 
+from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchText
+
+from decimal import Decimal
+
 
 logger = get_logger("intake_agent")
 
@@ -72,8 +76,12 @@ class IntakeAgent(
                 "request_id": context.request_id,
                 "user_id": context.user_id,
                 "agent_id": self.agent_id,
-                "trace_id": context.trace_id or "N/A",
-                "span_id": context.span_id or "N/A",
+                "trace_id": (
+                    str(context.trace_id) if context.trace_id is not None else "N/A"
+                ),
+                "span_id": (
+                    str(context.span_id) if context.span_id is not None else "N/A"
+                ),
             },
         }
 
@@ -233,22 +241,28 @@ class IntakeAgent(
                             # 2. if match found add skip_assessment: True flag and cached event's data/id to the AssessmentInput
                             # 3. if no match found then proceed as usual
 
-                            # extract sender, reciever and amount from enriched txn
+                            # Extract sender, reciever from enriched txn
                             sender = txn.metadata["sender"]
-                            reciever = txn.metadata["receiver"]
-                            amount = txn.amount
+                            receiver = txn.metadata["receiver"]
 
-                            # Prepare Qdrant filter
-                            filters = {
-                                "original_transaction.sender": sender,
-                                "original_transaction.receiver": reciever,
-                                "original_transaction.amount": amount,
-                            }
+                            # Prepare Qdrant filter for exact match on nested fields
+                            qdrant_filters = Filter(
+                                must=[
+                                    FieldCondition(
+                                        key="original_transaction.metadata.sender",
+                                        match=MatchValue(value=str(sender)),
+                                    ),
+                                    FieldCondition(
+                                        key="original_transaction.metadata.receiver",
+                                        match=MatchValue(value=str(receiver)),
+                                    ),
+                                ]
+                            )
 
                             # Query Qdrant for a matching event
                             prior_events = await self.retriever.async_get_events(
-                                query_vector=None,  # You can use None or a vector if you want hybrid search
-                                filters=filters,
+                                query_vector=None,  # You can use None or a vector if you want hybrid search None will skip similarity search and rely on pure metadata match
+                                filters=qdrant_filters,  # expects filters qdrant object instance
                                 top_k=1,
                             )
 
@@ -260,6 +274,9 @@ class IntakeAgent(
                                 skip_assessment = True
                                 cache_event = prior_events[0]
                             else:
+                                logger.info(
+                                    f"[IntakeAgent] No cache hit for txn {txn.txn_id} — proceeding with assessment."
+                                )
                                 skip_assessment = False
                                 cache_event = None
 
@@ -276,9 +293,15 @@ class IntakeAgent(
                             logger.warning(
                                 f"[IntakeAgent] context.config={context.config}"
                             )
-                            await self.assessment_agent.invoke(
-                                input=assessment_input, context=context
-                            )
+                            try:
+                                await self.assessment_agent.invoke(
+                                    input=assessment_input,
+                                    context=context,
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    f"[IntakeAgent] Failed to invoke assessment agent: {e}"
+                                )
 
                 except AgentFatalError as e:
                     # 📌 critical - stream breaks

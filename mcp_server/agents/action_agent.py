@@ -152,41 +152,10 @@ class ActionAgent(
             is_cache_hit = metadata.get("source") == "cache"
             cache_event = metadata.get("cache_event", {})
             if is_cache_hit and cache_event:
-                # 1. Emit "compliance in progress" event
-                await self._send_analysis_started_event(stream_id)
+                # ✅ Skip sending any intermediate UI events like "in progress" or "action taken"
+                # Only decrement the analysis counter and store the memory event
 
-                # 2. Build decision output and fire decision event
-                action_output = ActionOutput(
-                    action_id=f"action-{uuid.uuid4()}",
-                    decision=cache_event.get("decision", "CACHE"),
-                    raw_response=cache_event.get(
-                        "llm_response", "Cache hit: decision reused."
-                    ),
-                    source_nodes=cache_event.get("metadata", {}).get(
-                        "source_nodes", []
-                    ),
-                    context=input.context,
-                    clause_hits=cache_event.get("relevant_clause_ids", []),
-                )
-                flagged = cache_event.get("decision", "") == DecisionLevel.YES
-                event = {
-                    "event": "3️⃣[ActionAgent]",
-                    "message": f"🚨 Action Taken: {cache_event.get('decision', 'CACHE')}",
-                    "stream_id": stream_id,
-                    "data": {**action_output.to_dict(), "txn": ao.transaction},
-                    "flagged": flagged,
-                    "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
-                    "agent": "action-agent",
-                    "level": "warn" if flagged else "info",
-                    "post_abort": False,
-                }
-                success = await forward_event_to_streaming_hub(event)
-                if not success:
-                    logger.warning(
-                        f"[CacheEvent]❌ Could not notify UI for cache-event Decision event and was sent to DLQ:. Stream ID: {stream_id}"
-                    )
-
-                # 3. Store MemoryEvent with source="cache"
+                # Store MemoryEvent with source="cache"
                 memory_event = MemoryEvent(
                     user_id=getattr(context, "user_id", None),
                     agent_name="action-agent",
@@ -212,6 +181,7 @@ class ActionAgent(
                     self.memory_event_repository.store(memory_event, embedding)
                 )
 
+                # Just decrement the counter
                 count = await analysis_counter_registry.decr(stream_id)
                 if count == 0:
                     await self._emit_final_post_abort_event(stream_id=stream_id)
@@ -383,9 +353,16 @@ class ActionAgent(
                     # event.user_feedback = updated_feedback
                     # await memory_event_repository.update(event)  # You may need to implement an update method
 
+                    logger.debug(
+                        "📦 MemoryEvent payload (pre-store):\n%s",
+                        json.dumps(memory_event.model_dump(), indent=2),
+                    )
                     # Store asynchronously using the task registry to run as bg task
                     task_registry.add(
-                        self.memory_event_repository.store(memory_event, embedding)
+                        self.memory_event_repository.store(
+                            memory_event,
+                            embedding,
+                        )
                     )
                     logger.info(
                         f"[MemoryEvent] Stored event for txn_id={transaction.get('txn_id')}, decision={decision}"

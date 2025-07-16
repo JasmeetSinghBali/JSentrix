@@ -5,6 +5,7 @@ Async-optimized Qdrant repository using native async client and FastEmbed.
 """
 
 from typing import List, Optional, Dict, Any, Tuple
+from decimal import Decimal
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from qdrant_client.http.models import PointStruct
 from domain.models import MemoryEvent
@@ -12,6 +13,7 @@ from utils.qdrant_utils import get_async_qdrant_client
 from utils.embedding_utils import get_langchain_embedding_model
 from utils.logger import get_logger
 import anyio
+import json
 
 logger = get_logger("memory_event_repository")
 
@@ -39,6 +41,10 @@ class MemoryEventRepository:
             event (MemoryEvent): The event to store.
             vector (List[float]): The embedding vector.
         """
+        logger.debug(
+            "📦 Dumping payload before upsert: %s",
+            json.dumps(event.model_dump(), indent=2),
+        )
         point = PointStruct(
             id=event.event_id,
             vector=vector,
@@ -67,7 +73,10 @@ class MemoryEventRepository:
         Returns:
             Tuple of (list of MemoryEvent, next offset).
         """
-        qdrant_filter = self._build_filter(filters)
+        if isinstance(filters, Filter):
+            qdrant_filter = filters
+        else:
+            qdrant_filter = self._build_filter(filters)
         try:
             if query_vector is not None:
                 response = await self.client.query_points(
@@ -145,15 +154,20 @@ class MemoryEventRepository:
     def _build_filter(self, filters: Optional[Dict[str, Any]]) -> Optional[Filter]:
         """
         Helper for filter construction.
+        Coerces unsupported types (like float) to str to avoid MatchValue validation errors.
         """
         if not filters:
             return None
-        return Filter(
-            must=[
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filters.items()
-            ]
-        )
+        conditions = []
+
+        if isinstance(filters, Filter):
+            return filters
+        if isinstance(filters, dict):
+            conditions = []
+            for k, v in filters.items():
+                conditions.append(FieldCondition(key=k, match=MatchValue(value=v)))
+            return Filter(must=conditions)
+        return None
 
     async def close(self) -> None:
         """
