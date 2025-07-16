@@ -98,19 +98,37 @@ class MemoryEvent(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         description="Event timestamp (ISO)",
     )
-    user_id: Optional[str] = Field(default=None, description="User or session ID")
+    user_id: Optional[str] = Field(
+        default=None,
+        description="User or session ID",
+    )
     agent_name: str = Field(..., description="Name of the agent")
     prompt: str = Field(..., description="Prompt or query")
     llm_response: str = Field(..., description="LLM or agent response")
+    decision: str = Field(..., description="Compliance decision, e.g., YES/NO/ND")
+    original_transaction: Dict[str, Any] = Field(
+        ..., description="Original transaction data"
+    )
     relevant_clause_ids: List[str] = Field(
         default_factory=list, description="Relevant clause/document IDs"
     )
-    scores: Dict[str, Any] = Field(
-        default_factory=dict, description="Scoring or metadata"
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Assessment and enrichment metadata",
     )
     extra_context: Dict[str, Any] = Field(
         default_factory=dict, description="Any extra context or metadata"
     )
     summary: Optional[str] = Field(
         default=None, description="Summary of the memory event"
+    )
+    # below source, user_feedback fields
+    # 📌 enables powerful analytics where end user cud just retrieve events directly, e.g., "Show me all cache-based decisions with user-approved feedback".
+    source: str = Field(
+        default="llm",
+        description="Origin of the event: 'llm' or 'cache'",
+    )
+    user_feedback: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="User feedback, e.g. {'approved': True, 'notes': 'reviewed'}",
     )

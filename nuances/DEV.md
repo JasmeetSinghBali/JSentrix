@@ -540,23 +540,23 @@ Score and prioritize transactions using prior memory, Neo4j data, user risk, and
 Apply dynamic scoring, decay, and sorting. ✅
 <Make sure to look at 2 and 3 of the # test-core-1: Rag pipeline in test_jsentrix_core.py>
 
-Phase 5: Analysis/Action Agent (LlamaIndex)
-Forward high-priority transactions (default) only from Assessment Agent to the Action Agent not all txn incoming from intakeAgent.
-NOTE- config["priority"] = List set by end user in ui can be usd to overwrite default so that the txn with priority in config["priority"] list will be then forwarded downstream to action agent for autmnomous actions by action agent like freezing/flaging txns without human intervention
+Phase 5: Analysis/Action Agent (LlamaIndex) ✅
+Forward high-priority transactions (default) only from Assessment Agent to the Action Agent not all txn incoming from intakeAgent. ✅
+NOTE- config["priority"] = List set by end user in ui can be usd to overwrite default so that the txn with priority in config["priority"] list will be then forwarded downstream to action agent for autmnomous actions by action agent like freezing/flaging txns without human intervention ✅
 
-Build the Action Agent using LlamaIndex.
+Build the Action Agent using LlamaIndex. ✅
 
-Building llamaindex query engine.
+Building llamaindex query engine. ✅
 
-Run LLM for compliance/risk analysis.
+Run LLM for compliance/risk analysis. ✅
 
-Postprocess results and attach all relevant metadata.
+Postprocess results and attach all relevant metadata. ✅
 
-Perform a mock autonmous txn like flagging txn for now forwrding event to client ui with flag key like flagged: true
-
-and Forward "ND" or "NO" decision txns to the judge agent
+Perform a mock autonmous txn like flagging txn for now forwrding event to client ui with flag key like flagged: true ✅
 
 and also call memory event storage to store the memory events in qdrant for txns that are voilating the clauses and desision is "YES" by llm i.e reff phase 7.
+
+and Forward "ND" or "NO" decision txns to the judge agent
 
 Phase 6: Judge Agent/Service
 

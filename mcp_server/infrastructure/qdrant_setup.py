@@ -37,3 +37,9 @@ def safe_create_memory_collection(
         )
     except Exception as e:
         logger.error(f"Error creating collection '{collection_name}': {e}")
+
+
+# 📌 to manually run this script to create memory_events collection in qdrant
+# python -m infrastructure.qdrant_setup
+# if __name__ == "__main__":
+#     safe_create_memory_collection()
