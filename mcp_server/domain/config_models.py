@@ -21,3 +21,4 @@ class StreamingConfig(BaseModel):
         None  # ["faker","bank_1","api_custom_bank_2"] for single or multiple source selection in electron client by end user admin
     )
     assessment_type: Optional[str] = None
+    caching: bool = False  # enable-disables memory cache short circuiting

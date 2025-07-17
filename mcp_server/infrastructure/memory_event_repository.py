@@ -5,7 +5,7 @@ Async-optimized Qdrant repository using native async client and FastEmbed.
 """
 
 from typing import List, Optional, Dict, Any, Tuple
-from qdrant_client.models import Filter, FieldCondition, MatchValue
+from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
 from qdrant_client.http.models import PointStruct
 from domain.models import MemoryEvent
 from utils.qdrant_utils import get_async_qdrant_client
@@ -142,17 +142,56 @@ class MemoryEventRepository:
 
         return [MemoryEvent.model_validate(point.payload) for point in all_points]
 
-    def _build_filter(self, filters: Optional[Dict[str, Any]]) -> Optional[Filter]:
+    def _build_filter(self, filters: Optional[Any]) -> Optional[Filter]:
         """
-        Helper for filter construction.
+        Converts filters into a Qdrant-compatible Filter object.
+        Qdrant MatchValue only supports: str, int, bool.
+        Floats or unsupported types will be converted or raise errors.
         """
         if not filters:
             return None
-        return Filter(
-            must=[
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filters.items()
-            ]
+
+        if isinstance(filters, Filter):
+            return filters
+
+        if isinstance(filters, list):
+            if all(isinstance(x, FieldCondition) for x in filters):
+                return Filter(must=filters)
+            else:
+                raise ValueError(
+                    "If a list, filters must be a list of FieldCondition objects."
+                )
+
+        if isinstance(filters, dict):
+            conditions = []
+            for k, v in filters.items():
+                logger.debug(
+                    f"[DEBUG] Building filter: key={k}, value={v}, type={type(v)}"
+                )
+                try:
+                    # Safely cast float to int if it's "int-like"
+                    if isinstance(v, float):
+                        if v.is_integer():
+                            v = int(v)
+                        else:
+                            raise ValueError(
+                                f"Qdrant MatchValue does not support non-integer floats: {v}"
+                            )
+                    # Ensure only valid types are passed
+                    if not isinstance(v, (str, int, bool)):
+                        raise TypeError(
+                            f"Unsupported filter type for key={k}: {type(v)}"
+                        )
+                    mv = MatchValue(value=v)
+                except Exception as e:
+                    raise ValueError(
+                        f"Error building MatchValue for key={k}, value={v}, type={type(v)}: {e}"
+                    )
+                conditions.append(FieldCondition(key=k, match=mv))
+            return Filter(must=conditions)
+
+        raise ValueError(
+            "Unsupported filters type (must be Filter, list[FieldCondition], or dict)"
         )
 
     async def close(self) -> None:
