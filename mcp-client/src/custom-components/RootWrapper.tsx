@@ -52,6 +52,8 @@ export default React.memo((props: any) => {
     ];
 
     const [cachingEnabled, setCachingEnabled] = useState<boolean>(false);
+    const [pendingTxnAnalysisCount, setPendingTxnAnalysisCount] = useState<number>(0);
+
 
 
 
@@ -237,6 +239,22 @@ export default React.memo((props: any) => {
                             return;
                         }
 
+                        // analysis counter sim to backend to keep track of pending txn post stream countdown ends
+                        if (
+                            parsed.agent === "action-agent" &&
+                            parsed.message?.includes("Compliance analysis in progress")
+                        ) {
+                                setPendingTxnAnalysisCount(prev => (prev === null ? 1 : prev + 1));
+                        }
+                        if (
+                            parsed.agent === "action-agent" &&
+                            parsed.message?.includes("Action Taken: DecisionLevel")
+                        ) {
+                            setPendingTxnAnalysisCount(prev => Math.max(0, (prev ?? 1) - 1));
+                        }
+
+
+
                         // 1. Check for ActionAgent final post-abort event
                         if (
                             parsed.agent === "action-agent" &&
@@ -402,7 +420,8 @@ export default React.memo((props: any) => {
         if (streamCountdown === null) return;
 
         if (streamCountdown <= 0) {
-            setStreamCountdown(null);
+            // let streamCountdown and cachingEnabled useEffect get triggered
+            // setStreamCountdown(null);
             return;
         }
 
@@ -412,6 +431,32 @@ export default React.memo((props: any) => {
 
         return () => clearInterval(interval);
     }, [streamCountdown]);
+
+
+
+    useEffect(() => {
+        if (
+            cachingEnabled &&
+            streamCountdown === 0 &&
+            pendingTxnAnalysisCount === 0
+        ) {
+            // 🎈 add toast like message here instead console.log here
+            console.log("✅ [Caching-Enabled-trigger-Auto-close]: No pending txns + countdown expired");
+            clearStreamId();
+            streamStartedRef.current = false;
+            setStreamCountdown(null);
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+        }
+    }, [streamCountdown, cachingEnabled, pendingTxnAnalysisCount]);
+
+
+    useEffect(() => {
+        console.log(`[Pending Analysis Txns Count as per UI]: ${pendingTxnAnalysisCount}`);
+    }, [pendingTxnAnalysisCount]);
+
 
 
     return (
