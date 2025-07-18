@@ -37,6 +37,9 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
 
   const visibleLogs = logs.slice(-limit)
 
+  const hasCacheHit = logs.some(log => log.includes("[CACHE-HIT]"));
+
+
   return (
     <div className="flex flex-col gap-2">
       {/* Header */}
@@ -66,6 +69,15 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
         </div>
       </div>
 
+      {/* Banner for cache hit */}
+      {hasCacheHit && (
+        <div className="mb-2 py-2 px-3 rounded bg-yellow-100 text-yellow-900 border border-yellow-400 flex items-center gap-2 animate-pulse">
+          <span role="img" aria-label="rocket" className="text-yellow-600 text-lg">🚀</span>
+          <span>
+            <b>Memory cache hit:</b> This transaction was short-circuited and served from prior LLM memory—no new LLM analysis was run.
+          </span>
+        </div>
+      )}
 
       {/* Logs */}
       <ScrollArea className="h-[80vh] rounded-md border border-muted/30 overflow-hidden shadow-inner">

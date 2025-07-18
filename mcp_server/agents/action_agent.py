@@ -25,6 +25,10 @@ from workers.assessed_events_stream_worker import (
     assessed_events_consumer_worker,
 )
 
+from utils.embedding_utils import get_langchain_embedding_model
+from utils.summarizer import T5Summarizer
+from infrastructure.memory_event_repository import MemoryEventRepository
+
 logger = get_logger("action_agent")
 
 
@@ -39,12 +43,24 @@ class ActionAgent(
     - forwards inconclusive "ND" or "NO" decisions to Judge agent for downstream for 2nd level of inference
     """
 
-    def __init__(self, judge_agent=None):
+    def __init__(
+        self,
+        judge_agent=None,
+        memory_event_repository: MemoryEventRepository = None,
+        embedding_model=None,
+        summarizer=None,
+    ):
         BaseAgent.__init__(self, "action-agent-v1")
         JsonRpcAgentMixin.__init__(self)
         self.judge_agent = judge_agent
         self._final_event_sent = set()
         self._final_event_lock = asyncio.Lock()
+
+        self.memory_event_repository = (
+            memory_event_repository or MemoryEventRepository()
+        )
+        self.embedding_model = embedding_model or get_langchain_embedding_model()
+        self.summarizer = summarizer or T5Summarizer()
 
     def _build_compliance_query(self, transaction: dict) -> str:
         """
@@ -229,10 +245,58 @@ class ActionAgent(
             elif decision in [DecisionLevel.NO, DecisionLevel.ND]:
                 await self._forward_to_judge(action_output)
 
-            # ---5. 🎈 Store MemoryEvent as needed maybe both yes and no decisions (Phase 7) ---
-            # if decision == DecisionLevel.YES:
-            #     await self.memory_agent.store_event(...)
-
+            # ---5. Store MemoryEvent as needed maybe both yes and no decisions (Phase 7) ---
+            if decision == DecisionLevel.YES:
+                try:
+                    prompt = structured_query
+                    summary = await self.summarizer.async_summarize(prompt)
+                    embedding = await asyncio.get_running_loop().run_in_executor(
+                        None, self.embedding_model.embed_query, prompt
+                    )
+                    # 📌 build llm source memory event
+                    memory_event = MemoryEvent(
+                        user_id=getattr(context, "user_id", None),
+                        agent_name="action-agent",
+                        prompt=prompt,
+                        llm_response=raw_response,
+                        decision=decision,  # Explicit field
+                        original_transaction=transaction,  # Full original txn
+                        relevant_clause_ids=clause_hits,
+                        metadata={
+                            "dynamic_metadata": dynamic_metadata,
+                            "assessment_metadata": getattr(
+                                input.assessment_output, "metadata", {}
+                            ),
+                            "score": getattr(input.assessment_output, "score", None),
+                            "priority": getattr(
+                                input.assessment_output, "priority", None
+                            ),
+                            "reasons": getattr(
+                                input.assessment_output, "reasons", None
+                            ),
+                        },
+                        extra_context={
+                            "stream_id": stream_id,
+                            "source_nodes": source_nodes,
+                            "prior_events": prior_events,
+                            "action_output_id": action_output.action_id,
+                        },
+                        summary=summary,
+                        source="llm",
+                        user_feedback=None,  # cud be set later after user review for ND type decisions forwarded from judge agent to the UI
+                    )
+                    # fire and forget store memory event source="llm"
+                    # Store asynchronously using the task registry to run as bg task
+                    task_registry.add(
+                        self.memory_event_repository.store(memory_event, embedding)
+                    )
+                    logger.info(
+                        f"[ActionAgent] Stored YES memory event in Qdrant, event_id: {memory_event.event_id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"[ActionAgent-MemoryEvent] Failed to store YES memory event in Qdrant: {e}"
+                    )
         except Exception as e:
             logger.error(f"[ActionAgent] Failed in background LlamaIndex analysis: {e}")
 

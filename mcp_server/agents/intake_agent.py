@@ -33,6 +33,9 @@ from .assessment_messages import AssessmentInput
 
 from .assessment_agent import AssessmentAgent
 
+from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchText, Range
+from infrastructure.redis_analysis_counter import analysis_counter_registry
+
 
 logger = get_logger("intake_agent")
 
@@ -72,37 +75,74 @@ class IntakeAgent(
                 "request_id": context.request_id,
                 "user_id": context.user_id,
                 "agent_id": self.agent_id,
-                "trace_id": context.trace_id or "N/A",
-                "span_id": context.span_id or "N/A",
+                "trace_id": (
+                    str(context.trace_id) if context.trace_id is not None else "N/A"
+                ),
+                "span_id": (
+                    str(context.span_id) if context.span_id is not None else "N/A"
+                ),
             },
         }
 
     async def retrieve_prior_events(self, enriched_txn: dict) -> List[MemoryEvent]:
         """
-        Retrieve relevant prior memory events using vector embedded prompt query + metadata filtering
+        Retrieve relevant prior memory events by strict matching for caching short circuit.
         """
-        prompt = (
-            f"Async compliance audit for {enriched_txn['amount']} transfer "
-            f"from {enriched_txn['source']} on {enriched_txn['timestamp']}"
-        )
+        # prompt = (
+        #     f"Async compliance audit for {enriched_txn['amount']} transfer "
+        #     f"from {enriched_txn['source']} on {enriched_txn['timestamp']}"
+        # )
         try:
             # async embedding
-            query_vector = await asyncio.to_thread(
-                self.embedding_model.embed_query, prompt
-            )
-            # 📌 qdrant lookup for prior similar events
+            # query_vector = await asyncio.to_thread(
+            #     self.embedding_model.embed_query, prompt
+            # )
+            sender = enriched_txn["metadata"].get("sender")
+            receiver = enriched_txn["metadata"].get("receiver")
+            amount = float(enriched_txn.get("amount", 0.0))
+
+            match_conditions = [
+                FieldCondition(
+                    key="original_transaction.metadata.sender",
+                    match=MatchValue(value=str(sender)),
+                ),
+                FieldCondition(
+                    key="original_transaction.metadata.receiver",
+                    match=MatchValue(value=str(receiver)),
+                ),
+                FieldCondition(
+                    key="original_transaction.amount",
+                    range=Range(
+                        lte=round(
+                            amount + 1e-6, 2
+                        )  # retrieve prior txns with lesser or equal of new txn amount
+                    ),
+                ),
+                FieldCondition(
+                    key="decision",
+                    match=MatchValue(value="YES"),
+                ),
+                FieldCondition(
+                    key="source",
+                    match=MatchValue(value="llm"),
+                ),
+            ]
+
+            qdrant_filters = Filter(must=match_conditions)
+            # 📌 qdrant lookup for prior similar events only retrieve with strict filters for cache matching
+            # ignoring query_vector sim search
             prior_events = await self.retriever.async_get_events(
-                query_vector=query_vector,
-                filters={"source": enriched_txn["source"]},
-                top_k=5,
+                query_vector=None,
+                filters=qdrant_filters,
+                top_k=1,
             )
             logger.info(
-                f"\n[Intake] Retrieved prior_events qdrant lookup {len(prior_events)} memories"
+                f"\n[Intake] Retrieved (strict) prior_events with filters {qdrant_filters}: {len(prior_events)}"
             )
             # Return raw Pydantic models – let A2AMessageSerializable handle serialization later
             return prior_events
         except Exception as e:
-            logger.error(f"[Intake] prior events retrieval failed: {e}")
+            logger.error(f"[Intake] strict prior events retrieval failed: {e}")
             return []
 
     @jsonrpc_method
@@ -210,6 +250,26 @@ class IntakeAgent(
                         )  # this includes .model_dump() on MemoryEvent
                         enriched_data["stream_id"] = stream_id
 
+                        # 📌 ---- cache short circuiting flow ---
+                        caching_enabled = getattr(config_obj, "caching", False)
+
+                        if caching_enabled and output.prior_events:
+                            logger.info(f"[Cache] Cache hit for stream_id={stream_id}")
+                            event = output.prior_events[0]
+                            event.source = "cache"
+                            await self._forward_with_fallback(
+                                {
+                                    "cached-memory-hit": True,
+                                    "memory_event": event.model_dump(),
+                                    "stream_id": stream_id,
+                                },
+                                stream_id,
+                            )
+                            await analysis_counter_registry.incr(stream_id)
+                            await analysis_counter_registry.decr(stream_id)
+                            continue  # Short-circuit: skip to next transaction
+
+                        # Normal flow in case no cache hit
                         # --- Forward to streaming-hub via forwarder event by event ---
                         await self._forward_with_fallback(enriched_data, stream_id)
 

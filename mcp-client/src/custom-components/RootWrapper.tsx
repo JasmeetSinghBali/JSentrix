@@ -12,6 +12,7 @@ import LogTerminal from './LogTerminal';
 import Dropdown, { DropdownOption } from "./Dropdown";
 import { RotateCcwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from '@/components/ui/switch';
 
 
 // interface for a single tool object
@@ -49,6 +50,10 @@ export default React.memo((props: any) => {
         { label: "Default (A2A)", value: "default" },
         { label: "Redistream (Global Async RediStream)", value: "redistream" },
     ];
+
+    const [cachingEnabled, setCachingEnabled] = useState<boolean>(false);
+    const [pendingTxnAnalysisCount, setPendingTxnAnalysisCount] = useState<number>(0);
+
 
 
 
@@ -166,7 +171,8 @@ export default React.memo((props: any) => {
                 arguments: { 
                     source: "faker",
                     config: {
-                        assessment_type: assessmentType
+                        assessment_type: assessmentType,
+                        caching: cachingEnabled
                     } 
                 }
             });
@@ -233,6 +239,22 @@ export default React.memo((props: any) => {
                             return;
                         }
 
+                        // analysis counter sim to backend to keep track of pending txn post stream countdown ends
+                        if (
+                            parsed.agent === "action-agent" &&
+                            parsed.message?.includes("Compliance analysis in progress")
+                        ) {
+                                setPendingTxnAnalysisCount(prev => (prev === null ? 1 : prev + 1));
+                        }
+                        if (
+                            parsed.agent === "action-agent" &&
+                            parsed.message?.includes("Action Taken: DecisionLevel")
+                        ) {
+                            setPendingTxnAnalysisCount(prev => Math.max(0, (prev ?? 1) - 1));
+                        }
+
+
+
                         // 1. Check for ActionAgent final post-abort event
                         if (
                             parsed.agent === "action-agent" &&
@@ -281,7 +303,14 @@ export default React.memo((props: any) => {
                                 ...prev,
                                 `🟣 AssessmentAgent:\n${fullMessage}`
                             ]);
-                        } else {
+                        } else if (parsed["cached-memory-hit"]) {
+                                setIntakeLogs(prev => [
+                                    ...prev,
+                                    `🟡 [CACHE-HIT] Memory Event:\n${JSON.stringify(parsed.memory_event, null, 2)}`
+                                ]);
+                                // Optionally: show a banner, toast, or highlight in your UI as well.
+                                return;
+                            } else {
                             setIntakeLogs(prev => [
                                 ...prev,
                                 `🟡 UnknownAgent:\n${fullMessage}`
@@ -391,7 +420,8 @@ export default React.memo((props: any) => {
         if (streamCountdown === null) return;
 
         if (streamCountdown <= 0) {
-            setStreamCountdown(null);
+            // let streamCountdown and cachingEnabled useEffect get triggered
+            // setStreamCountdown(null);
             return;
         }
 
@@ -403,11 +433,37 @@ export default React.memo((props: any) => {
     }, [streamCountdown]);
 
 
+
+    useEffect(() => {
+        if (
+            cachingEnabled &&
+            streamCountdown === 0 &&
+            pendingTxnAnalysisCount === 0
+        ) {
+            // 🎈 add toast like message here instead console.log here
+            console.log("✅ [Caching-Enabled-trigger-Auto-close]: No pending txns + countdown expired");
+            clearStreamId();
+            streamStartedRef.current = false;
+            setStreamCountdown(null);
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+        }
+    }, [streamCountdown, cachingEnabled, pendingTxnAnalysisCount]);
+
+
+    useEffect(() => {
+        console.log(`[Pending Analysis Txns Count as per UI]: ${pendingTxnAnalysisCount}`);
+    }, [pendingTxnAnalysisCount]);
+
+
+
     return (
         <div className='h-[100vh] w-[100%]'>
             <ResizablePanelGroup direction="horizontal">
                 <ResizablePanel minSize={25} defaultSize={30}>
-                    <div className='flex items-center gap-2 mb-4'>
+                    <div className='flex items-center gap-4 mb-4'>
                         <Dropdown
                             label="Assessment Type"
                             options={assessmentOptions}
@@ -415,6 +471,14 @@ export default React.memo((props: any) => {
                             onChange={(v) => setAssessmentType(v as "default" | "redistream")}
                             buttonClassName="mb-4"
                         />
+                        <div className="flex items-center space-x-2">
+                            <Switch
+                                id="caching-toggle"
+                                checked={cachingEnabled}
+                                onCheckedChange={setCachingEnabled}
+                            />
+                            <label htmlFor="caching-toggle" className="text-sm font-medium">Memory Caching</label>
+                        </div>
                         {/* 📌 shud be used often before hardrefresh or starting new stream */}
                         <Button
                             variant="outline"
