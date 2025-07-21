@@ -10,9 +10,11 @@ import { useWsAuthStore } from '@/shared/store';
 import { useStreamingesIdStore } from '@/shared/store';
 import LogTerminal from './LogTerminal';
 import Dropdown, { DropdownOption } from "./Dropdown";
-import { RotateCcwIcon } from "lucide-react";
+import { TimerReset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from '@/components/ui/switch';
+import { Separator } from "@/components/ui/separator"
+
 
 
 // interface for a single tool object
@@ -47,8 +49,8 @@ export default React.memo((props: any) => {
     const [globalLogs, setGlobalLogs] = useState<string[]>([]); // in case of redistream single global log terminal
 
     const assessmentOptions: DropdownOption[] = [
-        { label: "Default (A2A)", value: "default" },
-        { label: "Redistream (Global Async RediStream)", value: "redistream" },
+        { label: "Default (A2A) Mode", value: "default" },
+        { label: "Async RediStream Mode", value: "redistream" },
     ];
 
     const [cachingEnabled, setCachingEnabled] = useState<boolean>(false);
@@ -462,35 +464,54 @@ export default React.memo((props: any) => {
     return (
         <div className='h-[100vh] w-[100%]'>
             <ResizablePanelGroup direction="horizontal">
-                <ResizablePanel minSize={25} defaultSize={30}>
-                    <div className='flex items-center gap-4 mb-4'>
-                        <Dropdown
-                            label="Assessment Type"
-                            options={assessmentOptions}
-                            value={assessmentType}
-                            onChange={(v) => setAssessmentType(v as "default" | "redistream")}
-                            buttonClassName="mb-4"
-                        />
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id="caching-toggle"
-                                checked={cachingEnabled}
-                                onCheckedChange={setCachingEnabled}
-                            />
-                            <label htmlFor="caching-toggle" className="text-sm font-medium">Memory Caching</label>
+                <ResizablePanel minSize={25} defaultSize={25}>
+                    {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
+                    <div className='mb-6 ml-6 mt-6'>
+                        <div className="space-y-1">
+                            <h4 className="text-sm leading-none font-medium">JSentrix</h4>
+                            <p className="text-muted-foreground text-sm">
+                            Autonomous Transaction Monitoring & Response System
+                            </p>
                         </div>
-                        {/* 📌 shud be used often before hardrefresh or starting new stream */}
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            title="Reset Sys-Stream"
-                            onClick={resetAllLogs}
-                            className="ml-1"
-                        >
-                            <RotateCcwIcon className="w-5 h-5" />
-                            <span className="sr-only">Reset Sys-Stream</span>    
-                        </Button>
+                        <Separator className="my-4" />
+                        <div className="flex h-5 items-center space-x-4 text-sm">
+                            <div>
+                                <Dropdown
+                                    label="Assessment Mode"
+                                    options={assessmentOptions}
+                                    value={assessmentType}
+                                    onChange={(v) => setAssessmentType(v as "default" | "redistream")}
+                                />
+                            </div>
+                            <Separator orientation="vertical" />
+                            <div className="flex items-center space-x-1">
+                                <Switch
+                                    id="caching-toggle"
+                                    checked={cachingEnabled}
+                                    onCheckedChange={setCachingEnabled}
+                                />
+                                <label htmlFor="caching-toggle" className="text-sm font-medium">
+                                    Cached
+                                </label>
+                            </div>
+                            <Separator orientation="vertical" />
+                            <div>
+                                {/* 📌 shud be used often before hardrefresh or starting new stream */}
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    title="Reset Sys-Stream"
+                                    onClick={resetAllLogs}
+                                    className="ml-1"
+                                >
+                                    <TimerReset className="w-5 h-5" />
+                                    <span className="sr-only">Reset Sys-Stream</span>    
+                                </Button>
+                            </div>
+                        </div>
+                        <Separator className="my-4" />
                     </div>
+                    {/* 🎈 for future this shud be tabs for each tool with description payload and action button to invoke it */}
                     <p>Connected to gateway-server with MCP tools:</p>
                     <br/>
                     <ul style={{
@@ -526,7 +547,7 @@ export default React.memo((props: any) => {
                     )}
                 </ResizablePanel>
                 <ResizableHandle />
-                <ResizablePanel minSize={30}>
+                <ResizablePanel minSize={60}>
                     {/* Only use grid when showing multiple logs */}
                     {assessmentType === "redistream" ? (
                         <div className="p-2 h-full w-full">
@@ -544,7 +565,7 @@ export default React.memo((props: any) => {
                     ) : (
                         <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
                         <LogTerminal
-                            title="IntakeAgent Logs"
+                            title="Intake-Agent"
                             emoji="🟢"
                             logs={intakeLogs}
                             onClear={() => setIntakeLogs([])}
@@ -554,7 +575,7 @@ export default React.memo((props: any) => {
                             clearable
                         />
                         <LogTerminal
-                            title="AssessmentAgent Logs"
+                            title="Assessment-Agent"
                             emoji="🟣"
                             logs={assessmentLogs}
                             onClear={() => setAssessmentLogs([])}
@@ -564,7 +585,7 @@ export default React.memo((props: any) => {
                             clearable
                         />
                         <LogTerminal
-                            title="ActionAgent Logs"
+                            title="Action-Agent"
                             emoji="🔴"
                             logs={actionLogs}
                             onClear={()=>setActionLogs([])}
