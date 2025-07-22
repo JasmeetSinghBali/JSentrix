@@ -10,12 +10,17 @@ import { useWsAuthStore } from '@/shared/store';
 import { useStreamingesIdStore } from '@/shared/store';
 import LogTerminal from './LogTerminal';
 import Dropdown, { DropdownOption } from "./Dropdown";
-import { TimerReset } from "lucide-react";
+import { TimerReset, BadgeInfo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from '@/components/ui/switch';
 import { Separator } from "@/components/ui/separator"
-
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Toaster } from "@/components/ui/sonner"
+import { toast } from "sonner"
 
 // interface for a single tool object
 interface Tool {
@@ -459,147 +464,176 @@ export default React.memo((props: any) => {
         console.log(`[Pending Analysis Txns Count as per UI]: ${pendingTxnAnalysisCount}`);
     }, [pendingTxnAnalysisCount]);
 
+    useEffect(()=>{
+        if(cachingEnabled){
+            toast("Quick Assessment Mode is active.")
+        }
+        if(!cachingEnabled){
+            toast("Full Assessment Mode is active.")
+        }
+    },[cachingEnabled])
+
 
 
     return (
-        <div className='h-[100vh] w-[100%]'>
-            <ResizablePanelGroup direction="horizontal">
-                <ResizablePanel minSize={25} defaultSize={25}>
-                    {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
-                    <div className='mb-6 ml-6 mt-6'>
-                        <div className="space-y-1">
-                            <h4 className="text-sm leading-none font-medium">JSentrix</h4>
-                            <p className="text-muted-foreground text-sm">
-                            Autonomous Transaction Monitoring & Response System
-                            </p>
+        <React.Fragment>
+            <Toaster/>
+            <div className='h-[70vh] w-[100%]'>
+                <ResizablePanelGroup direction="horizontal">
+                    <ResizablePanel minSize={25} defaultSize={25}>
+                        {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
+                        <div className='mb-6 ml-6 mt-6'>
+                            <div className="space-y-1">
+                                <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">SYSTEM CONFIGS</h3>
+                                <p className="text-muted-foreground text-sm">
+                                Switch between Modes, Reset System and Quick Assessment 
+                                </p>
+                            </div>
+                            <Separator className="my-4" />
+                            <div className="flex h-5 items-center space-x-4 text-sm">
+                                <div>
+                                    <Dropdown
+                                        label="Assessment Mode"
+                                        options={assessmentOptions}
+                                        value={assessmentType}
+                                        onChange={(v) => setAssessmentType(v as "default" | "redistream")}
+                                    />
+                                </div>
+                                <Separator orientation="vertical" />
+                                <div className="flex items-center space-x-1">
+                                    <Switch
+                                        id="caching-toggle"
+                                        checked={cachingEnabled}
+                                        onCheckedChange={setCachingEnabled}
+                                    />
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                        <BadgeInfo className='w-4 h-4' />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>When active assessment and action agent steps are short-circuited if new txn's have similarity with prior assessed events.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <label htmlFor="caching-toggle" className="text-sm font-medium">
+                                        Cached
+                                    </label>
+                                </div>
+                                <Separator orientation="vertical" />
+                                <div>
+                                    {/* 📌 shud be used often before hardrefresh or starting new stream */}
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={resetAllLogs}
+                                        className="ml-1"
+                                    >
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <TimerReset className="w-5 h-5" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Reset System</p>
+                                            </TooltipContent>
+                                        </Tooltip>    
+                                    </Button>
+                                </div>
+                            </div>
+                            <Separator className="my-4" />
                         </div>
-                        <Separator className="my-4" />
-                        <div className="flex h-5 items-center space-x-4 text-sm">
-                            <div>
-                                <Dropdown
-                                    label="Assessment Mode"
-                                    options={assessmentOptions}
-                                    value={assessmentType}
-                                    onChange={(v) => setAssessmentType(v as "default" | "redistream")}
-                                />
+                        {/* 🎈 for future this shud be tabs for each tool with description payload and action button to invoke it */}
+                        <p>Connected to gateway-server with MCP tools:</p>
+                        <br/>
+                        <ul style={{
+                            listStyle: 'inside'
+                        }}>
+                            {tools?.tools && tools.tools.map((tool: Tool) => (
+                                <React.Fragment>
+                                    <li key={tool.name}>{tool.name}-({tool.description})</li>
+                                </React.Fragment>
+                            ))}
+                        </ul>
+                        {streamId && (
+                        <div className="mt-4 mb-2 p-3 rounded-md bg-muted/40 border border-muted">
+                            <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-muted-foreground">Active stream_id:</span>
+                            <code className="px-2 py-0.5 rounded bg-muted text-xs">{streamId}</code>
                             </div>
-                            <Separator orientation="vertical" />
-                            <div className="flex items-center space-x-1">
-                                <Switch
-                                    id="caching-toggle"
-                                    checked={cachingEnabled}
-                                    onCheckedChange={setCachingEnabled}
-                                />
-                                <label htmlFor="caching-toggle" className="text-sm font-medium">
-                                    Cached
-                                </label>
-                            </div>
-                            <Separator orientation="vertical" />
-                            <div>
-                                {/* 📌 shud be used often before hardrefresh or starting new stream */}
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    title="Reset Sys-Stream"
-                                    onClick={resetAllLogs}
-                                    className="ml-1"
-                                >
-                                    <TimerReset className="w-5 h-5" />
-                                    <span className="sr-only">Reset Sys-Stream</span>    
-                                </Button>
-                            </div>
+                            {streamCountdown !== null && (
+                            <>
+                                <div className="flex items-center gap-2 mt-2 text-base">
+                                <span role="img" aria-label="hourglass">⏳</span>
+                                <span>
+                                    Stream ends in <b>{streamCountdown}s</b>
+                                </span>
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground leading-snug">
+                                <b>NOTE:</b> New transactions are <span className="text-destructive">no longer ingested</span> after the stream ends.<br />
+                                However, post-abort-stream analysis events (already in progress before abort) may still arrive until the <b>final post-abort event</b> is emitted by <code>mcp_server</code>.
+                                </div>
+                            </>
+                            )}
                         </div>
-                        <Separator className="my-4" />
-                    </div>
-                    {/* 🎈 for future this shud be tabs for each tool with description payload and action button to invoke it */}
-                    <p>Connected to gateway-server with MCP tools:</p>
-                    <br/>
-                    <ul style={{
-                        listStyle: 'inside'
-                    }}>
-                        {tools?.tools && tools.tools.map((tool: Tool) => (
-                            <React.Fragment>
-                                <li key={tool.name}>{tool.name}-({tool.description})</li>
-                            </React.Fragment>
-                        ))}
-                    </ul>
-                    {streamId && (
-                    <div className="mt-4 mb-2 p-3 rounded-md bg-muted/40 border border-muted">
-                        <div className="flex items-center gap-2 text-sm">
-                        <span className="font-semibold text-muted-foreground">Active stream_id:</span>
-                        <code className="px-2 py-0.5 rounded bg-muted text-xs">{streamId}</code>
-                        </div>
-                        {streamCountdown !== null && (
-                        <>
-                            <div className="flex items-center gap-2 mt-2 text-base">
-                            <span role="img" aria-label="hourglass">⏳</span>
-                            <span>
-                                Stream ends in <b>{streamCountdown}s</b>
-                            </span>
-                            </div>
-                            <div className="mt-1 text-xs text-muted-foreground leading-snug">
-                            <b>NOTE:</b> New transactions are <span className="text-destructive">no longer ingested</span> after the stream ends.<br />
-                            However, post-abort-stream analysis events (already in progress before abort) may still arrive until the <b>final post-abort event</b> is emitted by <code>mcp_server</code>.
-                            </div>
-                        </>
                         )}
-                    </div>
-                    )}
-                </ResizablePanel>
-                <ResizableHandle />
-                <ResizablePanel minSize={60}>
-                    {/* Only use grid when showing multiple logs */}
-                    {assessmentType === "redistream" ? (
-                        <div className="p-2 h-full w-full">
-                        <LogTerminal
-                            title="Global Event Log"
-                            emoji="🌐"
-                            logs={globalLogs}
-                            onClear={() => setGlobalLogs([])}
-                            bgColor="#101020"
-                            textColor="#ffffff"
-                            limit={300}
-                            clearable
-                        />
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
-                        <LogTerminal
-                            title="Intake-Agent"
-                            emoji="🟢"
-                            logs={intakeLogs}
-                            onClear={() => setIntakeLogs([])}
-                            bgColor="#102010"
-                            textColor="#aaffaa"
-                            limit={150}
-                            clearable
-                        />
-                        <LogTerminal
-                            title="Assessment-Agent"
-                            emoji="🟣"
-                            logs={assessmentLogs}
-                            onClear={() => setAssessmentLogs([])}
-                            bgColor="#201020"
-                            textColor="#ddaaff"
-                            limit={150}
-                            clearable
-                        />
-                        <LogTerminal
-                            title="Action-Agent"
-                            emoji="🔴"
-                            logs={actionLogs}
-                            onClear={()=>setActionLogs([])}
-                            bgColor="#200010"
-                            textColor="#ffaaaa"
-                            limit={150}
-                            clearable
-                        />
-                        </div>
-                    )}
                     </ResizablePanel>
+                    <ResizableHandle />
+                    <ResizablePanel minSize={60}>
+                        {/* Only use grid when showing multiple logs */}
+                        {assessmentType === "redistream" ? (
+                            <div className="p-2 h-full w-full">
+                            <LogTerminal
+                                title="Global Event Log"
+                                emoji="🌐"
+                                logs={globalLogs}
+                                onClear={() => setGlobalLogs([])}
+                                bgColor="#101020"
+                                textColor="#ffffff"
+                                limit={300}
+                                clearable
+                            />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
+                            <LogTerminal
+                                title="Intake-Agent"
+                                emoji="🟢"
+                                logs={intakeLogs}
+                                onClear={() => setIntakeLogs([])}
+                                bgColor="#102010"
+                                textColor="#aaffaa"
+                                limit={150}
+                                clearable
+                            />
+                            <LogTerminal
+                                title="Assessment-Agent"
+                                emoji="🟣"
+                                logs={assessmentLogs}
+                                onClear={() => setAssessmentLogs([])}
+                                bgColor="#201020"
+                                textColor="#ddaaff"
+                                limit={150}
+                                clearable
+                            />
+                            <LogTerminal
+                                title="Action-Agent"
+                                emoji="🔴"
+                                logs={actionLogs}
+                                onClear={()=>setActionLogs([])}
+                                bgColor="#200010"
+                                textColor="#ffaaaa"
+                                limit={150}
+                                clearable
+                            />
+                            </div>
+                        )}
+                        </ResizablePanel>
 
 
-            </ResizablePanelGroup>
-        </div>
+                </ResizablePanelGroup>
+            </div>
+            <Separator className="my-1" />
+            {/* 🎈 Add xy react flow visualizing intake, assessment, judge agent working and shud be 2 flows 1 for default a2a mode and the 2nd one for Async Redis Stream mode */}
+
+        </React.Fragment>
+        
     );
 });
