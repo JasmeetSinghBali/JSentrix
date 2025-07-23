@@ -43,6 +43,20 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
   const visibleLogs = logs.slice(-limit)
   const hasCacheHit = logs.some(log => log.includes("[CACHE-HIT]"));
 
+  const getHighlightedText = (text:string, query: string)=>{
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`,'gi');
+    return text.split(regex).map((part,i)=>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <mark key={i} className="bg-yellow-200 text-black rounded-sm">{part}</mark>
+      ) : (
+        part
+      )
+    );
+  };
+
+  const isMatch = (text: string, query: string) => query && text.toLowerCase().includes(query.toLowerCase());
+
 
   return (
     <div className="flex flex-col gap-2">
@@ -57,25 +71,25 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
         <div className="flex gap-2">
           <Button
             size="sm"
-            variant="ghost"
+            variant="outline"
             onClick={() => setShowSearch(prev => !prev)}
           >
             {showSearch ? (
               <>
-                <SearchX className={title === 'Assessment-Agent' ? 'w-1 h-1' : 'w-4 h-4'} /> Close
+                <SearchX className={title === 'Assessment-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Close
               </>
             ) : (
               <>
-                <SearchIcon className={title === 'Assessment-Agent' ? 'w-1 h-1' : 'w-4 h-4'} /> Search
+                <SearchIcon className={title === 'Assessment-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Search
               </>
             )}
           </Button>
           {clearable && onClear && (
             <Button
               size="sm"
-              variant="ghost"
+              variant="outline"
               onClick={onClear}
-              className="text-red-500 hover:text-red-600"
+              className="text-red-300 hover:bg-red-300"
             >
               <Trash2Icon className="w-4 h-4" />
               Clear
@@ -139,10 +153,15 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
             ) : (
               visibleLogs.map((log, idx) => (
                 <div
-                  key={idx}
-                  className="mb-4 border-b border-dashed border-white/10 pb-2"
+                  key={`${log}-${idx}`}
+                  className={cn(
+                    "mb-4 border-b border-dashed border-white/10 pb-2",
+                    isMatch(log, searchQuery) && "bg-muted/10"
+                  )}
                 >
-                  <pre className="whitespace-pre-wrap">{log}</pre>
+                  <pre className="whitespace-pre-wrap">
+                    {getHighlightedText(log, searchQuery)}
+                  </pre>
                 </div>
               ))
             )}

@@ -10,7 +10,7 @@ import { useWsAuthStore } from '@/shared/store';
 import { useStreamingesIdStore } from '@/shared/store';
 import LogTerminal from './LogTerminal';
 import Dropdown, { DropdownOption } from "./Dropdown";
-import { TimerReset, BadgeInfo } from "lucide-react";
+import { TimerReset, BadgeInfo, BadgeCheck, BadgeX, Cog, Activity, HeartPulse, Podcast, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from '@/components/ui/switch';
 import { Separator } from "@/components/ui/separator"
@@ -21,6 +21,13 @@ import {
 } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 // interface for a single tool object
 interface Tool {
@@ -61,6 +68,11 @@ export default React.memo((props: any) => {
     const [cachingEnabled, setCachingEnabled] = useState<boolean>(false);
     const [pendingTxnAnalysisCount, setPendingTxnAnalysisCount] = useState<number>(0);
 
+    const [whoamiAccess, setWhoAmIAccess] = useState<boolean>(false);
+    const [loginGateway, setLoginGateway] = useState<boolean>(false);
+    const [toolActive, setToolActive] = useState<boolean>(false);
+    const [websocketActive, setWebsocketActive] = useState<boolean>(false);
+
 
 
 
@@ -71,9 +83,11 @@ export default React.memo((props: any) => {
             });
             const data: ToolsState = await response.json(); // Cast to ToolsState
             setTools(data);
+            setWhoAmIAccess(true);
             return data;
         } catch (error) {
             console.error("Error in whoami:", error);
+            setWhoAmIAccess(false);
         }
     };
 
@@ -95,9 +109,11 @@ export default React.memo((props: any) => {
             });
             const data = await response2.json();
             setAt(data.access_token);
+            setLoginGateway(true);
             return data.access_token;
         } catch (error) {
             console.error("Error in login:", error);
+            setLoginGateway(false);
         }
     };
 
@@ -125,6 +141,9 @@ export default React.memo((props: any) => {
                 },
                 body: JSON.stringify(params),
             });
+            if(response4 && toolName === 'ping'){
+                setToolActive(true)
+            }
             return response4.json();
         } catch (error) {
             console.error(`Error invoking tool ${toolName}:`, error);
@@ -189,7 +208,9 @@ export default React.memo((props: any) => {
                 setStreamCountdown(120); // trigger stream countdown useEffect
                 setTimeout(async () => {
                     await invokeTool(accessToken, "abortinges", {
-                        arguments: { stream_id: res.result.stream_id }
+                        arguments: { 
+                            stream_id: res.result.stream_id 
+                        }
                     });
                     // 🎈 The WebSocket handler will handle cleanup after final event.
                     // clearStreamId();
@@ -232,6 +253,7 @@ export default React.memo((props: any) => {
 
                 ws.onopen = () => {
                     console.log('WebSocket connected to Go Fiber');
+                    setWebsocketActive(true);
                 };
 
                 ws.onmessage = (event) => {
@@ -345,6 +367,7 @@ export default React.memo((props: any) => {
 
                 ws.onclose = (event) => {
                     console.log('WebSocket closed', event.reason, event.code);
+                    setWebsocketActive(false);
                     // if server closes due to auth error then clear credentials from zustand
                     if(event.code === 4001){ // invalid token/session
                         useWsAuthStore.getState().clearAuth();
@@ -478,161 +501,273 @@ export default React.memo((props: any) => {
     return (
         <React.Fragment>
             <Toaster/>
-            <div className='h-[70vh] w-[100%]'>
-                <ResizablePanelGroup direction="horizontal">
-                    <ResizablePanel minSize={25} defaultSize={25}>
-                        {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
-                        <div className='mb-6 ml-6 mt-6'>
-                            <div className="space-y-1">
-                                <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">SYSTEM CONFIGS</h3>
-                                <p className="text-muted-foreground text-sm">
-                                Switch between Modes, Reset System and Quick Assessment 
-                                </p>
-                            </div>
-                            <Separator className="my-4" />
-                            <div className="flex h-5 items-center space-x-4 text-sm">
-                                <div>
-                                    <Dropdown
-                                        label="Assessment Mode"
-                                        options={assessmentOptions}
-                                        value={assessmentType}
-                                        onChange={(v) => setAssessmentType(v as "default" | "redistream")}
+            <div className='h-screen w-full'>
+                {/* Outermost: vertical split */}
+                <ResizablePanelGroup direction="vertical">
+
+                    {/* Top-Panel: Left: Vitals, tools, configs section and Right: Log Terminal Section */}
+                    <ResizablePanel minSize={40} defaultSize={70}> {/* 70%+ space */}
+                        
+                        <ResizablePanelGroup direction="horizontal">
+                            {/* Vitals, tools, configs section */}
+
+                            <ResizablePanel minSize={25} defaultSize={25}>
+                                {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
+                                <div className='mb-6 ml-6 mt-6'>
+                                    <div className="flex h-5 items-center space-x-4 text-sm">
+                                        <Cog className='w-4 h-4'/>
+                                        <div>
+                                            <Dropdown
+                                                label="Assessment Mode"
+                                                options={assessmentOptions}
+                                                value={assessmentType}
+                                                onChange={(v) => setAssessmentType(v as "default" | "redistream")}
+                                            />
+                                        </div>
+                                        <Separator orientation="vertical" />
+                                        <div className="flex items-center space-x-1">
+                                            <Switch
+                                                id="caching-toggle"
+                                                checked={cachingEnabled}
+                                                onCheckedChange={setCachingEnabled}
+                                            />
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                <BadgeInfo className='w-4 h-4' />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Enabling skips assessment and action agent pipeline if new txn's have similarity with prior assessed events.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <label htmlFor="caching-toggle" className="text-sm font-medium">
+                                                Cached
+                                            </label>
+                                        </div>
+                                        <Separator orientation="vertical" />
+                                        <div>
+                                            {/* 📌 shud be used often before hardrefresh or starting new stream */}
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                // 🎈 here this shud clear the streamid, cut off ws connection if their and resetalllogs and other things to completely reset the system
+                                                onClick={resetAllLogs}
+                                            >
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <TimerReset className="w-5 h-5" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Reset System</p>
+                                                    </TooltipContent>
+                                                </Tooltip>    
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <Separator className="my-4" />
+                                </div>
+                                {/* Dynamic System Vitals Section */}
+                                <div className="ml-6 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
+                                    <p className="text-muted-foreground text-sm">
+                                        <div className='flex items-center gap-5 mt-2'>
+                                            {
+                                                (loginGateway && whoamiAccess) ?
+                                                <HeartPulse className='w-4 h-4 text-green-500' />
+                                                :    
+                                                <Activity className='w-4 h-4 text-red-500'/>
+                                                
+                                            }
+                                            Vitals :
+                                            <div className="flex h-5 items-center space-x-4 text-sm">
+                                                <Badge 
+                                                    // variant="default |outline | secondary | destructive"
+                                                    variant={(loginGateway && whoamiAccess) ? "secondary" : "destructive"}
+                                                    className={(loginGateway && whoamiAccess) && "bg-blue-500 text-white dark:bg-blue-600"}
+                                                    >
+                                                        {(loginGateway && whoamiAccess) ? <BadgeCheck/>: <BadgeX/>}
+                                                        Gateway
+                                                </Badge>
+                                                <Separator orientation="vertical" />
+                                                <Badge 
+                                                    // variant="default |outline | secondary | destructive"
+                                                    variant={ toolActive ? "secondary" : "destructive"}
+                                                    className={toolActive && "bg-blue-500 text-white dark:bg-blue-600"}
+                                                    >
+                                                        {
+                                                            toolActive ? <BadgeCheck/> : <BadgeX/>
+                                                        }
+                                                        Tools
+                                                </Badge>
+                                                <Separator orientation="vertical" />
+                                                <Badge 
+                                                    // variant="default |outline | secondary | destructive"
+                                                    variant={websocketActive ? "secondary" : "destructive"}
+                                                    className={websocketActive && "bg-blue-500 text-white dark:bg-blue-600"}
+                                                    >
+                                                        {
+                                                            websocketActive ? <BadgeCheck/> : <BadgeX/>
+                                                        }
+                                                        Events
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <p className='text-muted-foreground text-sm'>
+                                        <div className='flex items-center gap-5 mt-2'>
+                                            {
+                                                streamId ?
+                                                <Podcast className='w-4 h-4 text-green-500'/>
+                                                :    
+                                                <BadgeX className='w-4 h-4 text-red-500'/>
+                                                
+                                            }
+                                            StreamID :
+                                            <code className={streamId ? "px-2 py-0.5 rounded bg-blue-500 text-white text-xs" : "px-2 py-0.5 rounded bg-red-600 text-white text-xs" }>{streamId || 'no-active-stream-id'}</code>
+                                        </div>
+                                    </p>
+                                </div>
+                                <div className='flex ml-6 items-center gap-5 mt-2'>
+                                    <Accordion
+                                        type="single"
+                                        collapsible
+                                        className="w-full"
+                                        defaultValue="item-1"
+                                        >
+                                        <AccordionItem value="item-1">
+                                            
+                                            <AccordionTrigger>
+                                                <div className='flex justify-between items-center gap-2'>
+                                                    <Podcast className='w-4 h-4'/>
+                                                    Stream Vitals
+                                                </div>
+                                                
+                                            </AccordionTrigger>
+
+                                            <AccordionContent className="flex flex-col gap-4 text-balance">
+                                                {
+                                                    streamCountdown !== null ?
+                                                    (
+                                                        <p className='text-muted-foreground text-sm'>
+                                                            <div className="flex-column items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
+                                                                <div className='flex items-center gap-2'>
+                                                                    <Hourglass className='w-4 h-4'/>
+                                                                    Stream ends in <b>{streamCountdown}s</b>
+                                                                </div>
+                                                                <div className="mt-1 text-xs text-muted-foreground leading-snug">
+                                                                    <b>NOTE:</b> New transactions are <span className="text-destructive">no longer ingested</span> after the stream ends.<br />
+                                                                    However, post-abort-stream analysis events (already in progress <br/>before abort) may still arrive until the <b>final post-abort event</b> <br/> is emitted by <code>mcp server</code>.
+                                                                </div>
+                                                            </div>
+                                                        </p>
+                                                    ) :
+                                                    <p className='text-muted-foreground text-sm'>
+                                                        <div className="flex items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
+                                                            <BadgeX className='w-4 h-4 text-red-500'/>
+                                                            No stream is active at the moment.
+                                                        </div>
+                                                    </p>
+                                                }
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                        <AccordionItem value="item-2">
+                                            <AccordionTrigger>Available Tools</AccordionTrigger>
+                                            <AccordionContent className="flex flex-col gap-4 text-balance">
+                                                {/* 🎈 for future this shud be tabs for each tool with description payload and action button to invoke it */}
+                                                <ul style={{
+                                                    listStyle: 'inside'
+                                                }}>
+                                                    {tools?.tools && tools.tools.map((tool: Tool) => (
+                                                        <React.Fragment>
+                                                            <li key={tool.name}>{tool.name}-({tool.description})</li>
+                                                        </React.Fragment>
+                                                    ))}
+                                                </ul>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
+                                </div>
+                                
+                                
+                                
+                            </ResizablePanel>
+                            
+                            <ResizableHandle />
+
+                            {/* Log section */}
+                            <ResizablePanel minSize={60}>
+                                {/* Only use grid when showing multiple logs */}
+                                {assessmentType === "redistream" ? (
+                                    <div className="p-2 h-full w-full">
+                                    <LogTerminal
+                                        title="Global Event Log"
+                                        emoji="🌐"
+                                        logs={globalLogs}
+                                        onClear={() => setGlobalLogs([])}
+                                        bgColor="#101020"
+                                        textColor="#ffffff"
+                                        limit={300}
+                                        clearable
                                     />
-                                </div>
-                                <Separator orientation="vertical" />
-                                <div className="flex items-center space-x-1">
-                                    <Switch
-                                        id="caching-toggle"
-                                        checked={cachingEnabled}
-                                        onCheckedChange={setCachingEnabled}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
+                                    <LogTerminal
+                                        title="Intake-Events"
+                                        emoji="🟢"
+                                        logs={intakeLogs}
+                                        onClear={() => setIntakeLogs([])}
+                                        bgColor="#102010"
+                                        textColor="#aaffaa"
+                                        limit={150}
+                                        clearable
                                     />
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                        <BadgeInfo className='w-4 h-4' />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>When active assessment and action agent steps are short-circuited if new txn's have similarity with prior assessed events.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                    <label htmlFor="caching-toggle" className="text-sm font-medium">
-                                        Cached
-                                    </label>
-                                </div>
-                                <Separator orientation="vertical" />
-                                <div>
-                                    {/* 📌 shud be used often before hardrefresh or starting new stream */}
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={resetAllLogs}
-                                        className="ml-1"
-                                    >
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <TimerReset className="w-5 h-5" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Reset System</p>
-                                            </TooltipContent>
-                                        </Tooltip>    
-                                    </Button>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                        </div>
-                        {/* 🎈 for future this shud be tabs for each tool with description payload and action button to invoke it */}
-                        <p>Connected to gateway-server with MCP tools:</p>
-                        <br/>
-                        <ul style={{
-                            listStyle: 'inside'
-                        }}>
-                            {tools?.tools && tools.tools.map((tool: Tool) => (
-                                <React.Fragment>
-                                    <li key={tool.name}>{tool.name}-({tool.description})</li>
-                                </React.Fragment>
-                            ))}
-                        </ul>
-                        {streamId && (
-                        <div className="mt-4 mb-2 p-3 rounded-md bg-muted/40 border border-muted">
-                            <div className="flex items-center gap-2 text-sm">
-                            <span className="font-semibold text-muted-foreground">Active stream_id:</span>
-                            <code className="px-2 py-0.5 rounded bg-muted text-xs">{streamId}</code>
-                            </div>
-                            {streamCountdown !== null && (
-                            <>
-                                <div className="flex items-center gap-2 mt-2 text-base">
-                                <span role="img" aria-label="hourglass">⏳</span>
-                                <span>
-                                    Stream ends in <b>{streamCountdown}s</b>
-                                </span>
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground leading-snug">
-                                <b>NOTE:</b> New transactions are <span className="text-destructive">no longer ingested</span> after the stream ends.<br />
-                                However, post-abort-stream analysis events (already in progress before abort) may still arrive until the <b>final post-abort event</b> is emitted by <code>mcp_server</code>.
-                                </div>
-                            </>
-                            )}
-                        </div>
-                        )}
+                                    <LogTerminal
+                                        title="Assessment-Events"
+                                        emoji="🟣"
+                                        logs={assessmentLogs}
+                                        onClear={() => setAssessmentLogs([])}
+                                        bgColor="#201020"
+                                        textColor="#ddaaff"
+                                        limit={150}
+                                        clearable
+                                    />
+                                    <LogTerminal
+                                        title="Action-Events"
+                                        emoji="🔴"
+                                        logs={actionLogs}
+                                        onClear={()=>setActionLogs([])}
+                                        bgColor="#200010"
+                                        textColor="#ffaaaa"
+                                        limit={150}
+                                        clearable
+                                    />
+                                    </div>
+                                )}
+                            </ResizablePanel>
+                        </ResizablePanelGroup>
+
                     </ResizablePanel>
+
+                    {/* Middle handle (vertical drag between top and bottom) */}
                     <ResizableHandle />
-                    <ResizablePanel minSize={60}>
-                        {/* Only use grid when showing multiple logs */}
-                        {assessmentType === "redistream" ? (
-                            <div className="p-2 h-full w-full">
-                            <LogTerminal
-                                title="Global Event Log"
-                                emoji="🌐"
-                                logs={globalLogs}
-                                onClear={() => setGlobalLogs([])}
-                                bgColor="#101020"
-                                textColor="#ffffff"
-                                limit={300}
-                                clearable
-                            />
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
-                            <LogTerminal
-                                title="Intake-Agent"
-                                emoji="🟢"
-                                logs={intakeLogs}
-                                onClear={() => setIntakeLogs([])}
-                                bgColor="#102010"
-                                textColor="#aaffaa"
-                                limit={150}
-                                clearable
-                            />
-                            <LogTerminal
-                                title="Assessment-Agent"
-                                emoji="🟣"
-                                logs={assessmentLogs}
-                                onClear={() => setAssessmentLogs([])}
-                                bgColor="#201020"
-                                textColor="#ddaaff"
-                                limit={150}
-                                clearable
-                            />
-                            <LogTerminal
-                                title="Action-Agent"
-                                emoji="🔴"
-                                logs={actionLogs}
-                                onClear={()=>setActionLogs([])}
-                                bgColor="#200010"
-                                textColor="#ffaaaa"
-                                limit={150}
-                                clearable
-                            />
-                            </div>
-                        )}
-                        </ResizablePanel>
 
-
+                    {/* Bottom-Panel: XY React Flow Visual */}
+                    <ResizablePanel minSize={20} defaultSize={30}>
+                        <div className="h-full w-full bg-muted p-4 flex items-center justify-center">
+                            {/* 🎈 Add xy react flow visualizing intake, assessment, judge agent working and shud be 2 flows 1 for default a2a mode and the 2nd one for Async Redis Stream mode */}
+                            {/* For example */}
+                            <div className="h-full w-full flex flex-col items-center justify-center">
+                            <h2 className="mb-2 text-lg font-semibold">Agent Flows</h2>
+                            {/* <YourXYReactFlowComponent mode={assessmentType}/> */}
+                            <div className="border border-dashed border-gray-400 h-full w-full flex items-center justify-center text-muted-foreground">
+                                XY React Flow Visuals go here
+                            </div>
+                            </div>
+                        </div>
+                    </ResizablePanel>
+                
                 </ResizablePanelGroup>
+                {/* End main vertical split */}
             </div>
-            <Separator className="my-1" />
-            {/* 🎈 Add xy react flow visualizing intake, assessment, judge agent working and shud be 2 flows 1 for default a2a mode and the 2nd one for Async Redis Stream mode */}
-
         </React.Fragment>
         
     );
