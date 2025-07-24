@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { CopyIcon, Trash2Icon, SearchIcon, SearchX } from 'lucide-react'
@@ -30,10 +30,12 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
   onClear,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
-
   const logRefs = useRef<(HTMLDivElement | null)[]>([])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
 
   const handleCopy = async () => {
     const fullText = logs.join('\n\n' + '-'.repeat(30) + '\n\n')
@@ -57,11 +59,59 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
 
   const isMatch = (text: string, query: string) => query && text.toLowerCase().includes(query.toLowerCase());
 
+  const scrollToMatch = () => {
+    if (!searchQuery) return;
+    const index = visibleLogs.findIndex((log) =>
+      log.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    if (index !== -1) {
+      const el = logRefs.current[index];
+      const container = containerRef.current;
+      if (el && container) {
+        // Calculate scroll offset of the element *relative to viewport*
+        const scrollTop = el.offsetTop - container.offsetTop - 100; // adjust for header
+        container.scrollTo({ top: scrollTop, behavior: 'smooth' });
+      }
+    }
+  };
+
+  // Focus input with `/`, close with Esc
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && !showSearch) {
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchInputRef.current?.focus(), 0);
+      }
+      if (e.key === 'Escape' && showSearch) {
+        setShowSearch(false);
+        setSearchQuery('');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
+
+
+  // AUTO-SCROLL BOTTOM WHEN NEW LOGS WHEN SEARCH NOT OPEN
+  useEffect(() => {
+    if (!showSearch && containerRef.current) {
+      setTimeout(() => {
+        containerRef.current!.scrollTo({
+          top: containerRef.current!.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 10);
+    }
+  }, [visibleLogs, showSearch]);
+
+  // clear & populate with empty array on render
+  logRefs.current = [];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="relative flex flex-col gap-2">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="sticky top-0 z-20 bg-background p-2 flex justify-between items-center">
         <h3 className="text-md font-semibold flex items-center gap-2">
           {emoji} {title}
           <span className="ml-2 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
@@ -76,11 +126,11 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
           >
             {showSearch ? (
               <>
-                <SearchX className={title === 'Assessment-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Close
+                <SearchX className={title === 'Assess-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Close
               </>
             ) : (
               <>
-                <SearchIcon className={title === 'Assessment-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Search
+                <SearchIcon className={title === 'Assess-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Search
               </>
             )}
           </Button>
@@ -103,49 +153,43 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
       </div>
 
 
-      {/* Banner for cache hit */}
-      {hasCacheHit && (
-        <div className="mb-2 py-2 px-3 rounded bg-yellow-100 text-yellow-900 border border-yellow-400 flex items-center gap-2 animate-pulse">
-          <span role="img" aria-label="rocket" className="text-yellow-600 text-lg">🚀</span>
-          <span>
-            <b>Memory cache hit:</b> This transaction was short-circuited and served from prior LLM memory—no new LLM analysis was run.
-          </span>
-        </div>
-      )}
+      
 
-      {/* Floating search bar overlayed on top of logs */}
       <div className="relative">
+        {/* Search bar floating over logs */}
         {showSearch && (
-          <div className="absolute top-2 right-2 left-2 z-30">
-            <Command className="bg-background shadow-lg border border-border rounded-md">
+          <div className="absolute top-0 left-0 right-0 z-30 px-4 pointer-events-none">
+            <Command className="bg-background shadow-lg border border-border rounded-md w-full pointer-events-auto">
               <CommandInput
-                placeholder="Search by txnId, streamId, sender, reciever, amount..."
+                ref={searchInputRef}
+                placeholder="Search by txnId, streamId, sender, receiver, amount..."
                 value={searchQuery}
                 onValueChange={setSearchQuery}
+                className="w-full px-4 py-2"
                 onKeyDown={(e) => {
-                  // if (e.key === 'Enter') {
-                  //   e.preventDefault()
-                  //   handleSearch(searchQuery)
-                  // }
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    scrollToMatch();
+                  }
                 }}
               />
             </Command>
           </div>
         )}
-      </div>
 
-
-      {/* Logs */}
-      <div className="relative">
-        <ScrollArea className="h-[80vh] rounded-md border border-muted/30 overflow-hidden shadow-inner">
+        {/* Log display below */}
+        <ScrollArea 
+          ref={containerRef} 
+          className="h-[80vh] rounded-md border border-muted/30 overflow-hidden shadow-inner"
+        >
           <div
-            ref={containerRef}
             className={cn('p-4 text-sm')}
             style={{
               minHeight: '78vh',
               background: bgColor,
               color: textColor,
               fontFamily: 'monospace',
+              scrollPaddingTop: '3.5rem', // This ensures focused items aren't hidden under search bar
             }}
           >
             {visibleLogs.length === 0 ? (
@@ -154,9 +198,12 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
               visibleLogs.map((log, idx) => (
                 <div
                   key={`${log}-${idx}`}
+                  ref={(el) => {
+                    logRefs.current[idx] = el
+                  }}
                   className={cn(
-                    "mb-4 border-b border-dashed border-white/10 pb-2",
-                    isMatch(log, searchQuery) && "bg-muted/10"
+                    'mb-4 border-b border-dashed border-white/10 pb-2',
+                    isMatch(log, searchQuery) && 'bg-muted/10'
                   )}
                 >
                   <pre className="whitespace-pre-wrap">
@@ -168,7 +215,7 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
           </div>
         </ScrollArea>
       </div>
-      
+
     </div>
   )
 }

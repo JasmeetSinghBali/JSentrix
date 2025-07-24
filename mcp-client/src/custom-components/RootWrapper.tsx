@@ -10,7 +10,7 @@ import { useWsAuthStore } from '@/shared/store';
 import { useStreamingesIdStore } from '@/shared/store';
 import LogTerminal from './LogTerminal';
 import Dropdown, { DropdownOption } from "./Dropdown";
-import { TimerReset, BadgeInfo, BadgeCheck, BadgeX, Cog, Activity, HeartPulse, Podcast, Hourglass } from "lucide-react";
+import { TimerReset, BadgeInfo, BadgeCheck, BadgeX, Cog, Activity, HeartPulse, Podcast, Hourglass, Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from '@/components/ui/switch';
 import { Separator } from "@/components/ui/separator"
@@ -235,6 +235,21 @@ export default React.memo((props: any) => {
         setGlobalLogs([]);
     };
 
+    const resetSystem = (terminalLogs: boolean = false) => {
+        clearStreamId();
+        streamStartedRef.current = false;
+        setStreamCountdown(null);
+        if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+        }
+        setLoginGateway(false)
+        setToolActive(false)
+        if(terminalLogs){
+            resetAllLogs()
+        }
+    }
+
     
 
     // Connect to Go fiber websocket and handle incoming messages
@@ -295,14 +310,8 @@ export default React.memo((props: any) => {
                                 ...prev,
                                 `🔴 [POST-ABORT][FINAL] ActionAgent:\n${fullMessage}`
                             ]);
-                            // Cleanup: clear streamId, close ws, reset state
-                            clearStreamId();
-                            streamStartedRef.current = false;
-                            setStreamCountdown(null);
-                            if (wsRef.current) {
-                                wsRef.current.close();
-                                wsRef.current = null;
-                            }
+                            // Reset System
+                            resetSystem()
                             return;
                         }
                         // --- REDISTREAM: Push all events to global log ---
@@ -401,7 +410,6 @@ export default React.memo((props: any) => {
                 invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
                 clearStreamId();
             }
-            resetAllLogs();
         };
     }, [clientId, token, streamId, assessmentType]);
 
@@ -421,20 +429,13 @@ export default React.memo((props: any) => {
     }, [at]); 
 
     useEffect(() => {
-    // On assessmentType change, abort stream and reset logs
+    // On assessmentType change, abort the stream and reset all logs
     if (streamId && at) {
         invokeTool(at, "abortinges", { arguments: { stream_id: streamId } });
         clearStreamId();
-        resetAllLogs();
     }
     }, [assessmentType]);
-
-    // reset all logs when new stream starts or the current one ends all logs are cleared
-    useEffect(() => {
-       resetAllLogs();
-    }, [streamId]);
-
-
+   
 
     useEffect(() => {
         // login to mcp_server via gateway
@@ -546,28 +547,29 @@ export default React.memo((props: any) => {
                                         <Separator orientation="vertical" />
                                         <div>
                                             {/* 📌 shud be used often before hardrefresh or starting new stream */}
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                // 🎈 here this shud clear the streamid, cut off ws connection if their and resetalllogs and other things to completely reset the system
-                                                onClick={resetAllLogs}
-                                            >
-                                                <Tooltip>
-                                                    <TooltipTrigger>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={()=>{resetSystem(true)}}
+                                                    >
                                                         <TimerReset className="w-5 h-5" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Reset System</p>
-                                                    </TooltipContent>
-                                                </Tooltip>    
-                                            </Button>
+                                                    </Button>
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Reset System</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                     <Separator className="my-4" />
                                 </div>
                                 {/* Dynamic System Vitals Section */}
                                 <div className="ml-6 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
-                                    <p className="text-muted-foreground text-sm">
+                                    <div className="text-muted-foreground text-sm flex items-center gap-2">
                                         <div className='flex items-center gap-5 mt-2'>
                                             {
                                                 (loginGateway && whoamiAccess) ?
@@ -610,8 +612,8 @@ export default React.memo((props: any) => {
                                                 </Badge>
                                             </div>
                                         </div>
-                                    </p>
-                                    <p className='text-muted-foreground text-sm'>
+                                    </div>
+                                    <div className='text-muted-foreground text-sm'>
                                         <div className='flex items-center gap-5 mt-2'>
                                             {
                                                 streamId ?
@@ -623,7 +625,7 @@ export default React.memo((props: any) => {
                                             StreamID :
                                             <code className={streamId ? "px-2 py-0.5 rounded bg-blue-500 text-white text-xs" : "px-2 py-0.5 rounded bg-red-600 text-white text-xs" }>{streamId || 'no-active-stream-id'}</code>
                                         </div>
-                                    </p>
+                                    </div>
                                 </div>
                                 <div className='flex ml-6 items-center gap-5 mt-2'>
                                     <Accordion
@@ -646,7 +648,7 @@ export default React.memo((props: any) => {
                                                 {
                                                     streamCountdown !== null ?
                                                     (
-                                                        <p className='text-muted-foreground text-sm'>
+                                                        <div className='text-muted-foreground text-sm'>
                                                             <div className="flex-column items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
                                                                 <div className='flex items-center gap-2'>
                                                                     <Hourglass className='w-4 h-4'/>
@@ -657,30 +659,49 @@ export default React.memo((props: any) => {
                                                                     However, post-abort-stream analysis events (already in progress <br/>before abort) may still arrive until the <b>final post-abort event</b> <br/> is emitted by <code>mcp server</code>.
                                                                 </div>
                                                             </div>
-                                                        </p>
+                                                        </div>
                                                     ) :
-                                                    <p className='text-muted-foreground text-sm'>
+                                                    <div className='text-muted-foreground text-sm'>
                                                         <div className="flex items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
                                                             <BadgeX className='w-4 h-4 text-red-500'/>
                                                             No stream is active at the moment.
                                                         </div>
-                                                    </p>
+                                                    </div>
                                                 }
                                             </AccordionContent>
                                         </AccordionItem>
                                         <AccordionItem value="item-2">
-                                            <AccordionTrigger>Available Tools</AccordionTrigger>
+                                            <AccordionTrigger>
+                                                <div className='flex justify-between items-center gap-2'>
+                                                    <Hammer className='w-4 h-4'/>
+                                                    Available Tools
+                                                </div>
+                                            </AccordionTrigger>
                                             <AccordionContent className="flex flex-col gap-4 text-balance">
                                                 {/* 🎈 for future this shud be tabs for each tool with description payload and action button to invoke it */}
-                                                <ul style={{
-                                                    listStyle: 'inside'
-                                                }}>
-                                                    {tools?.tools && tools.tools.map((tool: Tool) => (
-                                                        <React.Fragment>
-                                                            <li key={tool.name}>{tool.name}-({tool.description})</li>
-                                                        </React.Fragment>
-                                                    ))}
-                                                </ul>
+                                                {
+                                                    tools?.tools ? 
+                                                    (
+                                                        <ul style={{
+                                                            listStyle: 'inside'
+                                                        }}>
+                                                            {tools?.tools && tools.tools.map((tool: Tool) => (
+                                                                <React.Fragment>
+                                                                    <li key={tool.name}>{tool.name}-({tool.description})</li>
+                                                                </React.Fragment>
+                                                            ))}
+                                                        </ul>
+                                                    ) 
+                                                    :
+                                                    (
+                                                        <div className='text-muted-foreground text-sm'>
+                                                            <div className="flex items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
+                                                                <BadgeX className='w-4 h-4 text-red-500'/>
+                                                                No tools available at the moment.
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                }
                                             </AccordionContent>
                                         </AccordionItem>
                                     </Accordion>
@@ -721,7 +742,7 @@ export default React.memo((props: any) => {
                                         clearable
                                     />
                                     <LogTerminal
-                                        title="Assessment-Events"
+                                        title="Assess-Events"
                                         emoji="🟣"
                                         logs={assessmentLogs}
                                         onClear={() => setAssessmentLogs([])}
@@ -751,7 +772,7 @@ export default React.memo((props: any) => {
                     <ResizableHandle />
 
                     {/* Bottom-Panel: XY React Flow Visual */}
-                    <ResizablePanel minSize={20} defaultSize={30}>
+                    <ResizablePanel minSize={10} defaultSize={30}>
                         <div className="h-full w-full bg-muted p-4 flex items-center justify-center">
                             {/* 🎈 Add xy react flow visualizing intake, assessment, judge agent working and shud be 2 flows 1 for default a2a mode and the 2nd one for Async Redis Stream mode */}
                             {/* For example */}
