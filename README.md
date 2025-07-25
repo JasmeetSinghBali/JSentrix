@@ -136,9 +136,14 @@ docker system prune
 | 10    | ~~Setup streminges and abortinges tool for mcp server  and its peripheral setup with e2e websocket and streaming support with integ of kafka and redis pub/sub~~                                           |
 | 11    | ~~Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent~~   |
 | 12    | ~~Setup Assessment Agent and its peripherals e2e logs shud be streamed for both intake and assessment agent seprately~~                                                                                             |
-| 13    | Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui                                                                                                      |
-| 14    | Setup Judge agent and its comm from action agent along with strucutred txn output to be passed to summarizer                                                                                              |
-| 15    | Build dashboard screen in electron for monitoring, polish Electron UI, add logging/audit.                                                                                                  |
+| 13    | ~~Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui~~                                                                                                    |
+| 14    | polish Electron panels, loader, toast, split RootWrapper, vertical+horizontal split UI + streaming mode support and bug fixes + add snapshot for v1 ui + recording for default,caching, async redisstream modes working under 1 min each mode video and add gifs                                                                                                    |
+```bash
+===== JSentrix v2.0 NOTE- to research on the 🎈 Abstracted Phases for Triage Flow current approach thoroughly before moving forward here tweak and finalize then move forward with below milestones====
+```
+| 15    | Setup Judge agent and its comm from action agent for ND txns flow check nuances/dev.md reff: 🎈 Abstracted Phases for Triage Flow section for flow along with strucutred txn output to be passed to gemini summarizer                                                                                              |
+| 16    | visual agent graph tool invocation with xy react flow payload intake-assessment-action agent logs reff RootWrapper Bottom panel XY react flow visual                                                     |
+| 17    | implement RAG HyDE (Hypothetical Document Embeddings) strategy approach                   |
 
 ---
 

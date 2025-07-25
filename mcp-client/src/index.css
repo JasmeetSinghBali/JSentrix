@@ -122,7 +122,28 @@
   }
 }
 
+@layer utilities {
+  [data-sonner-toast] [data-description] {
+    font-size: 0.6rem;
+    color: var(--muted-foreground) !important;
+  }
+
+  [data-sonner-toast] [data-title] {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--foreground) !important;
+  }
+  /* [data-sonner-toast] {
+    border: 3px solid gray !important;
+  } */
+}
+
+
 body {
   padding: 0px;
   margin: 0px;
 }
+
+
+
+

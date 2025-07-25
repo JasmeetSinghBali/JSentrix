@@ -1,14 +1,34 @@
+// src/shared/store.ts
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+
+// --- 1. Gateway AccessToken ---
+interface GatewayAuthState {
+  accessToken: string | null;
+  setAccessToken: (token: string) => void;
+  clearAccessToken: () => void;
+}
+export const useGatewayAuthStore = create<GatewayAuthState>()(
+  persist(
+    (set) => ({
+      accessToken: null,
+      setAccessToken: (token) => set({ accessToken: token }),
+      clearAccessToken: () => set({ accessToken: null }),
+    }),
+    { name: "gateway-auth-storage" }
+  )
+);
+
+
+// --- 2. Websocket clientId<>token store
 interface WsAuthState {
   clientId: string | null;
   token: string | null;
   setAuth: (clientId: string, token: string) => void;
   clearAuth: ()=> void;
 }
-
-// --- Websocket clientId<>token store
 export const useWsAuthStore = create<WsAuthState>()(
    persist(
     (set) => ({
@@ -18,28 +38,64 @@ export const useWsAuthStore = create<WsAuthState>()(
       clearAuth: ()=> set({clientId: null, token: null})
     }),
     {
-      name: 'auth-storage' // key in localStorage
+      name: 'ws-auth-storage' // key in localStorage
     }
    )
 );
 
 
-// --- Streaminges Stream ID Store ---
-interface StreamingesIdState {
-  streamId: string | null;
-  setStreamId: (id: string) => void;
-  clearStreamId: () => void;
-}
+// ---3. Streaminges Config Store ---
+type AssessmentType = "default" | "redistream";
+interface StreamingesConfigState {
+  assessmentType: AssessmentType;
+  setAssessmentType: (value: AssessmentType) => void;
 
-export const useStreamingesIdStore = create<StreamingesIdState>()(
+  cachingEnabled: boolean;
+  setCachingEnabled: (value: boolean) => void;
+}
+export const useStreamingesConfigStore = create<StreamingesConfigState>()(
   persist(
     (set) => ({
-      streamId: null,
-      setStreamId: (id) => set({ streamId: id }),
-      clearStreamId: () => set({ streamId: null }),
+      assessmentType: "default",
+      setAssessmentType: (value) => set({ assessmentType: value }),
+
+      cachingEnabled: false,
+      setCachingEnabled: (value) => set({ cachingEnabled: value }),
     }),
-    {
-      name: 'streaminges-id-storage',
-    }
+    { name: "streaminges-config-storage" }
   )
+);
+
+// --- 4. StreamingState store ---
+interface StreamingState {
+  streamId: string | null;
+  setStreamId: (id: string | null) => void;
+  clearStreamId: () => void;
+
+  websocketActive: boolean;
+  setWebsocketActive: (state: boolean) => void;
+
+  streamCountdown: number | null;
+  setStreamCountdown: (seconds: number | null) => void;
+
+  // AbortController to manage websocket connection
+  abortController: AbortController | null;
+  setAbortController: (controller: AbortController | null) => void;
+}
+
+export const useStreamingStore = create<StreamingState>()(
+  (set) => ({
+    streamId: null,
+    setStreamId: (id) => set({ streamId: id }),
+    clearStreamId: () => set({ streamId: null }),
+    
+    websocketActive: false,
+    setWebsocketActive: (state) => set({ websocketActive: state }),
+    
+    streamCountdown: null,
+    setStreamCountdown: (seconds) => set({ streamCountdown: seconds }),
+    
+    abortController: null,
+    setAbortController: (controller) => set({ abortController: controller }),
+  })
 );

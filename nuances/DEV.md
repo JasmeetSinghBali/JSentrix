@@ -554,7 +554,7 @@ Postprocess results and attach all relevant metadata. ✅
 
 Perform a mock autonmous txn like flagging txn for now forwrding event to client ui with flag key like flagged: true ✅
 
-and also call memory event storage to store the memory events in qdrant for txns that are voilating the clauses and desision is "YES" by llm i.e reff phase 7.
+and also call memory event storage to store the memory events in qdrant for txns that are voilating the clauses and desision is "YES" by llm i.e reff phase 7. ✅
 
 and Forward "ND" or "NO" decision txns to the judge agent
 
@@ -574,14 +574,14 @@ return JudgeOutput(
     metadata={"error": str(e)},
     judge_id=f"err-{uuid.uuid4()}"
 )
-the above JudgeOutput will be passed to the summarizer finally to create a report and bg worker that sends that to the ui for now via forward event/ here it could be passed to concerned superadmin/admin, bank staff emails also
+the above JudgeOutput will be passed to the summarizer finally to create a report and then store the txn+report in the qdrant memory store tagged with new flag "ND: true" and a bg worker that sends this ND txn + report to the ui for now via forward event/ here it could be passed to concerned superadmin/admin, bank staff emails.
 
-Phase 7: Memory Event Storage Agent/Service
-Build a dedicated agent/service for storing memory events in Qdrant.
+Phase 7: Memory Event Storage 
+storing memory events in Qdrant. ✅
 
-Ensure non-blocking, scalable operation (async/offloaded).
+Ensure non-blocking, scalable operation (async/offloaded).✅
 
-Store embeddings and metadata for future retrieval.
+Store embeddings and metadata for future retrieval. ✅
 
 Phase 8: Notification & Reporting Microservice (Go + Kafka) ✅
 Design a minimal, robust Go Fiber microservice. ✅
@@ -590,17 +590,16 @@ Consume Kafka events, process, and stream back to Gateway. ✅
 
 Implement immediate notification for high-risk/violated transactions (email/SMS). 
 
-Phase 9: Audit, Feedback, and Self-Improvement Tools 
-Build tools/APIs for querying memory events, reconstructing history, and supporting audits. 
+Phase 9: Audit, Feedback, and HITL Self-Improvement seprate UI screen  
+Build UI query screen for querying stored ND and Yes memory events from qdrant, reconstructing history, and supporting audits. 
 
-Provide feedback and continuous improvement hooks.
+Provide User feedback UI panel to analyze and update stored ND memory events from phase 6 that were stored by judge agent and its bg worker for HUMAN IN LOOP FLOW Safety net for Non-deterministic txn overwrite and manual intervention.
 
-Phase 10: System Integration & Testing
-End-to-end integration tests.
-
-Robust error handling, logging, and monitoring.
-
-Ensure compliance and extensibility.
+Phase 10: System Integration & Testing ✅
+Core flows jsentrix test case. ✅
+End-to-end integration tests. ✅
+Robust error handling, logging, and monitoring. ✅
+Ensure compliance and extensibility. ✅
 ```
 
 > ### Key Design Goals for BaseAgent
