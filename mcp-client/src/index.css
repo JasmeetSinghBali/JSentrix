@@ -125,7 +125,7 @@
 @layer utilities {
   [data-sonner-toast] [data-description] {
     font-size: 0.6rem;
-    color: var(--muted-foreground) !important;
+    color: var(--accent-foreground) !important;
   }
 
   [data-sonner-toast] [data-title] {
@@ -133,9 +133,22 @@
     font-size: 0.875rem;
     color: var(--foreground) !important;
   }
-  /* [data-sonner-toast] {
-    border: 3px solid gray !important;
-  } */
+  [data-sonner-toast] {
+    border: 1px solid dodgerblue !important;
+    background-color: wheat !important;
+  }
+
+  button,
+  .btn,
+  [role="button"],
+  .shadcn-button {
+    cursor: pointer;
+  }
+
+  .hammer-cursor:hover {
+    cursor: url(
+      'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWhhbW1lci1pY29uIGx1Y2lkZS1oYW1tZXIiPjxwYXRoIGQ9Im0xNSAxMi04LjM3MyA4LjM3M2ExIDEgMCAxIDEtMy0zTDEyIDkiLz48cGF0aCBkPSJtMTggMTUgNC00Ii8+PHBhdGggZD0ibTIxLjUgMTEuNS0xLjkxNC0xLjkxNEEyIDIgMCAwIDEgMTkgOC4xNzJWN2wtMi4yNi0yLjI2YTYgNiAwIDAgMC00LjIwMi0xLjc1Nkw5IDIuOTZsLjkyLjgyQTYuMTggNi4xOCAwIDAgMSAxMiA4LjRWMTBsMiAyaDEuMTcyYTIgMiAwIDAgMSAxLjQxNC41ODZMMTguNSAxNC41Ii8+PC9zdmc+') 12 12, pointer;
+  }
 }
 
 
@@ -143,6 +156,9 @@ body {
   padding: 0px;
   margin: 0px;
 }
+
+
+
 
 
 

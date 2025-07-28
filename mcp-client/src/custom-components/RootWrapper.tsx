@@ -103,6 +103,7 @@ export default React.memo((props: any) => {
     const abortTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const websocketRef = useRef<WebSocket | null>(null);
 
 
     const assessmentOptions: DropdownOption[] = [
@@ -157,9 +158,16 @@ export default React.memo((props: any) => {
         clearStreamId();
         setStreamCountdown(null);
         setWebsocketActive(false);
-        if (abortController) {
-            abortController.abort();
+        const controller = useStreamingStore.getState().abortController;
+        console.log(`[resetSystem-triggered] Aborting websocket connection:`, controller);
+
+        if (controller) {
+            controller.abort();
             setAbortController(null);
+        }
+        if (websocketRef.current) {
+            websocketRef.current.close(1000, "[Reset-System-Triggered]-websocketRef.close()");
+            websocketRef.current = null;
         }
         if (abortTimeoutRef.current) {
             clearTimeout(abortTimeoutRef.current);
@@ -196,6 +204,7 @@ export default React.memo((props: any) => {
         const wsUrl = `ws://localhost/ws?client_id=${encodeURIComponent(clientId)}&token=${encodeURIComponent(token)}&stream_id=${encodeURIComponent(streamId)}`;
 
         const ws = new WebSocket(wsUrl);
+        websocketRef.current = ws; // 📌 essential to use to for .close() explicitely as abort controller does not breaks of the websocket native connection automatically
 
         ws.onopen = () => {
             toast.success(
@@ -244,7 +253,14 @@ export default React.memo((props: any) => {
                         ...prev,
                         `🔴 [POST-ABORT][FINAL] ActionAgent:\n${fullMessage}`,
                     ]);
-                    resetSystem(true);
+                    toast.warning(
+                        "[Manual-cutoff-ws]-Event",
+                        {
+                            description: `Reason: Final compliance decision event was recieved` ,
+                            position: 'top-center'
+                        }
+                    );
+                    resetSystem();
                     return;
                 }
 
@@ -447,13 +463,15 @@ export default React.memo((props: any) => {
             // Setup countdown timer and abort mechanism if not infinite
             if (duration !== "infinite") {
                 countdownIntervalRef.current = setInterval(() => {
-                if (streamCountdown === null || streamCountdown <= 1) {
-                    clearInterval(countdownIntervalRef.current!);
-                    countdownIntervalRef.current = null;
-                    setStreamCountdown(null);
-                } else {
-                    setStreamCountdown(streamCountdown - 1);
-                }
+                    // 📌 every tick, always update based on the most recent value of streamCountdown
+                    const curr = useStreamingStore.getState().streamCountdown;
+                    if (curr === null || curr <= 1) {
+                        clearInterval(countdownIntervalRef.current!);
+                        countdownIntervalRef.current = null;
+                        setStreamCountdown(null);
+                    } else {
+                        setStreamCountdown(curr - 1);
+                    }
                 }, 1000);
 
                 abortTimeoutRef.current = setTimeout(async () => {
@@ -464,7 +482,8 @@ export default React.memo((props: any) => {
                             position: 'top-center'
                         }
                     );
-                    await abortStreaming(); // Use abortStreaming handler to abort
+                    const currCachingMode = useStreamingesConfigStore.getState().cachingEnabled
+                    await abortStreaming(currCachingMode || false); // Use abortStreaming handler to abort
                 }, duration * 1000);
             }
         } else {
@@ -476,7 +495,7 @@ export default React.memo((props: any) => {
     };
 
     // Abort streaming but do NOT close websocket so post-abort events can be handled
-    const abortStreaming = async () => {
+    const abortStreaming = async (cachedTrigger: boolean = false) => {
         const currentStreamId = useStreamingStore.getState().streamId
         if (!useGatewayAuthStore.getState().accessToken || !currentStreamId) {
             console.warn("No active stream to abort");
@@ -501,17 +520,20 @@ export default React.memo((props: any) => {
             toast.success(
                 "[abort-success-abortStreaming]-Event",
                 {
-                    description: `result: \n${res}`,
+                    description: `result: \n${JSON.stringify(res,null,2)}`,
                     position: 'top-center'
                 }
             );
+            if(cachedTrigger){
+                clearStreamId();
+            }
             // Crucially: DO NOT clearStreamId or close websocket here
             // Wait for final 'post_abort' event on websocket to cleanup
         } catch (err: any) {
             toast.error(
                 "[abort-error-abortStreaming]-Event",
                 {
-                    description: `error: \n${err}`,
+                    description: `error: \n${JSON.stringify(err?.message || err ,null,2)}`,
                     position: 'top-center'
                 }
             );
@@ -524,9 +546,9 @@ export default React.memo((props: any) => {
 
         // 🎈 custom subscriber for cachingEnabled and streamCountdown sync with local new cachingEnabledLocal and streamCountdownLocal state and then use these local state for closing off websocket for case: cachingEnabled true
         // 🎈 also pass the streamCountdownLocal to ToolTabsPanel to show stream countdown
-        const unsubscribeStreamingConfigStore = useStreamingesConfigStore.subscribe((state)=>{
-            state.cachingEnabled
-        })
+        // const unsubscribeStreamingConfigStore = useStreamingesConfigStore.subscribe((state)=>{
+        //     state.cachingEnabled
+        // })
 
         // login to mcp_server via gateway
         login('admin@example.com', 'ChangeThisSecurePassword123!');
@@ -570,15 +592,20 @@ export default React.memo((props: any) => {
 
     // 🎈 Caching: true Close stream and WS connection after all pending txns are done and caching enabled mode
     useEffect(() => {
-        if (useStreamingesConfigStore.getState().cachingEnabled && pendingTxnAnalysisCount === 0 && useStreamingStore.getState().streamCountdown === 0) {
+        if (cachingEnabled && pendingTxnAnalysisCount === 0 && streamCountdown === null) {
         console.log(
             "✅ [Caching-Enabled-trigger-Auto-close]: No pending txns + countdown expired"
-        );
-        clearStreamId();
-        setStreamCountdown(null);
-        if (abortController) {
-            abortController.abort();
+        );        
+        const controller = useStreamingStore.getState().abortController;
+        console.log(`[Caching-Enabled-triggered] Aborting websocket connection:`, controller);
+
+        if (controller) {
+            controller.abort();
             setAbortController(null);
+        }
+        if (websocketRef.current) {
+            websocketRef.current.close(1000, "[Caching-Enabled-Trigger]-websocketRef.close()");
+            websocketRef.current = null;
         }
         setWebsocketActive(false);
         }
@@ -713,7 +740,9 @@ export default React.memo((props: any) => {
                                         >
                                         <AccordionItem value="item-1">
                                             <AccordionTrigger>
-                                                <div className='flex justify-between items-center gap-2'>
+                                                <div className='flex justify-between items-center gap-2' style={{
+                                                    cursor: 'pointer'
+                                                }}>
                                                     <Hammer className='w-4 h-4'/>
                                                     Available Tools
                                                 </div>

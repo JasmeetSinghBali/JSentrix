@@ -87,7 +87,10 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
     console.log("Invoking tool:", toolName);
     if (!accessToken) {
       toast.warning(
-        "No gateway access token set."
+        "No gateway access token set.",
+        {
+          position: 'top-center'
+        }
       );
       return;
     }
@@ -104,7 +107,10 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
       if (toolName === "abortinges") {
         if (!streamId) {
           toast.warning(
-            "No streamId available for aborting."
+            "No streamId available for aborting.",
+            {
+              position: 'top-center'
+            }
           );
           return;
         }
@@ -137,6 +143,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
         `[tool-invoked-success]-${toolName}`,
         {
           description: `result: \n${JSON.stringify(result,null,2)}`,
+          position: 'top-center',
         }
       );
     } catch (error: any) {
@@ -144,6 +151,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
         `[tool-invocation-error]-${toolName}`,
         {
           description: `error: \n${JSON.stringify(error?.message || error ,null,2)}`,
+          position: 'top-center',
         } 
       );
     } finally {
@@ -159,6 +167,11 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
     }
   }, [streamId]);
 
+  // misc: logs debug 
+  useEffect(()=>{
+    console.log("[Inside-ToolTabsPanel] streamCountdown updated:", streamCountdown);
+  },[streamCountdown])
+
 
   return (
     <Tabs value={currentTool} onValueChange={onToolChange} className="w-full">
@@ -167,7 +180,15 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
           <TabsTrigger
             key={tool.name}
             value={tool.name}
-            className={cn("px-3 py-1 text-xs", currentTool === tool.name && "bg-muted border")}
+            className={
+              cn(
+                "px-3 py-1 text-xs", 
+                currentTool === tool.name && "bg-muted border",
+              )
+            }
+            style={{
+              cursor: 'pointer'
+            }}
           >
             <Wand2 className="w-3 h-3 mr-1" />
             {tool.name}
@@ -225,7 +246,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
               )}
 
               {/* Show stream duration selector only for streaminges */}
-              {tool.name === "streaminges" && (
+              {(tool.name === "streaminges" && typeof streamCountdown !== 'number' ) && (
                 <div className="ml-6 mb-2">
                   <Dropdown
                     label="Stream duration"
@@ -240,12 +261,12 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
               )}
 
               {/* Show countdown timer from RootWrapper */}
-              {tool.name === "streaminges" && useStreamingStore.getState().streamCountdown !== null && (
+              {tool.name === "streaminges" && typeof streamCountdown === 'number' && (
                 <div className='text-muted-foreground text-sm'>
                     <div className="flex-column items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
                         <div className='flex items-center gap-2 font-mono text-yellow-700'>
                             <Hourglass className='w-4 h-4'/>
-                            Streaming stops in: {formatSeconds(useStreamingStore.getState().streamCountdown)}
+                            Streaming stops in: {formatSeconds(streamCountdown)}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground leading-snug">
                             <b>NOTE:</b> New transactions are <span className="text-destructive">no longer ingested</span> after the stream ends.<br />
@@ -271,11 +292,20 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
                     (tool.name === "abortinges" && !streamId) ||
                     (tool.name === "streaminges" && !!streamId)
                     }
+                  className={cn('hammer-cursor')}
+                  variant={
+                    (
+                      loadingTools[tool.name] ||
+                      (!accessToken) || 
+                      (tool.name === "abortinges" && !streamId) ||
+                      (tool.name === "streaminges" && !!streamId)
+                    ) ? 'ghost' : 'outline'
+                  }
                 >
                   {
                     loadingTools[tool.name] ? (
                       <span className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4 mr-1 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin h-4 w-4 mr-1 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                         </svg>
