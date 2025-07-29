@@ -104,6 +104,13 @@ export default React.memo((props: any) => {
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const websocketRef = useRef<WebSocket | null>(null);
+    // 📌 native WebSocket.prototype.close(code, reason)
+    // the reason string passed is only accessible on the server side (if supported) 
+    // and as event.reason on the client where the connection closes. 
+    // The problem is that browsers will not fire event.reason if call .close() from the same client — 
+    // it gets eaten silently by most browser implementations (esp. in Chrome)
+    const closeReasonRef = useRef<string | null>(null);
+
 
 
     const assessmentOptions: DropdownOption[] = [
@@ -141,7 +148,13 @@ export default React.memo((props: any) => {
         }
             return response.json();
         } catch (error) {
-            console.error(`Error invoking tool ${toolName}:`, error);
+            toast.error(
+                `[error-invoking-tool]-${toolName}`,
+                {
+                    description: `error: \n${JSON.stringify(error?.message || error ,null,2)}`,
+                    position: 'top-center'
+                }
+            );
         }
     };
 
@@ -166,7 +179,8 @@ export default React.memo((props: any) => {
             setAbortController(null);
         }
         if (websocketRef.current) {
-            websocketRef.current.close(1000, "[Reset-System-Triggered]-websocketRef.close()");
+            closeReasonRef.current = "[Reset-System-Triggered]-websocketRef.close()"
+            websocketRef.current.close(1000, closeReasonRef.current);
             websocketRef.current = null;
         }
         if (abortTimeoutRef.current) {
@@ -196,6 +210,8 @@ export default React.memo((props: any) => {
         if (abortController) {
             abortController.abort();
         }
+
+        closeReasonRef.current = null; // reset for next ws connection
 
         const controller = new AbortController();
         setAbortController(controller);
@@ -307,39 +323,47 @@ export default React.memo((props: any) => {
             }
         };
 
-        ws.onerror = (err) => {
-            console.error("WebSocket error:", err);
+        ws.onerror = (err: any) => {
+            toast.error(
+                "[error-websocket]-ws.onerror",
+                {
+                    description: `error: \n${JSON.stringify(err || err ,null,2)}`,
+                    position: 'top-center'
+                }
+            );
         };
 
         ws.onclose = (event) => {
+            const localReason = closeReasonRef.current;
             toast.warning(
                 "[ws.onclose]-Event",
                 {
-                    description: `reason: ${event.reason} \ncode: ${event.code}` ,
+                    description: `reason: ${localReason || event.reason || "No reason"} \ncode: ${event.code}` ,
                     position: 'top-center'
                 }
             );
             setWebsocketActive(false);
+            closeReasonRef.current = null; // reset for next ws connection
 
-        if (event.code === 4001) {
-            // invalid token/session
-            useWsAuthStore.getState().clearAuth();
-            return;
-        }
+            if (event.code === 4001) {
+                // invalid token/session
+                useWsAuthStore.getState().clearAuth();
+                return;
+            }
 
-        // Try reconnect if websocket was closed unexpectedly
-        if (!signal.aborted) {
-            reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
-            toast.info(
-                "[reconnect-ws]-Event",
-                {
-                    description: "Attempting to reconnect websocket after 3s...",
-                    position: 'top-center'
-                }
-            );
-            }, 3000);
-        }
+            // Try reconnect if websocket was closed unexpectedly
+            if (!signal.aborted) {
+                reconnectTimeoutRef.current = setTimeout(() => {
+                connectWebSocket();
+                toast.info(
+                    "[reconnect-ws]-Event",
+                    {
+                        description: "Attempting to reconnect websocket after 3s...",
+                        position: 'top-center'
+                    }
+                );
+                }, 3000);
+            }
         };
     };
 
@@ -354,7 +378,7 @@ export default React.memo((props: any) => {
             const data: any = await response.json(); // 🎈 shud Cast to UserState who is logged in
             setWhoAmIAccess(true);
             return data;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error in whoami:", error);
             setWhoAmIAccessError(true)
             setWhoAmIAccess(false);
@@ -382,10 +406,10 @@ export default React.memo((props: any) => {
         setAccessToken(data.access_token);
         setLoginGateway(true);
         return data.access_token;
-        } catch (error) {
-        console.error("Error in login:", error);
-        setLoginGatewayError(true);
-        setLoginGateway(false);
+        } catch (error: any) {
+            console.error("Error in login:", error);
+            setLoginGatewayError(true);
+            setLoginGateway(false);
         }finally{
             setLoginGatewayLoading(false)
         }
@@ -397,8 +421,8 @@ export default React.memo((props: any) => {
         const data = await response.json();
         useWsAuthStore.getState().setAuth(data.client_id, data.token);
         return data;
-        } catch (error) {
-        console.error("Error logging in to streaming-hub:", error);
+        } catch (error: any) {
+         console.error("Error logging in to streaming-hub:", error);
         }
     };
 
@@ -412,10 +436,10 @@ export default React.memo((props: any) => {
         const data: ToolsState = await response.json();
         setTools(data);
         return data;
-        } catch (error) {
-        console.error("Error in listTools:", error);
-        setToolsError(true);
-        setTools(null)
+        } catch (error: any) {
+            console.error("Error in listTools:", error);
+            setToolsError(true);
+            setTools(null)
         } finally {
             setToolsLoading(false);
         }
@@ -430,12 +454,23 @@ export default React.memo((props: any) => {
     ) => {
         console.log("startStreamingWithDuration called", { duration })
         if (!accessToken) {
-        console.warn("No access token for starting stream");
-        return;
+            toast.warning(
+                "No access token for starting stream",
+                {
+                    position: 'top-center',
+                }
+            );
+            return;
         }
         if (streamId) {
-        console.warn("Stream already active");
-        return;
+            toast.warning(
+                "Stream already active",
+                {
+                    description: `Active: ${useStreamingStore.getState().streamId}`,
+                    position: 'top-center',
+                }
+            );
+            return;
         }
 
         try {
@@ -452,45 +487,56 @@ export default React.memo((props: any) => {
 
             // Clear previous timers if any
             if (abortTimeoutRef.current) {
-            clearTimeout(abortTimeoutRef.current);
-            abortTimeoutRef.current = null;
+                clearTimeout(abortTimeoutRef.current);
+                abortTimeoutRef.current = null;
             }
             if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
+                clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = null;
             }
 
-            // Setup countdown timer and abort mechanism if not infinite
-            if (duration !== "infinite") {
-                countdownIntervalRef.current = setInterval(() => {
-                    // 📌 every tick, always update based on the most recent value of streamCountdown
-                    const curr = useStreamingStore.getState().streamCountdown;
-                    if (curr === null || curr <= 1) {
-                        clearInterval(countdownIntervalRef.current!);
-                        countdownIntervalRef.current = null;
-                        setStreamCountdown(null);
-                    } else {
-                        setStreamCountdown(curr - 1);
-                    }
-                }, 1000);
-
-                abortTimeoutRef.current = setTimeout(async () => {
-                    toast.warning(
-                        "[trigger-autoabort]-Event",
-                        {
-                            description: `Auto aborting stream after stream-duration: ${duration}s`,
-                            position: 'top-center'
+                // Setup countdown timer and abort mechanism if not infinite
+                if (duration !== "infinite") {
+                    countdownIntervalRef.current = setInterval(() => {
+                        // 📌 every tick, always update based on the most recent value of streamCountdown
+                        const curr = useStreamingStore.getState().streamCountdown;
+                        if (curr === null || curr <= 1) {
+                            clearInterval(countdownIntervalRef.current!);
+                            countdownIntervalRef.current = null;
+                            setStreamCountdown(null);
+                        } else {
+                            setStreamCountdown(curr - 1);
                         }
-                    );
-                    const currCachingMode = useStreamingesConfigStore.getState().cachingEnabled
-                    await abortStreaming(currCachingMode || false); // Use abortStreaming handler to abort
-                }, duration * 1000);
+                    }, 1000);
+
+                    abortTimeoutRef.current = setTimeout(async () => {
+                        toast.warning(
+                            "[trigger-autoabort]-Event",
+                            {
+                                description: `Auto aborting stream after stream-duration: ${duration}s`,
+                                position: 'top-center'
+                            }
+                        );
+                        const currCachingMode = useStreamingesConfigStore.getState().cachingEnabled
+                        await abortStreaming(currCachingMode || false); // Use abortStreaming handler to abort
+                    }, duration * 1000);
+                }
+            } else {
+                toast.error(
+                    "[error-startStreamingWithDuration]-NoStreamIdReturned-streaminges",
+                        {
+                            position: 'top-center',
+                        }
+                );
             }
-        } else {
-            console.error("streaminges did not return stream_id");
-        }
-        } catch (err) {
-        console.error("Error in startStreamingWithDuration:", err);
+        } catch (err: any) {
+            toast.error(
+                "[error-startStreamingWithDuration]-Event",
+                {
+                    description: `error: \n${JSON.stringify(err?.message || err ,null,2)}`,
+                    position: 'top-center'
+                }
+            );
         }
     };
 
@@ -504,12 +550,12 @@ export default React.memo((props: any) => {
 
         // Clear timers, but DO NOT clear streamId or close websocket here yet
         if (abortTimeoutRef.current) {
-        clearTimeout(abortTimeoutRef.current);
-        abortTimeoutRef.current = null;
+            clearTimeout(abortTimeoutRef.current);
+            abortTimeoutRef.current = null;
         }
         if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
         }
         setStreamCountdown(null);
 
@@ -524,10 +570,11 @@ export default React.memo((props: any) => {
                     position: 'top-center'
                 }
             );
+            // for caching mode clearStreamId on abort success
             if(cachedTrigger){
                 clearStreamId();
             }
-            // Crucially: DO NOT clearStreamId or close websocket here
+            // Crucially: DO NOT clearStreamId or close websocket here for caching mode disabled case
             // Wait for final 'post_abort' event on websocket to cleanup
         } catch (err: any) {
             toast.error(
@@ -543,13 +590,6 @@ export default React.memo((props: any) => {
 
     // Login gateway & streaming hub on mount
     useEffect(() => {
-
-        // 🎈 custom subscriber for cachingEnabled and streamCountdown sync with local new cachingEnabledLocal and streamCountdownLocal state and then use these local state for closing off websocket for case: cachingEnabled true
-        // 🎈 also pass the streamCountdownLocal to ToolTabsPanel to show stream countdown
-        // const unsubscribeStreamingConfigStore = useStreamingesConfigStore.subscribe((state)=>{
-        //     state.cachingEnabled
-        // })
-
         // login to mcp_server via gateway
         login('admin@example.com', 'ChangeThisSecurePassword123!');
         // login('user@example.com', 'testpassword');
@@ -589,13 +629,17 @@ export default React.memo((props: any) => {
  
    
 
-
-    // 🎈 Caching: true Close stream and WS connection after all pending txns are done and caching enabled mode
+    // NOTE- this effect triggers before the calling of abortStreaming
+    // 📌 Case: Caching-Mode enabled 
+    // WS connection and abortController cut off after all pending txns are done, streamCountdown resets to null and caching enabled
     useEffect(() => {
         if (cachingEnabled && pendingTxnAnalysisCount === 0 && streamCountdown === null) {
         console.log(
             "✅ [Caching-Enabled-trigger-Auto-close]: No pending txns + countdown expired"
-        );        
+        );
+        // 📌 NOTE- Dont call clearStreamId() here as it will set streamId zustand state to null
+        // and then abortStreaming will not be able to invoke abortinges 
+        // instead clearStreamId inside abortStreaming func after abortinges success       
         const controller = useStreamingStore.getState().abortController;
         console.log(`[Caching-Enabled-triggered] Aborting websocket connection:`, controller);
 
@@ -604,7 +648,8 @@ export default React.memo((props: any) => {
             setAbortController(null);
         }
         if (websocketRef.current) {
-            websocketRef.current.close(1000, "[Caching-Enabled-Trigger]-websocketRef.close()");
+            closeReasonRef.current = "[Caching-Enabled-Trigger]-websocketRef.close()"
+            websocketRef.current.close(1000, closeReasonRef.current);
             websocketRef.current = null;
         }
         setWebsocketActive(false);
