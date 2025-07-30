@@ -122,7 +122,7 @@ docker system prune
 
 ## 🎯 JSentrix Milestones Tracks
 
-|Track | Milestone                                                                                      |  
+|V1 Track | Milestone                                                                                      |  
 |------|----------------------------------------------------------------------------------------------- |  
 | 1    | ~~Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.~~                                                                                                      |
 | 2    | ~~Setup custom neo4j, retriever interface for both llamaindex and langchain agent support~~    |
@@ -141,9 +141,11 @@ docker system prune
 ```bash
 ===== JSentrix v2.0 NOTE- to research on the 🎈 Abstracted Phases for Triage Flow current approach thoroughly before moving forward here tweak and finalize then move forward with below milestones====
 ```
-| 15    | Setup Judge agent and its comm from action agent for ND txns flow check nuances/dev.md reff: 🎈 Abstracted Phases for Triage Flow section for flow along with strucutred txn output to be passed to gemini summarizer                                                                                              |
-| 16    | visual agent graph tool invocation with xy react flow payload intake-assessment-action agent logs reff RootWrapper Bottom panel XY react flow visual                                                     |
-| 17    | implement RAG HyDE (Hypothetical Document Embeddings) strategy approach                   |
+|V2 Track | Milestone                                                                                      |  
+|---------|----------------------------------------------------------------------------------------------- |  
+| 15      | Setup Judge agent and its comm from action agent for ND txns flow check nuances/dev.md reff: 🎈 Abstracted Phases for Triage Flow section for flow along with strucutred txn output to be passed to gemini summarizer                                                                                              |
+| 16      | visual agent graph tool invocation with xy react flow payload intake-assessment-action agent logs reff RootWrapper Bottom panel XY react flow visual                                                      |
+| 17      | implement RAG HyDE (Hypothetical Document Embeddings) strategy approach                       |
 
 ---
 

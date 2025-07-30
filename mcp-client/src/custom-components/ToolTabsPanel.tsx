@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner"
 
+import hammerGif from '../assets/loading-tool-animation.gif';
+
 export interface Tool {
   name: string;
   description: string;
@@ -125,6 +127,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
       const inputs = inputValues[toolName] || {};
       const params = { arguments: inputs };
 
+      // 🎈 cud be shifted to "use server" seprate data fetch component and similarly for other fetch calls inside other "use client" components
       const response = await fetch(`http://localhost:8080/api/v1/tools/${toolName}/invoke`, {
         method: "POST",
         headers: {
@@ -305,10 +308,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
                   {
                     loadingTools[tool.name] ? (
                       <span className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4 mr-1 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                        </svg>
+                        <img src={hammerGif} alt="Loading" className="h-5 w-5" />
                         Invoking...
                       </span>
                     ) :

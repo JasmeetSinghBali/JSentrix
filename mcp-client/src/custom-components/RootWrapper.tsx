@@ -709,8 +709,8 @@ export default React.memo((props: any) => {
                     <ResizablePanel minSize={40} defaultSize={70}> {/* 70%+ space */}
                         
                         <ResizablePanelGroup direction="horizontal">
+                            
                             {/* Vitals, tools, configs section */}
-
                             <ResizablePanel minSize={25} defaultSize={25}>
                                 {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
                                 <div className='mb-6 ml-18 mt-6'>
