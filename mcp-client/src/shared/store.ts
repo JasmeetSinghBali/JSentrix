@@ -82,7 +82,6 @@ interface StreamingState {
   abortController: AbortController | null;
   setAbortController: (controller: AbortController | null) => void;
 }
-
 export const useStreamingStore = create<StreamingState>()(
   (set) => ({
     streamId: null,
@@ -99,3 +98,16 @@ export const useStreamingStore = create<StreamingState>()(
     setAbortController: (controller) => set({ abortController: controller }),
   })
 );
+
+// --- 5. App router central state ---
+export type AppRoute = 'dashboard' | 'analytics' | 'settings';
+
+interface RouterState {
+  currentRoute: AppRoute;
+  navigate: (route: AppRoute) => void;
+}
+
+export const useRouterStore = create<RouterState>((set) => ({
+  currentRoute: 'dashboard',
+  navigate: (route) => set({ currentRoute: route }),
+}));

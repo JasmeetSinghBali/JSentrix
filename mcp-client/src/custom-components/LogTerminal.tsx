@@ -112,7 +112,7 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
     <div className="relative flex flex-col gap-2">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-background p-2 flex justify-between items-center">
-        <h3 className="text-md font-semibold flex items-center gap-2">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
           {emoji} {title}
           <span className="ml-2 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
             {logs.length}
