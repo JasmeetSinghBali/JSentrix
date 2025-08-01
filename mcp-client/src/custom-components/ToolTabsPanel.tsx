@@ -308,7 +308,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
                   {
                     loadingTools[tool.name] ? (
                       <span className="flex items-center gap-2">
-                        <img src={hammerGif} alt="Loading" className="h-5 w-5" />
+                        <img src={hammerGif} alt="Loading" className="h-5 w-5 tool-invoke-loading-gif" />
                         Invoking...
                       </span>
                     ) :

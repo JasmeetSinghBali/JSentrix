@@ -111,3 +111,26 @@ export const useRouterStore = create<RouterState>((set) => ({
   currentRoute: 'dashboard',
   navigate: (route) => set({ currentRoute: route }),
 }));
+
+
+// ---6. App Theme Config ---
+type AppThemeType = "default" | "indie";
+interface AppThemeState {
+  appThemeType: AppThemeType;
+  setAppThemeType: (value: AppThemeType) => void;
+  
+  darkModeEnabled: boolean;
+  setDarkModeEnabled: (value: boolean) => void;
+}
+export const useAppThemeStore = create<AppThemeState>()(
+  persist(
+    (set) => ({
+      appThemeType: "default",
+      setAppThemeType: (value) => set({ appThemeType: value }),
+
+      darkModeEnabled: false,
+      setDarkModeEnabled: (value) => set({ darkModeEnabled: value }),
+    }),
+    { name: "app-theme-type" }
+  )
+);

@@ -1,8 +1,8 @@
 // custom-components/AppSidebar.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { BetweenHorizontalEnd, BetweenHorizontalStart, LayoutDashboard, Cog, LucideProps, BadgeInfo, SquareCode, MessageCircleQuestion, FileChartLine } from "lucide-react"
+import React, { useEffect, useState } from 'react';
+import { BetweenHorizontalEnd, BetweenHorizontalStart, LayoutDashboard, Cog, LucideProps, BadgeInfo, SquareCode, FileChartLine, Moon, Sun } from "lucide-react"
 
 import {
   Sidebar,
@@ -18,8 +18,15 @@ import {
 
 import sidebarAnimation from '../assets/sidebar-animation.gif';
 import { Separator } from "@/components/ui/separator";
-import { AppRoute, useRouterStore } from "@/shared/store";
+import { AppRoute, useAppThemeStore, useRouterStore, useStreamingStore } from "@/shared/store";
 import { DialogInfo } from './DialogInfo';
+import Dropdown, { DropdownOption } from './Dropdown';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+
+interface CustomSidebarTriggerProps {
+  disabled?: boolean;
+}
 
 interface MainMenuItemInterface {
   title: string;
@@ -43,7 +50,7 @@ const MainMenuItems: MainMenuItemInterface[] = [
     route: "settings",
     icon: Cog,
   },
-] as const;
+];
 
 interface HelpMenuItemInterface {
   title: string;
@@ -59,29 +66,57 @@ const HelpMenuitems: HelpMenuItemInterface[] = [
     title: "Contact",
     icon: BadgeInfo,
   },
-] as const;
+];
 
-export function CustomSidebarTrigger() {
+export function CustomSidebarTrigger({disabled}: CustomSidebarTriggerProps) {
   const { open, setOpen } = useSidebar();  // check your SidebarContext to ensure setOpen exists
 
   const handleClick = () => setOpen && setOpen(!open);
 
   return (
-    <button
-      type="button"
+    <Button
+      variant='outline'
       onClick={handleClick}
-      className="p-2 rounded hover:bg-accent transition"
       aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
+      disabled={disabled || false}
     >
       {open ? <BetweenHorizontalEnd size={20} /> : <BetweenHorizontalStart size={20} />}
-    </button>
+    </Button>
   );
 }
 
 export function AppSidebar() {
+  const streamId = useStreamingStore((state)=>state.streamId);
+  
+  const { open: isSidebarOpen } = useSidebar();
+
+  const appThemeType = useAppThemeStore(state => state.appThemeType);
+  const setAppThemeType = useAppThemeStore(state => state.setAppThemeType);
+  const darkModeEnabled = useAppThemeStore(state => state.darkModeEnabled);
+  const setDarkModeEnabled = useAppThemeStore(state => state.setDarkModeEnabled);
+
   const { currentRoute, navigate } = useRouterStore();
   // State to track which Help dialog is open
   const [openDialog, setOpenDialog] = useState<"Docs" | "Contact" | null>(null);
+  const themeOptions: DropdownOption[] = [
+      { label: "Default", value: "default" },
+      { label: "Indie", value: "indie" },
+  ];
+  // 💡 Apply or remove 'dark' class from <html> when darkModeEnabled changes
+  useEffect(() => {
+    if (darkModeEnabled) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    // Apply indie theme as a class
+    if (appThemeType === "indie") {
+      document.documentElement.classList.add("theme-indie");
+    } else {
+      document.documentElement.classList.remove("theme-indie");
+    }
+  }, [darkModeEnabled, appThemeType]);
+
   return (
     <React.Fragment>
       <Sidebar collapsible="icon">
@@ -89,7 +124,7 @@ export function AppSidebar() {
           <SidebarGroup>
             <SidebarGroupLabel>
               <div className="flex gap-2 items-center">
-                  <img src={sidebarAnimation} className="h-10 w-10"  alt="https://www.flaticon.com/free-animated-icons/commercial-transaction" title="Commercial transaction animated icons created by Freepik - Flaticon"/>
+                  <img src={sidebarAnimation} className="h-10 w-10 sidebar-gif"  alt="https://www.flaticon.com/free-animated-icons/commercial-transaction" title="Commercial transaction animated icons created by Freepik - Flaticon"/>
                   JSentrix GPL-3.0 license
               </div>
             </SidebarGroupLabel>
@@ -106,14 +141,12 @@ export function AppSidebar() {
                           key={item.title}
                         >
                           <SidebarMenuButton
-                            asChild
                             isActive={isActive}
                             onClick={() => navigate(item.route)}
+                            disabled={!!streamId || false}
                           >
-                            <button className="flex items-center gap-2 w-full text-left">
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </button>
+                            <item.icon />
+                            <span>{item.title}</span> 
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       );
@@ -123,30 +156,61 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
 
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              <div className='flex justify-between items-center w-full'>
+                <span>
+                  Theme
+                </span>
+                <div className='flex items-center gap-2'>
+                  {
+                    darkModeEnabled ?
+                    <Moon className='h-4 w-4' /> :
+                    <Sun  className='h-4 w-4' />
+                  }
+                  <Switch
+                      id="app-light-dark-theme-toggle"
+                      checked={darkModeEnabled}
+                      onCheckedChange={setDarkModeEnabled}
+                  />
+                </div>
+                
+              </div>
+            </SidebarGroupLabel>
+            <Separator className="w-6- my-1"/>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  {
+                    isSidebarOpen && (
+                      <div className='flex items-center ml-4 mt-2'>
+                        <Dropdown
+                          label="JSentrix Theme"
+                          options={themeOptions}
+                          value={appThemeType}
+                          onChange={(v) => setAppThemeType(v as "default" | "indie")}
+                        />
+                      </div>
+                    )
+                  }
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
           {/* Help MenuItem Section */}
           <SidebarGroup>
-            <Separator className="w-60 my-1" />
             <SidebarGroupLabel>
-              <div className="flex gap-2 items-center">
-                <MessageCircleQuestion className="h-4 w-4 fill"/>
                 Help
-              </div>
             </SidebarGroupLabel>
             <Separator className="w-60 my-1" />
             <SidebarGroupContent>
               <SidebarMenu>
                 {HelpMenuitems.map((item: HelpMenuItemInterface) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      {
-                        <button 
-                          className="flex items-center gap-2 w-full text-left"
-                          onClick={() => setOpenDialog(item.title as "Docs" | "Contact")}
-                        >
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </button>
-                      }
+                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "Docs" | "Contact")}>    
+                      <item.icon />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
