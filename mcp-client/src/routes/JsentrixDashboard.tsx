@@ -298,7 +298,7 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                     <h2 className="mb-2 text-lg font-semibold">Agent Flows</h2>
                     {/* <YourXYReactFlowComponent mode={assessmentType}/> */}
                     <div className="border border-dashed border-gray-400 h-full w-full flex items-center justify-center text-muted-foreground">
-                        🚧 For Future JSentrix v2.0 XY React Flow Visuals go here
+                        🚧 For Future JSentrix v2.0 XY Flow Visuals go here
                     </div>
                     </div>
                 </div>

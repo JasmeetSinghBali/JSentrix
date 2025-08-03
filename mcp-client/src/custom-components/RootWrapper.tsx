@@ -734,10 +734,12 @@ export default React.memo((props: any) => {
                             />
                         ) :
                         currentAppRoute === 'analytics' ? (
-                            <>Analytics Component</>
+                            // 🎈 two split chat rag interface with ability to provide feedback and upd on the already stored prior events in qdrant, fetch ND txn or tnx forwarded by judge agent
+                            <>Analytics Component 🚧 JSentrix v2.0</>
                         ) :
                         currentAppRoute === 'settings' ? (
-                            <>Settings Component</>
+                            // 🎈 This component shud only be visible to the super admin not other users shud have interface to add , edit lower user role, email and permission also shud show existing user login time, duration , currently logged in or not for superadmin
+                            <>Settings Component 🚧 JSentrix v2.0</>
                         ) :
                         null
                     }

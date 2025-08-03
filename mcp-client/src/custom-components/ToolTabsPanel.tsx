@@ -266,7 +266,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
               {/* Show countdown timer from RootWrapper */}
               {tool.name === "streaminges" && typeof streamCountdown === 'number' && (
                 <div className='text-muted-foreground text-sm'>
-                    <div className="flex-column items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
+                    <div className="flex flex-col items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
                         <div className='flex items-center gap-2 font-mono text-yellow-700'>
                             <Hourglass className='w-4 h-4'/>
                             Streaming stops in: {formatSeconds(streamCountdown)}

@@ -2,17 +2,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { BetweenHorizontalEnd, BetweenHorizontalStart, LayoutDashboard, Cog, LucideProps, BadgeInfo, SquareCode, FileChartLine, Moon, Sun } from "lucide-react"
+import { BetweenHorizontalEnd, BetweenHorizontalStart, LayoutDashboard, Cog, LucideProps, BadgeInfo, SquareCode, FileChartLine, Moon, Sun, ChevronsUpDown, LogOut, GitGraph } from "lucide-react"
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -23,6 +25,11 @@ import { DialogInfo } from './DialogInfo';
 import Dropdown, { DropdownOption } from './Dropdown';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import user1img from '../assets/user1_img.png';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import AccountSheet from './AccountSheet';
 
 interface CustomSidebarTriggerProps {
   disabled?: boolean;
@@ -41,12 +48,12 @@ const MainMenuItems: MainMenuItemInterface[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Analytics",
+    title: "Analytics 🚧 JSentrix v2.0",
     route: "analytics",
     icon: FileChartLine,
   },
   {
-    title: "Settings",
+    title: "Settings 🚧 JSentrix v2.0",
     route: "settings",
     icon: Cog,
   },
@@ -59,7 +66,11 @@ interface HelpMenuItemInterface {
 // Help Menu items.
 const HelpMenuitems: HelpMenuItemInterface[] = [
   {
-    title: "Docs",
+    title: "Version Docs",
+    icon: GitGraph,
+  },
+  {
+    title: "Core Docs",
     icon: SquareCode,
   },
   {
@@ -97,7 +108,7 @@ export function AppSidebar() {
 
   const { currentRoute, navigate } = useRouterStore();
   // State to track which Help dialog is open
-  const [openDialog, setOpenDialog] = useState<"Docs" | "Contact" | null>(null);
+  const [openDialog, setOpenDialog] = useState<"Core Docs" | "Version Docs" | "Contact" | null>(null);
   const themeOptions: DropdownOption[] = [
       { label: "Default", value: "default" },
       { label: "Indie", value: "indie" },
@@ -208,7 +219,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {HelpMenuitems.map((item: HelpMenuItemInterface) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "Docs" | "Contact")}>    
+                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "Core Docs" | "Version Docs" | "Contact")}>    
                       <item.icon />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
@@ -219,12 +230,86 @@ export function AppSidebar() {
           </SidebarGroup>
 
         </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Popover modal={false}>
+                <PopoverTrigger asChild>
+                  <SidebarMenuButton
+                    disabled={!!streamId || false} 
+                    className="w-full flex items-center gap-2 px-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={user1img} />
+                      <AvatarFallback>CN</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col gap-0.5">
+                      <span>Username</span>
+                      <span className="text-xs text-muted-foreground">user@email.com</span>
+                    </div>
+                    <ChevronsUpDown className="ml-auto" />
+                  </SidebarMenuButton>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="right"
+                >
+                    <SidebarMenuSubItem className="w-full flex items-center gap-2 px-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={user1img} />
+                        <AvatarFallback>CN</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col gap-0.5">
+                        <span>Username</span>
+                        <span className="text-xs text-muted-foreground">user@email.com</span>
+                      </div>
+                    </SidebarMenuSubItem>
+                    <Separator className="w-80 my-1" />
+                      <AccountSheet username={"Username"} email={"user@email.com"} />
+                    <Separator className="w-80 my-1" />
+                    <SidebarGroupContent>
+                    <SidebarMenu>
+                      {
+                        MainMenuItems.map((item: MainMenuItemInterface) => {
+                            const isActive = currentRoute === item.route;
+
+                            return (
+                              <SidebarMenuItem 
+                                key={item.title}
+                              >
+                                <SidebarMenuButton
+                                  isActive={isActive}
+                                  onClick={() => navigate(item.route)}
+                                  disabled={!!streamId || false}
+                                >
+                                  <item.icon />
+                                  <span>{item.title}</span> 
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            );
+                        })
+                      }
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                  <Separator className="w-80 my-1" />
+                  <SidebarMenuButton>
+                      <LogOut/>
+                      <span>Log out</span>
+                  </SidebarMenuButton>
+
+                </PopoverContent>
+              </Popover>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+
       </Sidebar>
       
       {/* Docs Dialog */}
+      {/* 🎈 for docs expandable accordion like seprate sections with links to the appropriate sphinx/swagger docs shud be mentioned reff to Readme.md core 
+      also if possible giphy or demo videos of every flow like default + caching, default+non-caching, asyncredis+caching, 
+      which section does what, sitemap section  */}
       <DialogInfo
-        open={openDialog === "Docs"}
-        onOpenChange={(open) => setOpenDialog(open ? "Docs" : null)}
+        open={openDialog === "Core Docs"}
+        onOpenChange={(open) => setOpenDialog(open ? "Core Docs" : null)}
         title="Documentation"
         description="All about JSentrix system."
         content={
@@ -235,6 +320,17 @@ export function AppSidebar() {
               <li>Agent API</li>
               <li>Usage with LangChain</li>
             </ul>
+            <p>
+              What is Lorem Ipsum?
+              Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+
+              Why do we use it?
+              It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
+
+
+              Where does it come from?
+              Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.
+            </p>
           </>
         }
       />
@@ -255,6 +351,18 @@ export function AppSidebar() {
           </>
         }
       />
+
+      <Sheet>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Are you absolutely sure?</SheetTitle>
+            <SheetDescription>
+              This action cannot be undone. This will permanently delete your account
+              and remove your data from our servers.
+            </SheetDescription>
+          </SheetHeader>
+        </SheetContent>
+      </Sheet>
     </React.Fragment>
   )
 }
