@@ -131,7 +131,7 @@ export function AppSidebar() {
   return (
     <React.Fragment>
       <Sidebar collapsible="icon">
-        <SidebarContent>
+        <SidebarContent className='overflow-y-auto'>
           <SidebarGroup>
             <SidebarGroupLabel>
               <div className="flex gap-2 items-center">

@@ -39,11 +39,11 @@ const Dropdown: React.FC<DropdownProps> = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button disabled={disabled || false} variant="outline" className={buttonClassName || "w-[210px] justify-between"}>
+        <Button disabled={disabled || false} variant="outline" className={buttonClassName || "w-[210px] justify-between text-sm md:text-base"}>
           {selected ? selected.label : "Select..."}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className={menuClassName || "w-56"}>
+      <DropdownMenuContent className={menuClassName || "w-56 text-sm md:text-base"}>
         {label && <DropdownMenuLabel>{label}</DropdownMenuLabel>}
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map(opt => (

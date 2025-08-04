@@ -95,20 +95,20 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
   setGlobalLogs,
 }) => {
   return (
-    <div className="flex-1 h-full">
+    <div className="flex-1 h-full min-w-[1600px] min-h-[700px] flex flex-col">
         {/* Outermost: vertical split */}
-        <ResizablePanelGroup direction="vertical">
+        <ResizablePanelGroup direction="vertical" className='flex-1'>
 
             {/* Top-Panel: Left: Vitals, tools, configs section and Right: Log Terminal Section */}
-            <ResizablePanel minSize={40} defaultSize={70}> {/* 70%+ space */}
+            <ResizablePanel minSize={20} defaultSize={80} className='flex'> {/* 80%+ space */}
                 
-                <ResizablePanelGroup direction="horizontal">
+                <ResizablePanelGroup direction="horizontal" className='flex-1'>
                     
                     {/* Vitals, tools, configs section */}
-                    <ResizablePanel minSize={25} defaultSize={25}>
+                    <ResizablePanel minSize={25} defaultSize={30} className='overflow-auto'>
                         {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
-                        <div className='mb-6 ml-3 mt-6'>
-                            <div className="flex h-5 items-center space-x-4 text-sm">
+                        <div className='mb-6 mt-6'>
+                            <div className="flex h-6 md:h-8 items-center space-x-2 md:space-x-4 text-sm md:text-base lg:text-lg">
                                 <CustomSidebarTrigger disabled={!!streamId}/>
                                 <div>
                                     <Dropdown
@@ -120,7 +120,7 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                     />
                                 </div>
                                 <Separator orientation="vertical" />
-                                <div className="flex items-center space-x-1">
+                                <div className="flex items-center space-x-1 md:space-x-2">
                                     <Switch
                                         id="caching-toggle"
                                         checked={cachingEnabled}
@@ -129,39 +129,37 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                     />
                                     <Tooltip>
                                         <TooltipTrigger>
-                                        <BadgeInfo className='w-4 h-4' />
+                                        <BadgeInfo className='w-4 h-4 md:w-5 md:h-5' />
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Enabling skips assessment and action agent pipeline if new txn's have similarity with prior assessed events.</p>
+                                            <p className="text-xs md:text-sm">Enabling skips assessment and action agent pipeline if new txn&apos;s have similarity with prior assessed events.</p>
                                         </TooltipContent>
                                     </Tooltip>
-                                    <label htmlFor="caching-toggle" className="text-sm font-medium">
+                                    <label htmlFor="caching-toggle" className="text-sm md:text-base font-medium">
                                         Cached
                                     </label>
                                 </div>
                                 <Separator orientation="vertical" />
-                                <div>
-                                    {/* 📌 shud be used often before hardrefresh or starting new stream */}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={()=>{resetSystem(true)}}
-                                            >
-                                                <RefreshCcwDot className="w-5 h-5" />
-                                            </Button>
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Reset System</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </div>
+                                {/* 📌 shud be used often before hardrefresh or starting new stream */}
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={()=>{resetSystem(true)}}
+                                        >
+                                            <RefreshCcwDot className="w-5 h-5" />
+                                        </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className='text-sm md:text-base'>Reset System</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                
                             </div>
-                            <Separator className="my-4" />
-                            <div className="w-100 ml-6 items-center transition-opacity duration-500 ease-in-out" style={{ opacity: hideProgressBar ? 0 : 1 }}>
+                            <div className="w-full mt-4 items-center transition-opacity duration-500 ease-in-out" style={{ opacity: hideProgressBar ? 0 : 1 }}>
                                 <Progress value={progressPercent} />
                             </div>
                         </div>
@@ -173,7 +171,7 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                             websocketActive={websocketActive}
                             streamId={streamId}
                         />
-                        <div className='flex ml-4 mr-2 items-center gap-5 mt-2'>
+                        <div className='flex mr-2 items-center gap-5 mt-2'>
                             <Accordion
                                 type="single"
                                 collapsible
@@ -182,10 +180,8 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                 >
                                 <AccordionItem value="item-1">
                                     <AccordionTrigger>
-                                        <div className='flex items-center gap-2' style={{
-                                            cursor: 'pointer'
-                                        }}>
-                                            <Hammer className='w-4 h-4'/>
+                                        <div className='flex items-center gap-1 md:gap-2 cursor-pointer text-sm md: text-base lg:text-lg'>
+                                            <Hammer className='w-4 h-4 md:w-5 md:h-5'/>
                                             Available Tools
                                         </div>
                                     </AccordionTrigger>
@@ -231,53 +227,53 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                     <ResizableHandle />
 
                     {/* Log section */}
-                    <ResizablePanel minSize={68} maxSize={74} defaultSize={70}>
+                    <ResizablePanel minSize={64} maxSize={74} defaultSize={70}>
                         {/* Only use grid when showing multiple logs */}
                         {assessmentType === "redistream" ? (
-                            <div className="p-2 h-full w-full">
-                            <LogTerminal
-                                title="Global Event Log"
-                                emoji="🌐"
-                                logs={globalLogs}
-                                onClear={() => setGlobalLogs([])}
-                                bgColor="#101020"
-                                textColor="#ffffff"
-                                limit={300}
-                                clearable
-                            />
+                            <div className="grid grid-cols-1 p-2 h-full w-full">
+                                <LogTerminal
+                                    title="Global Event Log"
+                                    emoji="🌐"
+                                    logs={globalLogs}
+                                    onClear={() => setGlobalLogs([])}
+                                    bgColor="#101020"
+                                    textColor="#ffffff"
+                                    limit={300}
+                                    clearable
+                                />
                             </div>
                         ) : (
-                            <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
-                            <LogTerminal
-                                title="Intake-Events"
-                                emoji="🟢"
-                                logs={intakeLogs}
-                                onClear={() => setIntakeLogs([])}
-                                bgColor="#102010"
-                                textColor="#aaffaa"
-                                limit={150}
-                                clearable
-                            />
-                            <LogTerminal
-                                title="Assess-Events"
-                                emoji="🟣"
-                                logs={assessmentLogs}
-                                onClear={() => setAssessmentLogs([])}
-                                bgColor="#201020"
-                                textColor="#ddaaff"
-                                limit={150}
-                                clearable
-                            />
-                            <LogTerminal
-                                title="Action-Events"
-                                emoji="🔴"
-                                logs={actionLogs}
-                                onClear={()=>setActionLogs([])}
-                                bgColor="#200010"
-                                textColor="#ffaaaa"
-                                limit={150}
-                                clearable
-                            />
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 lg:gap-6 p-2 h-full w-full">
+                                <LogTerminal
+                                    title="Intake-Events"
+                                    emoji="🟢"
+                                    logs={intakeLogs}
+                                    onClear={() => setIntakeLogs([])}
+                                    bgColor="#102010"
+                                    textColor="#aaffaa"
+                                    limit={150}
+                                    clearable
+                                />
+                                <LogTerminal
+                                    title="Assess-Events"
+                                    emoji="🟣"
+                                    logs={assessmentLogs}
+                                    onClear={() => setAssessmentLogs([])}
+                                    bgColor="#201020"
+                                    textColor="#ddaaff"
+                                    limit={150}
+                                    clearable
+                                />
+                                <LogTerminal
+                                    title="Action-Events"
+                                    emoji="🔴"
+                                    logs={actionLogs}
+                                    onClear={()=>setActionLogs([])}
+                                    bgColor="#200010"
+                                    textColor="#ffaaaa"
+                                    limit={150}
+                                    clearable
+                                />
                             </div>
                         )}
                     </ResizablePanel>
@@ -289,13 +285,13 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
             <ResizableHandle />
 
             {/* Bottom-Panel: XY React Flow Visual */}
-            <ResizablePanel minSize={10} defaultSize={10}>
+            <ResizablePanel minSize={10} defaultSize={20}>
                 <div className="h-full w-full bg-muted p-4 flex items-center justify-center">
                     {/* 🎈 Add xy react flow visualizing intake, assessment, judge agent working and shud be 2 flows 1 for default a2a mode and the 2nd one for Async Redis Stream mode */}
                     {/* 🎈 The approach shud be the  new tool call ex- agentrace with payload as logs of all agents-intake, assessment, action that actually uses gemini llm/other relevant model under the hood recieves the payload agent based logs and then generates node strucutred data accordingly gives it back to the ui and then ui can generate visual graph with this node structured data from the tool via xy react flow  */}
                     {/* For example */}
                     <div className="h-full w-full flex flex-col items-center justify-center">
-                    <h2 className="mb-2 text-lg font-semibold">Agent Flows</h2>
+                    <h2 className="mb-2 text-base md:text-lg lg:text-xl font-semibold">Agent Flows</h2>
                     {/* <YourXYReactFlowComponent mode={assessmentType}/> */}
                     <div className="border border-dashed border-gray-400 h-full w-full flex items-center justify-center text-muted-foreground">
                         🚧 For Future JSentrix v2.0 XY Flow Visuals go here

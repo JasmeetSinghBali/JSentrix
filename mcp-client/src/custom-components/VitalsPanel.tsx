@@ -21,7 +21,7 @@ const VitalsPanel: React.FC<VitalsPanelProps> = ({
   streamId,
 }) => {
   return (
-    <div className="ml-4 mr-2 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
+    <div className="mr-2 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
       <div className="text-muted-foreground text-sm flex items-center gap-2">
         <div className='flex items-center gap-5 mt-2'>
           {
