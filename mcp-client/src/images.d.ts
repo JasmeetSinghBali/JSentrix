@@ -6,4 +6,8 @@ declare module '*.png' {
   const src: string;
   export default src;
 }
-// repeat for png, jpg, etc if needed
+declare module '*.svg' {
+  const src: string;
+  export default src;
+}
+// repeat for png, jpg,svg etc if needed

@@ -134,6 +134,8 @@ export function AppSidebar() {
     <React.Fragment>
       <Sidebar collapsible="icon">
         <SidebarContent className='overflow-y-auto'>
+
+          {/* AppCopyright author + Main Menu Items Section */}
           <SidebarGroup>
             <SidebarGroupLabel>
               <div className="flex p-5 gap-2 mt-5 md:mt-2">
@@ -148,7 +150,6 @@ export function AppSidebar() {
               </div>
             </SidebarGroupLabel>
             <Separator className="w-80 my-4" />
-            {/* Main Menu Items Section */}
             <SidebarGroupContent>
               <SidebarMenu>
                 {
@@ -175,7 +176,8 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-
+          
+          {/* Theme Section */}
           <SidebarGroup>
             <SidebarGroupLabel>
               <div className='flex justify-between items-center w-full text-sm md:text-base lg:text-lg'>
@@ -239,6 +241,8 @@ export function AppSidebar() {
           </SidebarGroup>
 
         </SidebarContent>
+        
+        {/* License + User logged in username and email + popup menu  */}
         <SidebarFooter>
           {
             isSidebarOpen &&
@@ -250,7 +254,7 @@ export function AppSidebar() {
               GPL-3.0 license
             </Badge>
           }
-                      <Separator className="w-60 my-1" />
+          <Separator className="w-60 my-1" />
           <SidebarMenu>
             <SidebarMenuItem>
               <Popover modal={false}>
@@ -372,6 +376,7 @@ export function AppSidebar() {
         }
       />
 
+      {/* 🎈delete account placeholder sheet confirmation modal shud be reusable component setup for future instead of this */}
       <Sheet>
         <SheetContent>
           <SheetHeader>
@@ -383,6 +388,7 @@ export function AppSidebar() {
           </SheetHeader>
         </SheetContent>
       </Sheet>
+
     </React.Fragment>
   )
 }

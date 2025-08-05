@@ -134,3 +134,25 @@ export const useAppThemeStore = create<AppThemeState>()(
     { name: "app-theme-type" }
   )
 );
+
+
+// ---7. 🎈 Current User Logged In State ---
+// shud be update via the whoami route response
+interface CurrentUser{
+
+}
+interface CurrentUserState {
+  user: CurrentUser | null;
+  setUser: (user: CurrentUser) => void;
+  clearUser: () => void;
+}
+export const useCurrentUserStore = create<CurrentUserState>()(
+  persist(
+    (set) => ({
+      user: null,
+      setUser: (user) => set({ user }),
+      clearUser: () => set({ user: null }),
+    }),
+    { name: 'current-user' }
+  )
+);

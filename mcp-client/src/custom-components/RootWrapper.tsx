@@ -8,7 +8,8 @@ import {
     useWsAuthStore, 
     useStreamingStore, 
     useRouterStore,
-    AppRoute
+    AppRoute,
+    useCurrentUserStore
 } from '@/shared/store';
 import { DropdownOption } from "./Dropdown";
 import { Toaster } from "@/components/ui/sonner"
@@ -16,6 +17,7 @@ import { toast } from "sonner"
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import JsentrixDashboard from '@/routes/JsentrixDashboard';
+import { LoginForm } from './forms/LoginForm';
 
 
 // interface for a single tool object
@@ -34,6 +36,7 @@ interface ToolsState {
 export default React.memo((props: any) => {
 
     // Auth and Config Store
+    const currentUser = useCurrentUserStore(state=>state.user);
     const accessToken = useGatewayAuthStore(state=>state.accessToken);
     const setAccessToken = useGatewayAuthStore(state => state.setAccessToken);
     const assessmentType = useStreamingesConfigStore(state => state.assessmentType);
@@ -583,7 +586,9 @@ export default React.memo((props: any) => {
     };
 
 
-    // Login gateway & streaming hub on mount
+    // auto Login gateway & streaming hub on mount and RootWrapper render
+    // check tools, listtools, whoami route
+    // login to streaming hub
     useEffect(() => {
         // login to mcp_server via gateway
         login('admin@example.com', 'ChangeThisSecurePassword123!');
@@ -592,7 +597,6 @@ export default React.memo((props: any) => {
         // login to streaming-hub for /ws websocket connection establishment
         loginToStreamingHub()
     }, []);
-
     // listing tools , whoami and check ping and add tool invoking
     useEffect(() => {
         if (!accessToken) return;
@@ -702,59 +706,71 @@ export default React.memo((props: any) => {
     return (
         <React.Fragment>
             <Toaster/>
-            <SidebarProvider open={openAppBar} onOpenChange={setOpenAppBar}>
-                {/* never smaller than 1600px and mx-auto does not stretch past 1920px and center with max-w-[1920px] */}
-                <div className="flex min-h-screen min-w-[1600px] max-w-[1920px] flex-col md:flex-row lg:gap-4 bg-background transition-all duration-200 ease-in-out">
-                    <AppSidebar/>
-                    {/* main content never streches wider than 2xl screen size and always centers max-w-screen-2xl mx-auto and h-[700px] min-h-screen ensures 700px tall but always streches if screen is taller */}
-                    <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-8 h-[700px] min-h-screen">
-                        {
-                            currentAppRoute === 'dashboard' ? (
-                                <JsentrixDashboard
-                                    assessmentOptions={assessmentOptions}
-                                    assessmentType={assessmentType}
-                                    setAssessmentType={setAssessmentType}
-                                    cachingEnabled={cachingEnabled}
-                                    setCachingEnabled={setCachingEnabled}
-                                    resetSystem={resetSystem}
-                                    hideProgressBar={hideProgressBar}
-                                    progressPercent={progressPercent}
-                                    loginGateway={loginGateway}
-                                    whoamiAccess={whoamiAccess}
-                                    toolActive={toolActive}
-                                    websocketActive={websocketActive}
-                                    streamId={streamId}
-                                    toolsLoading={toolsLoading}
-                                    toolsError={toolsError}
-                                    tools={tools?.tools}
-                                    availableTools={availableTools}
-                                    toolId={toolId}
-                                    setToolId={setToolId}
-                                    startStreamingWithDuration={startStreamingWithDuration}
-                                    abortStreaming={abortStreaming}
-                                    intakeLogs={intakeLogs}
-                                    assessmentLogs={assessmentLogs}
-                                    actionLogs={actionLogs}
-                                    globalLogs={globalLogs}
-                                    setIntakeLogs={setIntakeLogs}
-                                    setAssessmentLogs={setAssessmentLogs}
-                                    setActionLogs={setActionLogs}
-                                    setGlobalLogs={setGlobalLogs}
-                                />
-                            ) :
-                            currentAppRoute === 'analytics' ? (
-                                // 🎈 two split chat rag interface with ability to provide feedback and upd on the already stored prior events in qdrant, fetch ND txn or tnx forwarded by judge agent
-                                <>Analytics Component 🚧 JSentrix v2.0</>
-                            ) :
-                            currentAppRoute === 'settings' ? (
-                                // 🎈 This component shud only be visible to the super admin not other users shud have interface to add , edit lower user role, email and permission also shud show existing user login time, duration , currently logged in or not for superadmin
-                                <>Settings Component 🚧 JSentrix v2.0</>
-                            ) :
-                            null
-                        }    
-                    </main>
-                </div>
-            </SidebarProvider>
+            {
+                currentUser !== null ?
+                (
+                    <SidebarProvider open={openAppBar} onOpenChange={setOpenAppBar}>
+                        {/* never smaller than 1600px and mx-auto does not stretch past 1920px and center with max-w-[1920px] */}
+                        <div className="flex min-h-screen min-w-[1600px] max-w-[1920px] flex-col md:flex-row lg:gap-4 bg-background transition-all duration-200 ease-in-out">
+                            <AppSidebar/>
+                            {/* main content never streches wider than 2xl screen size and always centers max-w-screen-2xl mx-auto and h-[700px] min-h-screen ensures 700px tall but always streches if screen is taller */}
+                            <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-8 h-[700px] min-h-screen">
+                                {
+                                    currentAppRoute === 'dashboard' ? (
+                                        <JsentrixDashboard
+                                            assessmentOptions={assessmentOptions}
+                                            assessmentType={assessmentType}
+                                            setAssessmentType={setAssessmentType}
+                                            cachingEnabled={cachingEnabled}
+                                            setCachingEnabled={setCachingEnabled}
+                                            resetSystem={resetSystem}
+                                            hideProgressBar={hideProgressBar}
+                                            progressPercent={progressPercent}
+                                            loginGateway={loginGateway}
+                                            whoamiAccess={whoamiAccess}
+                                            toolActive={toolActive}
+                                            websocketActive={websocketActive}
+                                            streamId={streamId}
+                                            toolsLoading={toolsLoading}
+                                            toolsError={toolsError}
+                                            tools={tools?.tools}
+                                            availableTools={availableTools}
+                                            toolId={toolId}
+                                            setToolId={setToolId}
+                                            startStreamingWithDuration={startStreamingWithDuration}
+                                            abortStreaming={abortStreaming}
+                                            intakeLogs={intakeLogs}
+                                            assessmentLogs={assessmentLogs}
+                                            actionLogs={actionLogs}
+                                            globalLogs={globalLogs}
+                                            setIntakeLogs={setIntakeLogs}
+                                            setAssessmentLogs={setAssessmentLogs}
+                                            setActionLogs={setActionLogs}
+                                            setGlobalLogs={setGlobalLogs}
+                                        />
+                                    ) :
+                                    currentAppRoute === 'analytics' ? (
+                                        // 🎈 two split chat rag interface with ability to provide feedback and upd on the already stored prior events in qdrant, fetch ND txn or tnx forwarded by judge agent
+                                        <>Analytics Component 🚧 JSentrix v2.0</>
+                                    ) :
+                                    currentAppRoute === 'settings' ? (
+                                        // 🎈 This component shud only be visible to the super admin not other users shud have interface to add , edit lower user role, email and permission also shud show existing user login time, duration , currently logged in or not for superadmin
+                                        <>Settings Component 🚧 JSentrix v2.0</>
+                                    ) :
+                                    null
+                                }    
+                            </main>
+                        </div>
+                    </SidebarProvider>
+                )
+                :
+                (
+                    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
+                        <LoginForm />
+                    </div>
+                )
+            }
+            
         </React.Fragment>
         
     );
