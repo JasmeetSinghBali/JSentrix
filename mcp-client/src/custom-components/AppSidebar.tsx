@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { BetweenHorizontalEnd, BetweenHorizontalStart, LayoutDashboard, Cog, LucideProps, BadgeInfo, SquareCode, FileChartLine, Moon, Sun, ChevronsUpDown, LogOut, GitGraph } from "lucide-react"
+import { BetweenHorizontalEnd, BetweenHorizontalStart, LayoutDashboard, Cog, LucideProps, BadgeInfo, SquareCode, FileChartLine, Moon, Sun, ChevronsUpDown, LogOut, GitGraph, Scale, Copyright } from "lucide-react"
 
 import {
   Sidebar,
@@ -30,6 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AccountSheet from './AccountSheet';
+import { Badge } from '@/components/ui/badge';
 
 interface CustomSidebarTriggerProps {
   disabled?: boolean;
@@ -48,12 +49,12 @@ const MainMenuItems: MainMenuItemInterface[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Analytics 🚧 JSentrix v2.0",
+    title: "Analytics",
     route: "analytics",
     icon: FileChartLine,
   },
   {
-    title: "Settings 🚧 JSentrix v2.0",
+    title: "Settings",
     route: "settings",
     icon: Cog,
   },
@@ -97,6 +98,7 @@ export function CustomSidebarTrigger({disabled}: CustomSidebarTriggerProps) {
 }
 
 export function AppSidebar() {
+  const todayDate = new Date();
   const streamId = useStreamingStore((state)=>state.streamId);
   
   const { open: isSidebarOpen } = useSidebar();
@@ -134,9 +136,15 @@ export function AppSidebar() {
         <SidebarContent className='overflow-y-auto'>
           <SidebarGroup>
             <SidebarGroupLabel>
-              <div className="flex gap-2 items-center">
+              <div className="flex p-5 gap-2 mt-5 md:mt-2">
                   <img src={sidebarAnimation} className="h-10 w-10 sidebar-gif"  alt="https://www.flaticon.com/free-animated-icons/commercial-transaction" title="Commercial transaction animated icons created by Freepik - Flaticon"/>
-                  JSentrix GPL-3.0 license
+                  <div className='flex flex-col items-center mt-1'>
+                      <div className='flex'>
+                        <Copyright className='h-4 w-4' />
+                        <span>2025-{todayDate.getFullYear()}</span>
+                      </div>
+                      <span> Jasmeet Singh Bali </span>
+                  </div> 
               </div>
             </SidebarGroupLabel>
             <Separator className="w-80 my-4" />
@@ -155,9 +163,10 @@ export function AppSidebar() {
                             isActive={isActive}
                             onClick={() => navigate(item.route)}
                             disabled={!!streamId || false}
+                            className='flex items-center gap-2 md:gap-3 lg:gap-4'
                           >
-                            <item.icon />
-                            <span>{item.title}</span> 
+                            <item.icon className='w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6'/>
+                            <span className='text-sm md:text-base lg:text-lg'>{item.title}</span> 
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       );
@@ -169,15 +178,15 @@ export function AppSidebar() {
 
           <SidebarGroup>
             <SidebarGroupLabel>
-              <div className='flex justify-between items-center w-full'>
+              <div className='flex justify-between items-center w-full text-sm md:text-base lg:text-lg'>
                 <span>
                   Theme
                 </span>
                 <div className='flex items-center gap-2'>
                   {
                     darkModeEnabled ?
-                    <Moon className='h-4 w-4' /> :
-                    <Sun  className='h-4 w-4' />
+                    <Moon className='h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6' /> :
+                    <Sun  className='h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6' />
                   }
                   <Switch
                       id="app-light-dark-theme-toggle"
@@ -220,8 +229,8 @@ export function AppSidebar() {
                 {HelpMenuitems.map((item: HelpMenuItemInterface) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "Core Docs" | "Version Docs" | "Contact")}>    
-                      <item.icon />
-                      <span>{item.title}</span>
+                      <item.icon className='w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6'/>
+                      <span className='text-sm md:text-base lg:text-lg'>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -231,6 +240,17 @@ export function AppSidebar() {
 
         </SidebarContent>
         <SidebarFooter>
+          {
+            isSidebarOpen &&
+            <Badge
+              variant={"secondary"}
+              className={"bg-blue-800 text-white dark:bg-blue-600"}
+            >
+              <Scale className='h-4 w-4' />
+              GPL-3.0 license
+            </Badge>
+          }
+                      <Separator className="w-60 my-1" />
           <SidebarMenu>
             <SidebarMenuItem>
               <Popover modal={false}>
@@ -242,8 +262,8 @@ export function AppSidebar() {
                       <AvatarImage src={user1img} />
                       <AvatarFallback>CN</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col gap-0.5">
-                      <span>Username</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm" >Username</span>
                       <span className="text-xs text-muted-foreground">user@email.com</span>
                     </div>
                     <ChevronsUpDown className="ml-auto" />

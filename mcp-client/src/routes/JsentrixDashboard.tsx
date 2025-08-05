@@ -96,6 +96,9 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
 }) => {
   return (
     <div className="flex-1 h-full min-w-[1600px] min-h-[700px] flex flex-col">
+        <div className="w-full items-center transition-opacity duration-500 ease-in-out" style={{ opacity: hideProgressBar ? 0 : 1 }}>
+            <Progress value={progressPercent} />
+        </div>
         {/* Outermost: vertical split */}
         <ResizablePanelGroup direction="vertical" className='flex-1'>
 
@@ -158,9 +161,6 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                     </TooltipContent>
                                 </Tooltip>
                                 
-                            </div>
-                            <div className="w-full mt-4 items-center transition-opacity duration-500 ease-in-out" style={{ opacity: hideProgressBar ? 0 : 1 }}>
-                                <Progress value={progressPercent} />
                             </div>
                         </div>
                         {/* Dynamic System Vitals Section */}
@@ -245,7 +245,7 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 lg:gap-6 p-2 h-full w-full">
                                 <LogTerminal
-                                    title="Intake-Events"
+                                    title="E-Intake"
                                     emoji="🟢"
                                     logs={intakeLogs}
                                     onClear={() => setIntakeLogs([])}
@@ -255,7 +255,7 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                     clearable
                                 />
                                 <LogTerminal
-                                    title="Assess-Events"
+                                    title="E-Assess"
                                     emoji="🟣"
                                     logs={assessmentLogs}
                                     onClear={() => setAssessmentLogs([])}
@@ -265,7 +265,7 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                     clearable
                                 />
                                 <LogTerminal
-                                    title="Action-Events"
+                                    title="E-Action"
                                     emoji="🔴"
                                     logs={actionLogs}
                                     onClear={()=>setActionLogs([])}

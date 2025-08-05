@@ -145,7 +145,7 @@ docker system prune
 |---------|----------------------------------------------------------------------------------------------- |  
 | 15      | Setup Judge agent and its comm from action agent for ND txns flow check nuances/dev.md reff: 🎈 Abstracted Phases for Triage Flow section for flow along with strucutred txn output to be passed to gemini summarizer                                                                                              |
 | 16      | visual agent graph tool invocation with xy react flow payload intake-assessment-action agent logs reff RootWrapper Bottom panel XY react flow visual                                                      |
-| 17      | implement RAG HyDE (Hypothetical Document Embeddings) strategy approach                       |
+| 17      | implement RAG HyDE (Hypothetical Document Embeddings) strategy approach ideally at the Intake level need to reserach and brainstorm it more in reff to the e2e flow                                   |
 
 ---
 

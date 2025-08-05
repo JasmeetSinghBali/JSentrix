@@ -186,6 +186,13 @@ export default React.memo((props: any) => {
         if (terminalLogs) {
             resetAllLogs();
         }
+        toast.warning(
+            `System reset triggered`,
+            {
+                description: `[ws-conn], [stream-conn], [abort-controller] reset performed ${new Date().toISOString().split("T")[0]} `,
+                position: 'top-center'
+            }
+        );
     };
     
     // --- WebSocket connect + reconnect logic ---
