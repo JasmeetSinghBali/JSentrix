@@ -10,14 +10,17 @@ import {
 } from "@/components/ui/sheet";
 import { useState } from "react";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
-import { ChevronFirst, ChevronLast } from "lucide-react";
+import { ChevronFirst, ChevronLast, PersonStanding } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface Props {
   username: string;
   email: string;
+  roles: string;
 }
 
-export default function AccountSheet({ username, email }: Props) {
+export default function AccountSheet({ username, email, roles }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,7 +41,6 @@ export default function AccountSheet({ username, email }: Props) {
               Manage your account specific settings and account preferences.
             </SheetDescription>
           </SheetHeader>
-
           <div className="mt-6 space-y-4 p-4">
             <div className="space-y-1">
               <label htmlFor="username" className="text-sm font-medium">
@@ -65,7 +67,25 @@ export default function AccountSheet({ username, email }: Props) {
               />
             </div>
 
-            <div className="pt-4 border-t mt-6">
+            <div className="flex flex-col items-start gap-2 space-y-1 border-t pt-4 mt-6">
+              <label htmlFor="Roles" className="text-sm font-medium">
+                Active roles
+              </label>
+              <div className="flex gap-2 items-start">
+                {
+                  roles.split(",").map((role: string)=>{
+                    return (
+                      <Badge
+                        variant={"secondary"}
+                        className={"bg-blue-500 text-white dark:bg-blue-600"}
+                      >
+                        <PersonStanding />
+                        {role}
+                      </Badge>
+                    )
+                  })
+                }
+              </div>
               {/* not for superadmin other users deactivate account action */}
               <button
                 className="text-red-500 text-sm underline"

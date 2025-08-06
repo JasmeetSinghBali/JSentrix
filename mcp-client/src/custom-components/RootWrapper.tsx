@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import JsentrixDashboard from '@/routes/JsentrixDashboard';
-import { LoginForm } from './forms/LoginForm';
+import { LoginGatewayStreamingHubForm } from './forms/LoginGatewayStreamingHubForm';
 
 
 // interface for a single tool object
@@ -366,64 +366,6 @@ export default React.memo((props: any) => {
     };
 
 
-
-    const whoami = async (token: string) => {
-        try {
-            setWhoAmIAccessLoading(true)
-            const response = await fetch("http://localhost:8080/auth/me", {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data: any = await response.json(); // 🎈 shud Cast to UserState who is logged in
-            setWhoAmIAccess(true);
-            return data;
-        } catch (error: any) {
-            console.error("Error in whoami:", error);
-            setWhoAmIAccessError(true)
-            setWhoAmIAccess(false);
-        }finally{
-            setWhoAmIAccessLoading(false)
-        }
-    };
-
-    const login = async (username: string, password: string) => {
-        try {
-        setLoginGatewayLoading(true)
-        // Abort any existing stream before login
-        if (accessToken && streamId) {
-            await invokeTool(accessToken, "abortinges", {
-            arguments: { stream_id: streamId },
-            });
-            clearStreamId();
-        }
-        const response = await fetch("http://localhost:8080/auth/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ username, password }),
-        });
-        const data = await response.json();
-        setAccessToken(data.access_token);
-        setLoginGateway(true);
-        return data.access_token;
-        } catch (error: any) {
-            console.error("Error in login:", error);
-            setLoginGatewayError(true);
-            setLoginGateway(false);
-        }finally{
-            setLoginGatewayLoading(false)
-        }
-    };
-
-    const loginToStreamingHub = async () => {
-        try {
-        const response = await fetch(`http://localhost/login`, { method: "POST" });
-        const data = await response.json();
-        useWsAuthStore.getState().setAuth(data.client_id, data.token);
-        return data;
-        } catch (error: any) {
-         console.error("Error logging in to streaming-hub:", error);
-        }
-    };
-
     const listTools = async (token: string) => {
         setToolsLoading(true);
         setToolsError(false);
@@ -586,22 +528,10 @@ export default React.memo((props: any) => {
     };
 
 
-    // auto Login gateway & streaming hub on mount and RootWrapper render
-    // check tools, listtools, whoami route
-    // login to streaming hub
-    useEffect(() => {
-        // login to mcp_server via gateway
-        login('admin@example.com', 'ChangeThisSecurePassword123!');
-        // login('user@example.com', 'testpassword');
-
-        // login to streaming-hub for /ws websocket connection establishment
-        loginToStreamingHub()
-    }, []);
     // listing tools , whoami and check ping and add tool invoking
     useEffect(() => {
         if (!accessToken) return;
         (async () => {
-            await whoami(accessToken);
             await listTools(accessToken);
             await invokeTool(accessToken, "ping");
             await invokeTool(accessToken, "add", { arguments: { a: 2, b: 3 } });
@@ -658,29 +588,33 @@ export default React.memo((props: any) => {
 
     // Logging pendingtxn analysis and caching enabled for debug
     useEffect(() => {
-        toast.info(
-            "[pending-txn-analysis-count]-Event",
-            {
-                description: `Pending: ${pendingTxnAnalysisCount}`,
-                position: 'top-center'
-            }
-        );
+        if(currentUser){
+            toast.info(
+                "[pending-txn-analysis-count]-Event",
+                {
+                    description: `Pending: ${pendingTxnAnalysisCount}`,
+                    position: 'top-center'
+                }
+            );
+        }
     }, [pendingTxnAnalysisCount]);
     useEffect(() => {
-        if (cachingEnabled) {
-            toast.info(
-                "Quick Assessment Mode is active.",
-                {
-                    position: 'top-center'
-                }
-            );
-        } else {
-            toast.info(
-                "Full Assessment Mode is active.",
-                {
-                    position: 'top-center'
-                }
-            );
+        if(currentUser){
+            if (cachingEnabled) {
+                toast.info(
+                    "Quick Assessment Mode is active.",
+                    {
+                        position: 'top-center'
+                    }
+                );
+            } else {
+                toast.info(
+                    "Full Assessment Mode is active.",
+                    {
+                        position: 'top-center'
+                    }
+                );
+            }
         }
     }, [cachingEnabled]);
 
@@ -697,7 +631,7 @@ export default React.memo((props: any) => {
     }, [progressPercent]);
 
 
-    // currentAppRoute useEffect
+    // currentAppRoute useEffect local rootwrapper state sync with zustand store currentapproute
     useEffect(()=>{
         console.log(`Current-App-Route: ${currentAppRoute}`)
         setCurrentAppRouteLocal(currentAppRoute);
@@ -766,7 +700,7 @@ export default React.memo((props: any) => {
                 :
                 (
                     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
-                        <LoginForm />
+                        <LoginGatewayStreamingHubForm />
                     </div>
                 )
             }

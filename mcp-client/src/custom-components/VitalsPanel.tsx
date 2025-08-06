@@ -25,21 +25,13 @@ const VitalsPanel: React.FC<VitalsPanelProps> = ({
       <div className="text-muted-foreground text-sm flex items-center gap-2">
         <div className='flex items-center gap-5 mt-2'>
           {
-            (loginGateway && whoamiAccess) ?
+            (toolActive) ?
               <HeartPulse className='w-4 h-4 text-green-500' />
               :
               <Activity className='w-4 h-4 text-red-500' />
           }
           Vitals :
           <div className="flex h-5 items-center space-x-4 text-sm">
-            <Badge
-              variant={(loginGateway && whoamiAccess) ? "secondary" : "destructive"}
-              className={(loginGateway && whoamiAccess) ? "bg-blue-500 text-white dark:bg-blue-600" : ""}
-            >
-              {(loginGateway && whoamiAccess) ? <BadgeCheck /> : <BadgeX />}
-              Gateway
-            </Badge>
-            <Separator orientation="vertical" />
             <Badge
               variant={toolActive ? "secondary" : "destructive"}
               className={toolActive ? "bg-blue-500 text-white dark:bg-blue-600" : ""}

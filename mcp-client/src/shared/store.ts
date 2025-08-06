@@ -4,11 +4,15 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 
-// --- 1. Gateway AccessToken ---
+// --- 1. Gateway AuthTokens ---
 interface GatewayAuthState {
   accessToken: string | null;
   setAccessToken: (token: string) => void;
   clearAccessToken: () => void;
+
+  refreshToken: string | null;
+  setRefreshToken: (token: string) => void;
+  clearRefreshToken: () => void;
 }
 export const useGatewayAuthStore = create<GatewayAuthState>()(
   persist(
@@ -16,6 +20,10 @@ export const useGatewayAuthStore = create<GatewayAuthState>()(
       accessToken: null,
       setAccessToken: (token) => set({ accessToken: token }),
       clearAccessToken: () => set({ accessToken: null }),
+
+      refreshToken: null,
+      setRefreshToken: (token) => set({ refreshToken: token }),
+      clearRefreshToken: () => set({ refreshToken: null }),
     }),
     { name: "gateway-auth-storage" }
   )
@@ -136,10 +144,14 @@ export const useAppThemeStore = create<AppThemeState>()(
 );
 
 
-// ---7. 🎈 Current User Logged In State ---
-// shud be update via the whoami route response
-interface CurrentUser{
-
+// ---7. Current User Logged In State ---
+// shud be update via the whoami route response and shud be updated by LoginForm component with whoami response 
+export interface CurrentUser{
+  email: string;
+  full_name: string;
+  employee_number: string;
+  id: number;
+  roles: string;
 }
 interface CurrentUserState {
   user: CurrentUser | null;
@@ -150,7 +162,7 @@ export const useCurrentUserStore = create<CurrentUserState>()(
   persist(
     (set) => ({
       user: null,
-      setUser: (user) => set({ user }),
+      setUser: (user: CurrentUser) => set({ user }),
       clearUser: () => set({ user: null }),
     }),
     { name: 'current-user' }

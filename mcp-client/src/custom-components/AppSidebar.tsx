@@ -18,9 +18,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-import sidebarAnimation from '../assets/sidebar-animation.gif';
+import indianFlag from '../assets/indian_flag.png';
 import { Separator } from "@/components/ui/separator";
-import { AppRoute, useAppThemeStore, useRouterStore, useStreamingStore } from "@/shared/store";
+import { AppRoute, useAppThemeStore, useCurrentUserStore, useRouterStore, useStreamingStore } from "@/shared/store";
 import { DialogInfo } from './DialogInfo';
 import Dropdown, { DropdownOption } from './Dropdown';
 import { Switch } from '@/components/ui/switch';
@@ -109,6 +109,10 @@ export function AppSidebar() {
   const setDarkModeEnabled = useAppThemeStore(state => state.setDarkModeEnabled);
 
   const { currentRoute, navigate } = useRouterStore();
+
+  const currentUser = useCurrentUserStore(state => state.user);
+  const clearUser = useCurrentUserStore(state => state.clearUser);
+
   // State to track which Help dialog is open
   const [openDialog, setOpenDialog] = useState<"Core Docs" | "Version Docs" | "Contact" | null>(null);
   const themeOptions: DropdownOption[] = [
@@ -139,7 +143,7 @@ export function AppSidebar() {
           <SidebarGroup>
             <SidebarGroupLabel>
               <div className="flex p-5 gap-2 mt-5 md:mt-2">
-                  <img src={sidebarAnimation} className="h-10 w-10 sidebar-gif"  alt="https://www.flaticon.com/free-animated-icons/commercial-transaction" title="Commercial transaction animated icons created by Freepik - Flaticon"/>
+                  <img src={indianFlag} className="h-10 w-10 sidebar-gif"  alt="https://www.flaticon.com/free-icons/india" title="India icons created by Waveshade_Studios - Flaticon"/>
                   <div className='flex flex-col items-center mt-1'>
                       <div className='flex'>
                         <Copyright className='h-4 w-4' />
@@ -267,8 +271,8 @@ export function AppSidebar() {
                       <AvatarFallback>CN</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <span className="text-sm" >Username</span>
-                      <span className="text-xs text-muted-foreground">user@email.com</span>
+                      <span className="text-sm" >{currentUser?.full_name}</span>
+                      <span className="text-xs text-muted-foreground">{currentUser?.email}</span>
                     </div>
                     <ChevronsUpDown className="ml-auto" />
                   </SidebarMenuButton>
@@ -282,12 +286,12 @@ export function AppSidebar() {
                         <AvatarFallback>CN</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col gap-0.5">
-                        <span>Username</span>
-                        <span className="text-xs text-muted-foreground">user@email.com</span>
+                        <span>{currentUser?.full_name}</span>
+                        <span className="text-xs text-muted-foreground">{currentUser?.email}</span>
                       </div>
                     </SidebarMenuSubItem>
                     <Separator className="w-80 my-1" />
-                      <AccountSheet username={"Username"} email={"user@email.com"} />
+                      <AccountSheet username={currentUser.full_name} email={currentUser.email} roles={currentUser?.roles} />
                     <Separator className="w-80 my-1" />
                     <SidebarGroupContent>
                     <SidebarMenu>
@@ -314,7 +318,15 @@ export function AppSidebar() {
                     </SidebarMenu>
                   </SidebarGroupContent>
                   <Separator className="w-80 my-1" />
-                  <SidebarMenuButton>
+                  <SidebarMenuButton onClick={()=>{
+                    // 🎈 actual logout api call shud also be made intially
+                    clearUser();
+                    setAppThemeType("default");
+                    setDarkModeEnabled(false);
+                    setTimeout(() => {
+                      window?.Electron?.ipcRenderer?.invoke('app:hard-reload');
+                    }, 800);
+                  }}>
                       <LogOut/>
                       <span>Log out</span>
                   </SidebarMenuButton>
