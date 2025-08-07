@@ -21,5 +21,8 @@ class User(Base):
     full_name = Column(String)
     employee_number = Column(String, unique=True, nullable=False)
     is_active = Column(Boolean, default=True)
+    admin_ban = Column(
+        Boolean, default=False
+    )  # 📌 Only a superadmin (via a secure admin panel or endpoint) can set/unset this field.
     is_superuser = Column(Boolean, default=False)
     roles = Column(String, default="user")

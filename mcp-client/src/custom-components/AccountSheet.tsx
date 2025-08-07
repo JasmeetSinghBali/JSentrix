@@ -86,7 +86,7 @@ export default function AccountSheet({ username, email, roles }: Props) {
                   })
                 }
               </div>
-              {/* not for superadmin other users deactivate account action */}
+              {/* 🎈 makes is_active for the current logged in user as false to avoid future logins for future route need to be established for the same */}
               <button
                 className="text-red-500 text-sm underline"
                 onClick={() => alert("Account Deactivation Triggered")}

@@ -20,7 +20,7 @@ import {
 
 import indianFlag from '../assets/indian_flag.png';
 import { Separator } from "@/components/ui/separator";
-import { AppRoute, useAppThemeStore, useCurrentUserStore, useRouterStore, useStreamingStore } from "@/shared/store";
+import { AppRoute, useAppThemeStore, useCurrentUserStore, useGatewayAuthStore, useRouterStore, useStreamingStore, useWsAuthStore } from "@/shared/store";
 import { DialogInfo } from './DialogInfo';
 import Dropdown, { DropdownOption } from './Dropdown';
 import { Switch } from '@/components/ui/switch';
@@ -111,7 +111,12 @@ export function AppSidebar() {
   const { currentRoute, navigate } = useRouterStore();
 
   const currentUser = useCurrentUserStore(state => state.user);
+
   const clearUser = useCurrentUserStore(state => state.clearUser);
+  const clearAccessToken = useGatewayAuthStore(state=>state.clearAccessToken);
+  const clearRefreshToken = useGatewayAuthStore(state=>state.clearRefreshToken);
+  const clearStreamingToken = useWsAuthStore(state=>state.clearAuth);
+  const clearStreamId = useStreamingStore((state) => state.clearStreamId);
 
   // State to track which Help dialog is open
   const [openDialog, setOpenDialog] = useState<"Core Docs" | "Version Docs" | "Contact" | null>(null);
@@ -319,13 +324,23 @@ export function AppSidebar() {
                   </SidebarGroupContent>
                   <Separator className="w-80 my-1" />
                   <SidebarMenuButton onClick={()=>{
-                    // 🎈 actual logout api call shud also be made intially
-                    clearUser();
+                    
+                    // core token access reset
+                    clearAccessToken();
+                    clearRefreshToken();
+                    clearStreamingToken();
+                    clearStreamId();
+
+                    // core theme reset
                     setAppThemeType("default");
                     setDarkModeEnabled(false);
+
+                    // core user and hard reset electron reload
                     setTimeout(() => {
+                      clearUser();
                       window?.Electron?.ipcRenderer?.invoke('app:hard-reload');
                     }, 800);
+
                   }}>
                       <LogOut/>
                       <span>Log out</span>

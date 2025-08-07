@@ -528,9 +528,9 @@ export default React.memo((props: any) => {
     };
 
 
-    // listing tools , whoami and check ping and add tool invoking
+    // listing tools , whoami and check ping and add tool invoking only when access token and current user zustand state is set
     useEffect(() => {
-        if (!accessToken) return;
+        if (!accessToken || !currentUser) return;
         (async () => {
             await listTools(accessToken);
             await invokeTool(accessToken, "ping");

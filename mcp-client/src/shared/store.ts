@@ -152,6 +152,7 @@ export interface CurrentUser{
   employee_number: string;
   id: number;
   roles: string;
+  admin_ban: boolean;
 }
 interface CurrentUserState {
   user: CurrentUser | null;
