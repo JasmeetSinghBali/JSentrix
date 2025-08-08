@@ -31,6 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AccountSheet from './AccountSheet';
 import { Badge } from '@/components/ui/badge';
+import { stopTokenRotation } from '@/shared/tokenService';
 
 interface CustomSidebarTriggerProps {
   disabled?: boolean;
@@ -113,8 +114,7 @@ export function AppSidebar() {
   const currentUser = useCurrentUserStore(state => state.user);
 
   const clearUser = useCurrentUserStore(state => state.clearUser);
-  const clearAccessToken = useGatewayAuthStore(state=>state.clearAccessToken);
-  const clearRefreshToken = useGatewayAuthStore(state=>state.clearRefreshToken);
+  const clearGatewayTokens = useGatewayAuthStore(state=>state.clearTokens);
   const clearStreamingToken = useWsAuthStore(state=>state.clearAuth);
   const clearStreamId = useStreamingStore((state) => state.clearStreamId);
 
@@ -326,10 +326,12 @@ export function AppSidebar() {
                   <SidebarMenuButton onClick={()=>{
                     
                     // core token access reset
-                    clearAccessToken();
-                    clearRefreshToken();
+                    clearGatewayTokens();
                     clearStreamingToken();
                     clearStreamId();
+
+                    // stop token rotation interval
+                    stopTokenRotation();
 
                     // core theme reset
                     setAppThemeType("default");

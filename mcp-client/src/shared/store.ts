@@ -7,23 +7,22 @@ import { persist } from 'zustand/middleware';
 // --- 1. Gateway AuthTokens ---
 interface GatewayAuthState {
   accessToken: string | null;
-  setAccessToken: (token: string) => void;
-  clearAccessToken: () => void;
-
   refreshToken: string | null;
-  setRefreshToken: (token: string) => void;
-  clearRefreshToken: () => void;
+
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  clearTokens: () => void;
 }
 export const useGatewayAuthStore = create<GatewayAuthState>()(
   persist(
     (set) => ({
       accessToken: null,
-      setAccessToken: (token) => set({ accessToken: token }),
-      clearAccessToken: () => set({ accessToken: null }),
-
       refreshToken: null,
-      setRefreshToken: (token) => set({ refreshToken: token }),
-      clearRefreshToken: () => set({ refreshToken: null }),
+
+      setTokens: (accessToken, refreshToken) =>
+        set({ accessToken, refreshToken }),
+
+      clearTokens: () =>
+        set({ accessToken: null, refreshToken: null }),
     }),
     { name: "gateway-auth-storage" }
   )

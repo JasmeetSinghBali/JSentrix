@@ -25,6 +25,7 @@ import { whoAmIGateway } from '@/api/whoAmIGateway';
 import { MultiStepLoader } from '@/components/ui/multi-step-loader';
 import indianflag from '../../assets/indian_flag.png';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { startTokenRotation } from '@/shared/tokenService';
 
 const loadingStates = [
   {
@@ -55,8 +56,7 @@ export function LoginGatewayStreamingHubForm({
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState<boolean>(false);
 
-  const setAccessToken = useGatewayAuthStore(state=>state.setAccessToken);
-  const setRefreshToken = useGatewayAuthStore(state=>state.setRefreshToken);
+  const setGatewayTokens = useGatewayAuthStore(state=>state.setTokens);
 
   const setUser = useCurrentUserStore(state => state.setUser);
 
@@ -74,9 +74,11 @@ export function LoginGatewayStreamingHubForm({
       setStep(1);
 
       if (TokenResponse !== null) {
-        setAccessToken(TokenResponse.access_token);
-        setRefreshToken(TokenResponse.refresh_token);
-        
+        if(TokenResponse.access_token && TokenResponse.refresh_token){
+          setGatewayTokens(TokenResponse.access_token, TokenResponse.refresh_token);
+          startTokenRotation();
+        }
+      
         // Step 1: whoAmI
         // Immediately fetch current logged in user data
         const whoAmIGatewayResponse: CurrentUser = await whoAmIGateway(TokenResponse.access_token);

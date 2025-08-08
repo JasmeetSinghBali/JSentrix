@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner"
 
 import hammerGif from '../assets/loading-tool-animation.gif';
+import { invokeToolGateway } from "@/api/invokeToolGateway";
 
 export interface Tool {
   name: string;
@@ -127,25 +128,12 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
       const inputs = inputValues[toolName] || {};
       const params = { arguments: inputs };
 
-      // 🎈 cud be shifted to "use server" seprate data fetch component and similarly for other fetch calls inside other "use client" components
-      const response = await fetch(`http://localhost:8080/api/v1/tools/${toolName}/invoke`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      });
-      if(!response.ok){
-        // Throw raw response
-        const errorBody = await response.text();
-        throw new Error(errorBody || `HTTP error ${response.status}`);
-      }
-      const result = await response.json();
+      const response = await invokeToolGateway(toolName,params);
+      
       toast.success(
         `[tool-invoked-success]-${toolName}`,
         {
-          description: `result: \n${JSON.stringify(result,null,2)}`,
+          description: `result: \n${JSON.stringify(response,null,2)}`,
           position: 'top-center',
         }
       );

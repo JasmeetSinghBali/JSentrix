@@ -3,8 +3,13 @@ export interface LoginStreamingHubTokenResponse{
   clientId: string | null;
   token: string | null;
 }
+/**
+ * @desc login to streaming hub
+ * @returns client id and token or null 
+ */
 export async function loginStreamingHub(): Promise<LoginStreamingHubTokenResponse | null> {
     try {
+        // 📌 apiFetch common fetch interface not called as this call is independent of the gateway and is directly to the streaming-hub via traefik 
         const response = await fetch(`http://localhost/login`, { method: "POST" });
 
         if(!response.ok){

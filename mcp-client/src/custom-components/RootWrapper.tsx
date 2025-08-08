@@ -18,6 +18,8 @@ import { AppSidebar } from './AppSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import JsentrixDashboard from '@/routes/JsentrixDashboard';
 import { LoginGatewayStreamingHubForm } from './forms/LoginGatewayStreamingHubForm';
+import { invokeToolGateway } from '@/api/invokeToolGateway';
+import { listToolsGateway } from '@/api/listToolsGateway';
 
 
 // interface for a single tool object
@@ -29,7 +31,7 @@ export interface Tool {
 }
 
 // interface for the shape of the 'tools' state
-interface ToolsState {
+export interface ToolsState {
     tools: Tool[];
 }
 
@@ -38,7 +40,6 @@ export default React.memo((props: any) => {
     // Auth and Config Store
     const currentUser = useCurrentUserStore(state=>state.user);
     const accessToken = useGatewayAuthStore(state=>state.accessToken);
-    const setAccessToken = useGatewayAuthStore(state => state.setAccessToken);
     const assessmentType = useStreamingesConfigStore(state => state.assessmentType);
     const setAssessmentType = useStreamingesConfigStore(state => state.setAssessmentType);
     const cachingEnabled = useStreamingesConfigStore(state => state.cachingEnabled);
@@ -121,24 +122,14 @@ export default React.memo((props: any) => {
     const [openAppBar, setOpenAppBar] = React.useState(false);
 
     // General purpose invocation utility reused by start/abort etc.
-    const invokeTool = async (token: string, toolName: string, params = {}) => {
+    const invokeTool = async (toolName: string, params = {}) => {
         try {
-        const response = await fetch(
-            `http://localhost:8080/api/v1/tools/${toolName}/invoke`,
-            {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(params),
+            const response = await invokeToolGateway(toolName,params)
+            if (response !== null && toolName === "ping") {
+                setToolActive(true);
             }
-        );
-        if (response && toolName === "ping") {
-            setToolActive(true);
-        }
-            return response.json();
-        } catch (error) {
+            return response;
+        } catch (error: any) {
             toast.error(
                 `[error-invoking-tool]-${toolName}`,
                 {
@@ -370,12 +361,9 @@ export default React.memo((props: any) => {
         setToolsLoading(true);
         setToolsError(false);
         try {
-        const response = await fetch("http://localhost:8080/api/v1/listtools", {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const data: ToolsState = await response.json();
-        setTools(data);
-        return data;
+        const response: ToolsState = await listToolsGateway();
+        setTools(response);
+        return response;
         } catch (error: any) {
             console.error("Error in listTools:", error);
             setToolsError(true);
@@ -414,7 +402,7 @@ export default React.memo((props: any) => {
         }
 
         try {
-        const res = await invokeTool(accessToken, "streaminges", {
+        const res = await invokeTool("streaminges", {
             arguments: {
             source: "faker",
             config: { assessment_type: assessmentType, caching: cachingEnabled },
@@ -500,7 +488,7 @@ export default React.memo((props: any) => {
         setStreamCountdown(null);
 
         try {
-            const res = await invokeTool(accessToken, "abortinges", {
+            const res = await invokeTool("abortinges", {
                 arguments: { stream_id: currentStreamId },
             });
             toast.success(
@@ -533,10 +521,10 @@ export default React.memo((props: any) => {
         if (!accessToken || !currentUser) return;
         (async () => {
             await listTools(accessToken);
-            await invokeTool(accessToken, "ping");
-            await invokeTool(accessToken, "add", { arguments: { a: 2, b: 3 } });
+            await invokeTool("ping");
+            await invokeTool("add", { arguments: { a: 2, b: 3 } });
         })();
-    }, [accessToken]);
+    }, [accessToken, currentUser]);
 
     // Keep websocket connected when clientId, token, streamId, or assessmentType changes
     useEffect(() => {
