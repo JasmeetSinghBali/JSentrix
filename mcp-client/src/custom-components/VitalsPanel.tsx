@@ -20,26 +20,21 @@ const VitalsPanel: React.FC<VitalsPanelProps> = ({
   websocketActive,
   streamId,
 }) => {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from VitalsPanel");
+
   return (
-    <div className="ml-18 mr-2 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
+    <div className="mr-2 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
       <div className="text-muted-foreground text-sm flex items-center gap-2">
         <div className='flex items-center gap-5 mt-2'>
           {
-            (loginGateway && whoamiAccess) ?
+            (toolActive) ?
               <HeartPulse className='w-4 h-4 text-green-500' />
               :
               <Activity className='w-4 h-4 text-red-500' />
           }
           Vitals :
           <div className="flex h-5 items-center space-x-4 text-sm">
-            <Badge
-              variant={(loginGateway && whoamiAccess) ? "secondary" : "destructive"}
-              className={(loginGateway && whoamiAccess) ? "bg-blue-500 text-white dark:bg-blue-600" : ""}
-            >
-              {(loginGateway && whoamiAccess) ? <BadgeCheck /> : <BadgeX />}
-              Gateway
-            </Badge>
-            <Separator orientation="vertical" />
             <Badge
               variant={toolActive ? "secondary" : "destructive"}
               className={toolActive ? "bg-blue-500 text-white dark:bg-blue-600" : ""}
@@ -67,9 +62,13 @@ const VitalsPanel: React.FC<VitalsPanelProps> = ({
               <BadgeX className='w-4 h-4 text-red-500' />
           }
           StreamID :
-          <code className={streamId ? "px-2 py-0.5 rounded bg-blue-500 text-white text-xs" : "px-2 py-0.5 rounded bg-red-600 text-white text-xs"}>
-            {streamId || 'no-active-stream-id'}
-          </code>
+          <Badge
+            variant={(loginGateway && whoamiAccess) ? "secondary" : "destructive"}
+            className={(loginGateway && whoamiAccess) ? "bg-blue-500 text-white dark:bg-blue-600" : ""}
+          >
+            { streamId  ? <BadgeCheck /> : <BadgeX />}
+            { streamId || 'no-active-stream-id'}
+          </Badge>
         </div>
       </div>
     </div>

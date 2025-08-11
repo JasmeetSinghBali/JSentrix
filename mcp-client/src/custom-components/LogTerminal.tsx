@@ -29,6 +29,9 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
   clearable = false,
   onClear,
 }) => {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from LogTerminal");
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const logRefs = useRef<(HTMLDivElement | null)[]>([])
 
@@ -111,26 +114,29 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
   return (
     <div className="relative flex flex-col gap-2">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-background p-2 flex justify-between items-center">
-        <h3 className="text-md font-semibold flex items-center gap-2">
+      <div className="sticky top-0 z-20 bg-background p-2 md:p-3 flex justify-between items-center">
+        <h3 className="text-base font-semibold flex items-center gap-2">
           {emoji} {title}
-          <span className="ml-2 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+          <span className="ml-2 text-xs md:text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded">
             {logs.length}
           </span>
         </h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 md:gap-4">
           <Button
             size="sm"
             variant="outline"
+            className="text-sm md:text-base"
             onClick={() => setShowSearch(prev => !prev)}
           >
             {showSearch ? (
               <>
-                <SearchX className={title === 'Assess-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Close
+                <SearchX className='w-4 h-4 md:w-5 md:h-5' /> 
+                Close
               </>
             ) : (
               <>
-                <SearchIcon className={title === 'Assess-Events' ? 'w-1 h-1' : 'w-4 h-4'} /> Search
+                <SearchIcon className='w-4 h-4 md:w-5 md:h-5' /> 
+                Search
               </>
             )}
           </Button>
@@ -139,14 +145,14 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
               size="sm"
               variant="outline"
               onClick={onClear}
-              className="text-red-300 hover:bg-red-300"
+              className="text-red-300 hover:bg-red-300 text-sm md:text-base"
             >
-              <Trash2Icon className="w-4 h-4" />
+              <Trash2Icon className="w-4 h-4 md:w-5 md:h-5" />
               Clear
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleCopy}>
-            <CopyIcon className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={handleCopy} className="text-sm md:text-base">
+            <CopyIcon className="w-4 h-4 md:w-5 md:h-5" />
             Copy
           </Button>
         </div>
@@ -165,7 +171,7 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
                 placeholder="Search by txnId, streamId, sender, receiver, amount..."
                 value={searchQuery}
                 onValueChange={setSearchQuery}
-                className="w-full px-4 py-2"
+                className="w-full px-4 py-2 text-sm md:text-base"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -183,12 +189,11 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
           className="h-[80vh] rounded-md border border-muted/30 overflow-hidden shadow-inner"
         >
           <div
-            className={cn('p-4 text-sm')}
+            className={cn('p-3 md:p-4 lg:p-5 text-xs md:text-sm lg:text-base font-mono')}
             style={{
               minHeight: '78vh',
               background: bgColor,
               color: textColor,
-              fontFamily: 'monospace',
               scrollPaddingTop: '3.5rem', // This ensures focused items aren't hidden under search bar
             }}
           >
@@ -203,7 +208,7 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
                   }}
                   className={cn(
                     'mb-4 border-b border-dashed border-white/10 pb-2',
-                    isMatch(log, searchQuery) && 'bg-muted/10'
+                    isMatch(log, searchQuery) && 'bg-muted/10 rounded'
                   )}
                 >
                   <pre className="whitespace-pre-wrap">

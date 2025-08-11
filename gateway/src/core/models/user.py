@@ -20,6 +20,7 @@ class UserCreate(UserBase):
 class UserInDB(UserBase):
     id: int
     is_active: bool
+    admin_ban: bool
     is_superuser: bool
     roles: str
 
@@ -30,6 +31,7 @@ class UserInDB(UserBase):
 class UserPublic(UserBase):
     id: int
     roles: str
+    admin_ban: bool
 
     class Config:
         from_attributes = True

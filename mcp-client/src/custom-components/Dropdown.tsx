@@ -1,4 +1,5 @@
 'use client'
+// custom-components/Dropdown.tsx
 import * as React from "react";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ interface DropdownProps {
   onChange: (value: string) => void;
   buttonClassName?: string;
   menuClassName?: string;
+  disabled?: boolean;
 }
 
 const Dropdown: React.FC<DropdownProps> = ({
@@ -31,16 +33,17 @@ const Dropdown: React.FC<DropdownProps> = ({
   onChange,
   buttonClassName,
   menuClassName,
+  disabled,
 }) => {
   const selected = options.find(opt => opt.value === value);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className={buttonClassName || "w-[210px] justify-between"}>
+        <Button disabled={disabled || false} variant="outline" className={buttonClassName || "w-[210px] justify-between text-sm md:text-base"}>
           {selected ? selected.label : "Select..."}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className={menuClassName || "w-56"}>
+      <DropdownMenuContent className={menuClassName || "w-56 text-sm md:text-base"}>
         {label && <DropdownMenuLabel>{label}</DropdownMenuLabel>}
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map(opt => (

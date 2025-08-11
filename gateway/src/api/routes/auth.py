@@ -33,12 +33,20 @@ async def login_for_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
+
+    # check admin ban
+    if getattr(user, "admin_ban", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account has been banned by an administrator.",
+        )
     # Check if user is active
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive. Contact admin.",
         )
+    # 📌 never set is_active = True here
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
     return {
@@ -46,6 +54,17 @@ async def login_for_access_token(
         "refresh_token": refresh_token,
         "token_type": "bearer",
     }
+
+
+# 🎈 though this route has no actual functional-op
+@router.post("/logout", summary="Logout user by clearing client credentials")
+async def logout():
+    """
+    Logout endpoint for stateless JWT:
+    - On the client side, remove access/refresh tokens.
+    - 📌 pure statelessness, don’t implement server-side blacklists/revocations—log out by having the client simply delete the token).
+    """
+    return {"message": "Logged out successfully"}
 
 
 @router.post("/onboard", response_model=UserPublic)

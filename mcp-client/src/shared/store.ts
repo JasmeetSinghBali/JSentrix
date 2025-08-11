@@ -4,18 +4,25 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 
-// --- 1. Gateway AccessToken ---
+// --- 1. Gateway AuthTokens ---
 interface GatewayAuthState {
   accessToken: string | null;
-  setAccessToken: (token: string) => void;
-  clearAccessToken: () => void;
+  refreshToken: string | null;
+
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  clearTokens: () => void;
 }
 export const useGatewayAuthStore = create<GatewayAuthState>()(
   persist(
     (set) => ({
       accessToken: null,
-      setAccessToken: (token) => set({ accessToken: token }),
-      clearAccessToken: () => set({ accessToken: null }),
+      refreshToken: null,
+
+      setTokens: (accessToken, refreshToken) =>
+        set({ accessToken, refreshToken }),
+
+      clearTokens: () =>
+        set({ accessToken: null, refreshToken: null }),
     }),
     { name: "gateway-auth-storage" }
   )
@@ -82,7 +89,6 @@ interface StreamingState {
   abortController: AbortController | null;
   setAbortController: (controller: AbortController | null) => void;
 }
-
 export const useStreamingStore = create<StreamingState>()(
   (set) => ({
     streamId: null,
@@ -98,4 +104,67 @@ export const useStreamingStore = create<StreamingState>()(
     abortController: null,
     setAbortController: (controller) => set({ abortController: controller }),
   })
+);
+
+// --- 5. App router central state ---
+export type AppRoute = 'dashboard' | 'analytics' | 'settings';
+
+interface RouterState {
+  currentRoute: AppRoute;
+  navigate: (route: AppRoute) => void;
+}
+
+export const useRouterStore = create<RouterState>((set) => ({
+  currentRoute: 'dashboard',
+  navigate: (route) => set({ currentRoute: route }),
+}));
+
+
+// ---6. App Theme Config ---
+type AppThemeType = "default" | "indie";
+interface AppThemeState {
+  appThemeType: AppThemeType;
+  setAppThemeType: (value: AppThemeType) => void;
+  
+  darkModeEnabled: boolean;
+  setDarkModeEnabled: (value: boolean) => void;
+}
+export const useAppThemeStore = create<AppThemeState>()(
+  persist(
+    (set) => ({
+      appThemeType: "default",
+      setAppThemeType: (value) => set({ appThemeType: value }),
+
+      darkModeEnabled: false,
+      setDarkModeEnabled: (value) => set({ darkModeEnabled: value }),
+    }),
+    { name: "app-theme-type" }
+  )
+);
+
+
+// ---7. Current User Logged In State ---
+// shud be update via the whoami route response and shud be updated by LoginForm component with whoami response 
+export interface CurrentUser{
+  email: string;
+  full_name: string;
+  employee_number: string;
+  id: number;
+  roles: string;
+  admin_ban: boolean;
+}
+interface CurrentUserState {
+  user: CurrentUser | null;
+  setUser: (user: CurrentUser) => void;
+  clearUser: () => void;
+}
+export const useCurrentUserStore = create<CurrentUserState>()(
+  persist(
+    (set) => ({
+      user: null,
+      setUser: (user: CurrentUser) => set({ user }),
+      clearUser: () => set({ user: null }),
+    }),
+    { name: 'current-user' }
+  )
 );

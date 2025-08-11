@@ -2,43 +2,29 @@
 
 // mcp-client/src/custom-components/RootWrapper.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { 
     useGatewayAuthStore, 
     useStreamingesConfigStore, 
     useWsAuthStore, 
-    useStreamingStore 
+    useStreamingStore, 
+    useRouterStore,
+    AppRoute,
+    useCurrentUserStore
 } from '@/shared/store';
-import LogTerminal from './LogTerminal';
-import Dropdown, { DropdownOption } from "./Dropdown";
-import { BadgeInfo, Cog, Hammer, BadgeX, RefreshCcwDot } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Switch } from '@/components/ui/switch';
-import { Separator } from "@/components/ui/separator"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { DropdownOption } from "./Dropdown";
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import VitalsPanel from './VitalsPanel';
-import ToolTabsPanel from './ToolTabsPanel';
-import { SkeletonToolTabsPanel } from './ToolTabsPanelSkelton';
-import { Progress } from "@/components/ui/progress"
+import { AppSidebar } from './AppSidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import JsentrixDashboard from '@/routes/JsentrixDashboard';
+import { LoginGatewayStreamingHubForm } from './forms/LoginGatewayStreamingHubForm';
+import { invokeToolGateway } from '@/api/invokeToolGateway';
+import { listToolsGateway } from '@/api/listToolsGateway';
+import ErrorBoundary from '@/ErrorBoundry';
+
 
 // interface for a single tool object
-interface Tool {
+export interface Tool {
     name: string;
     description: string;
     inputSchema: object; 
@@ -46,20 +32,22 @@ interface Tool {
 }
 
 // interface for the shape of the 'tools' state
-interface ToolsState {
+export interface ToolsState {
     tools: Tool[];
 }
 
 export default React.memo((props: any) => {
 
     // Auth and Config Store
-
+    const currentUser = useCurrentUserStore(state=>state.user);
     const accessToken = useGatewayAuthStore(state=>state.accessToken);
-    const setAccessToken = useGatewayAuthStore(state => state.setAccessToken);
     const assessmentType = useStreamingesConfigStore(state => state.assessmentType);
     const setAssessmentType = useStreamingesConfigStore(state => state.setAssessmentType);
     const cachingEnabled = useStreamingesConfigStore(state => state.cachingEnabled);
     const setCachingEnabled = useStreamingesConfigStore(state => state.setCachingEnabled);
+
+    // Route store
+    const currentAppRoute = useRouterStore(state=>state.currentRoute);
 
     // Ws auth store
     const {clientId, token} = useWsAuthStore();
@@ -78,6 +66,8 @@ export default React.memo((props: any) => {
     const setAbortController = useStreamingStore((state) => state.setAbortController);
 
     // Local States
+    const [currentAppRouteLocal, setCurrentAppRouteLocal] = useState<AppRoute>(currentAppRoute);
+
     const [tools, setTools] = useState<ToolsState>();
     const [toolsLoading, setToolsLoading] = useState<boolean>(false);
     const [toolsError, setToolsError] = useState<boolean>(false);
@@ -129,25 +119,18 @@ export default React.memo((props: any) => {
     const completedStates = loadingStates.filter((v) => !v).length;
     const progressPercent = (completedStates / totalStates) * 100;
 
+    // appsidebar open/setopen local state
+    const [openAppBar, setOpenAppBar] = React.useState(false);
+
     // General purpose invocation utility reused by start/abort etc.
-    const invokeTool = async (token: string, toolName: string, params = {}) => {
+    const invokeTool = async (toolName: string, params = {}) => {
         try {
-        const response = await fetch(
-            `http://localhost:8080/api/v1/tools/${toolName}/invoke`,
-            {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(params),
+            const response = await invokeToolGateway(toolName,params)
+            if (response !== null && toolName === "ping") {
+                setToolActive(true);
             }
-        );
-        if (response && toolName === "ping") {
-            setToolActive(true);
-        }
-            return response.json();
-        } catch (error) {
+            return response;
+        } catch (error: any) {
             toast.error(
                 `[error-invoking-tool]-${toolName}`,
                 {
@@ -198,6 +181,13 @@ export default React.memo((props: any) => {
         if (terminalLogs) {
             resetAllLogs();
         }
+        toast.warning(
+            `System reset triggered`,
+            {
+                description: `[ws-conn], [stream-conn], [abort-controller] reset performed ${new Date().toISOString().split("T")[0]} `,
+                position: 'top-center'
+            }
+        );
     };
     
     // --- WebSocket connect + reconnect logic ---
@@ -368,74 +358,13 @@ export default React.memo((props: any) => {
     };
 
 
-
-    const whoami = async (token: string) => {
-        try {
-            setWhoAmIAccessLoading(true)
-            const response = await fetch("http://localhost:8080/auth/me", {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data: any = await response.json(); // 🎈 shud Cast to UserState who is logged in
-            setWhoAmIAccess(true);
-            return data;
-        } catch (error: any) {
-            console.error("Error in whoami:", error);
-            setWhoAmIAccessError(true)
-            setWhoAmIAccess(false);
-        }finally{
-            setWhoAmIAccessLoading(false)
-        }
-    };
-
-    const login = async (username: string, password: string) => {
-        try {
-        setLoginGatewayLoading(true)
-        // Abort any existing stream before login
-        if (accessToken && streamId) {
-            await invokeTool(accessToken, "abortinges", {
-            arguments: { stream_id: streamId },
-            });
-            clearStreamId();
-        }
-        const response = await fetch("http://localhost:8080/auth/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ username, password }),
-        });
-        const data = await response.json();
-        setAccessToken(data.access_token);
-        setLoginGateway(true);
-        return data.access_token;
-        } catch (error: any) {
-            console.error("Error in login:", error);
-            setLoginGatewayError(true);
-            setLoginGateway(false);
-        }finally{
-            setLoginGatewayLoading(false)
-        }
-    };
-
-    const loginToStreamingHub = async () => {
-        try {
-        const response = await fetch(`http://localhost/login`, { method: "POST" });
-        const data = await response.json();
-        useWsAuthStore.getState().setAuth(data.client_id, data.token);
-        return data;
-        } catch (error: any) {
-         console.error("Error logging in to streaming-hub:", error);
-        }
-    };
-
     const listTools = async (token: string) => {
         setToolsLoading(true);
         setToolsError(false);
         try {
-        const response = await fetch("http://localhost:8080/api/v1/listtools", {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const data: ToolsState = await response.json();
-        setTools(data);
-        return data;
+        const response: ToolsState = await listToolsGateway();
+        setTools(response);
+        return response;
         } catch (error: any) {
             console.error("Error in listTools:", error);
             setToolsError(true);
@@ -474,7 +403,7 @@ export default React.memo((props: any) => {
         }
 
         try {
-        const res = await invokeTool(accessToken, "streaminges", {
+        const res = await invokeTool("streaminges", {
             arguments: {
             source: "faker",
             config: { assessment_type: assessmentType, caching: cachingEnabled },
@@ -560,7 +489,7 @@ export default React.memo((props: any) => {
         setStreamCountdown(null);
 
         try {
-            const res = await invokeTool(accessToken, "abortinges", {
+            const res = await invokeTool("abortinges", {
                 arguments: { stream_id: currentStreamId },
             });
             toast.success(
@@ -588,26 +517,15 @@ export default React.memo((props: any) => {
     };
 
 
-    // Login gateway & streaming hub on mount
+    // listing tools , whoami and check ping and add tool invoking only when access token and current user zustand state is set
     useEffect(() => {
-        // login to mcp_server via gateway
-        login('admin@example.com', 'ChangeThisSecurePassword123!');
-        // login('user@example.com', 'testpassword');
-
-        // login to streaming-hub for /ws websocket connection establishment
-        loginToStreamingHub()
-    }, []);
-
-    // listing tools , whoami and check ping and add tool invoking
-    useEffect(() => {
-        if (!accessToken) return;
+        if (!accessToken || !currentUser) return;
         (async () => {
-            await whoami(accessToken);
             await listTools(accessToken);
-            await invokeTool(accessToken, "ping");
-            await invokeTool(accessToken, "add", { arguments: { a: 2, b: 3 } });
+            await invokeTool("ping");
+            await invokeTool("add", { arguments: { a: 2, b: 3 } });
         })();
-    }, [accessToken]);
+    }, [accessToken, currentUser]);
 
     // Keep websocket connected when clientId, token, streamId, or assessmentType changes
     useEffect(() => {
@@ -659,29 +577,33 @@ export default React.memo((props: any) => {
 
     // Logging pendingtxn analysis and caching enabled for debug
     useEffect(() => {
-        toast.info(
-            "[pending-txn-analysis-count]-Event",
-            {
-                description: `Pending: ${pendingTxnAnalysisCount}`,
-                position: 'top-center'
-            }
-        );
+        if(currentUser){
+            toast.info(
+                "[pending-txn-analysis-count]-Event",
+                {
+                    description: `Pending: ${pendingTxnAnalysisCount}`,
+                    position: 'top-center'
+                }
+            );
+        }
     }, [pendingTxnAnalysisCount]);
     useEffect(() => {
-        if (cachingEnabled) {
-            toast.info(
-                "Quick Assessment Mode is active.",
-                {
-                    position: 'top-center'
-                }
-            );
-        } else {
-            toast.info(
-                "Full Assessment Mode is active.",
-                {
-                    position: 'top-center'
-                }
-            );
+        if(currentUser){
+            if (cachingEnabled) {
+                toast.info(
+                    "Quick Assessment Mode is active.",
+                    {
+                        position: 'top-center'
+                    }
+                );
+            } else {
+                toast.info(
+                    "Full Assessment Mode is active.",
+                    {
+                        position: 'top-center'
+                    }
+                );
+            }
         }
     }, [cachingEnabled]);
 
@@ -698,218 +620,135 @@ export default React.memo((props: any) => {
     }, [progressPercent]);
 
 
+    // currentAppRoute useEffect local rootwrapper state sync with zustand store currentapproute
+    useEffect(()=>{
+        console.log(`Current-App-Route: ${currentAppRoute}`)
+        setCurrentAppRouteLocal(currentAppRoute);
+    },[currentAppRoute])
+
     return (
         <React.Fragment>
             <Toaster/>
-            <div className='h-screen w-full'>
-                {/* Outermost: vertical split */}
-                <ResizablePanelGroup direction="vertical">
-
-                    {/* Top-Panel: Left: Vitals, tools, configs section and Right: Log Terminal Section */}
-                    <ResizablePanel minSize={40} defaultSize={70}> {/* 70%+ space */}
-                        
-                        <ResizablePanelGroup direction="horizontal">
-                            {/* Vitals, tools, configs section */}
-
-                            <ResizablePanel minSize={25} defaultSize={25}>
-                                {/* CoreConfigs = Assessment Mode + Memory Caching Enabled/Disabled + Reset System */}
-                                <div className='mb-6 ml-18 mt-6'>
-                                    <div className="flex h-5 items-center space-x-4 text-sm">
-                                        <div>
-                                            <Dropdown
-                                                label="Assessment Mode"
-                                                options={assessmentOptions}
-                                                value={assessmentType}
-                                                onChange={(v) => setAssessmentType(v as "default" | "redistream")}
-                                            />
-                                        </div>
-                                        <Separator orientation="vertical" />
-                                        <div className="flex items-center space-x-1">
-                                            <Switch
-                                                id="caching-toggle"
-                                                checked={cachingEnabled}
-                                                onCheckedChange={setCachingEnabled}
-                                            />
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                <BadgeInfo className='w-4 h-4' />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Enabling skips assessment and action agent pipeline if new txn's have similarity with prior assessed events.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <label htmlFor="caching-toggle" className="text-sm font-medium">
-                                                Cached
-                                            </label>
-                                        </div>
-                                        <Separator orientation="vertical" />
-                                        <div>
-                                            {/* 📌 shud be used often before hardrefresh or starting new stream */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={()=>{resetSystem(true)}}
-                                                    >
-                                                        <RefreshCcwDot className="w-5 h-5" />
-                                                    </Button>
-                                                    </span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Reset System</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
+            {
+                currentUser !== null ?
+                (
+                    <SidebarProvider open={openAppBar} onOpenChange={setOpenAppBar}>
+                        {/* never smaller than 1600px and mx-auto does not stretch past 1920px and center with max-w-[1920px] */}
+                        <div className="flex min-h-screen min-w-[1600px] max-w-[1920px] flex-col md:flex-row lg:gap-4 bg-background transition-all duration-200 ease-in-out">
+                            <ErrorBoundary
+                                componentName="App Sidebar"
+                                placeholder={
+                                    <div 
+                                        className="h-full flex items-center justify-center bg-red-50 border-r border-red-300 text-red-700 text-center p-4"
+                                        style={{
+                                            minWidth: 80,
+                                            maxWidth: 320,
+                                            width: '100%'
+                                        }}
+                                    >
+                                     Failed to load App Sidebar.
                                     </div>
-                                    <Separator className="my-4" />
-                                    <div className="w-full transition-opacity duration-500 ease-in-out" style={{ opacity: hideProgressBar ? 0 : 1 }}>
-                                        <Progress value={progressPercent} />
-                                    </div>
-                                </div>
-                                {/* Dynamic System Vitals Section */}
-                                <VitalsPanel
-                                    loginGateway={loginGateway}
-                                    whoamiAccess={whoamiAccess}
-                                    toolActive={toolActive}
-                                    websocketActive={websocketActive}
-                                    streamId={streamId}
-                                />
-                                <div className='flex ml-18 mr-2 items-center gap-5 mt-2'>
-                                    <Accordion
-                                        type="single"
-                                        collapsible
-                                        className="w-full"
-                                        defaultValue="item-1"
-                                        >
-                                        <AccordionItem value="item-1">
-                                            <AccordionTrigger>
-                                                <div className='flex justify-between items-center gap-2' style={{
-                                                    cursor: 'pointer'
-                                                }}>
-                                                    <Hammer className='w-4 h-4'/>
-                                                    Available Tools
+                                }
+                            >
+                                <AppSidebar/>
+                            </ErrorBoundary>
+                            {/* main content never streches wider than 2xl screen size and always centers max-w-screen-2xl mx-auto and h-[700px] min-h-screen ensures 700px tall but always streches if screen is taller */}
+                            <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-8 h-[700px] min-h-screen">
+                                {
+                                    currentAppRoute === 'dashboard' ? (
+                                        <ErrorBoundary 
+                                            componentName='Jsentrix Dashboard' 
+                                            placeholder={
+                                                <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-4">
+                                                Failed to load Jsentrix Dashboard.
                                                 </div>
-                                            </AccordionTrigger>
-                                            <AccordionContent className="flex flex-col gap-4 text-balance">
-                                                {
-                                                    toolsLoading ? (
-                                                        <SkeletonToolTabsPanel />
-                                                    ) : toolsError ? (
-                                                        <div className="text-muted-foreground text-sm">
-                                                            <div className="flex items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
-                                                                <BadgeX className="w-4 h-4 text-red-500" />
-                                                                Failed to load tools. Please try again.
-                                                            </div>
-                                                        </div>
-                                                    ) 
-                                                    : 
-                                                    (tools && availableTools?.length === 0) ?
-                                                    (
-                                                        <div className="text-muted-foreground text-sm">
-                                                            <div className="flex items-center gap-2 mt-2 text-base p-3 rounded-md bg-muted/80 border border-muted">
-                                                            <BadgeX className="w-4 h-4 text-red-500" />
-                                                            No tools are available at the moment.
-                                                            </div>
-                                                        </div>
-                                                    ) :
-                                                    (
-                                                        <ToolTabsPanel
-                                                            tools={availableTools}
-                                                            currentTool={toolId}
-                                                            onToolChange={setToolId}
-                                                            startStreaming={startStreamingWithDuration}
-                                                            abortStreaming={abortStreaming}
-                                                        />
-                                                    )
-                                                }
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    </Accordion>
-                                </div>
-                                
-                            </ResizablePanel>
-                            
-                            <ResizableHandle />
-
-                            {/* Log section */}
-                            <ResizablePanel minSize={68} maxSize={74} defaultSize={70}>
-                                {/* Only use grid when showing multiple logs */}
-                                {assessmentType === "redistream" ? (
-                                    <div className="p-2 h-full w-full">
-                                    <LogTerminal
-                                        title="Global Event Log"
-                                        emoji="🌐"
-                                        logs={globalLogs}
-                                        onClear={() => setGlobalLogs([])}
-                                        bgColor="#101020"
-                                        textColor="#ffffff"
-                                        limit={300}
-                                        clearable
-                                    />
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-3 gap-6 p-2 h-full w-full">
-                                    <LogTerminal
-                                        title="Intake-Events"
-                                        emoji="🟢"
-                                        logs={intakeLogs}
-                                        onClear={() => setIntakeLogs([])}
-                                        bgColor="#102010"
-                                        textColor="#aaffaa"
-                                        limit={150}
-                                        clearable
-                                    />
-                                    <LogTerminal
-                                        title="Assess-Events"
-                                        emoji="🟣"
-                                        logs={assessmentLogs}
-                                        onClear={() => setAssessmentLogs([])}
-                                        bgColor="#201020"
-                                        textColor="#ddaaff"
-                                        limit={150}
-                                        clearable
-                                    />
-                                    <LogTerminal
-                                        title="Action-Events"
-                                        emoji="🔴"
-                                        logs={actionLogs}
-                                        onClear={()=>setActionLogs([])}
-                                        bgColor="#200010"
-                                        textColor="#ffaaaa"
-                                        limit={150}
-                                        clearable
-                                    />
-                                    </div>
-                                )}
-                            </ResizablePanel>
-                        </ResizablePanelGroup>
-
-                    </ResizablePanel>
-
-                    {/* Middle handle (vertical drag between top and bottom) */}
-                    <ResizableHandle />
-
-                    {/* Bottom-Panel: XY React Flow Visual */}
-                    <ResizablePanel minSize={10} defaultSize={10}>
-                        <div className="h-full w-full bg-muted p-4 flex items-center justify-center">
-                            {/* 🎈 Add xy react flow visualizing intake, assessment, judge agent working and shud be 2 flows 1 for default a2a mode and the 2nd one for Async Redis Stream mode */}
-                            {/* 🎈 The approach shud be the  new tool call ex- agentrace with payload as logs of all agents-intake, assessment, action that actually uses gemini llm/other relevant model under the hood recieves the payload agent based logs and then generates node strucutred data accordingly gives it back to the ui and then ui can generate visual graph with this node structured data from the tool via xy react flow  */}
-                            {/* For example */}
-                            <div className="h-full w-full flex flex-col items-center justify-center">
-                            <h2 className="mb-2 text-lg font-semibold">Agent Flows</h2>
-                            {/* <YourXYReactFlowComponent mode={assessmentType}/> */}
-                            <div className="border border-dashed border-gray-400 h-full w-full flex items-center justify-center text-muted-foreground">
-                                🚧 For Future JSentrix v2.0 XY React Flow Visuals go here
-                            </div>
-                            </div>
+                                            }
+                                        >
+                                            <JsentrixDashboard
+                                                assessmentOptions={assessmentOptions}
+                                                assessmentType={assessmentType}
+                                                setAssessmentType={setAssessmentType}
+                                                cachingEnabled={cachingEnabled}
+                                                setCachingEnabled={setCachingEnabled}
+                                                resetSystem={resetSystem}
+                                                hideProgressBar={hideProgressBar}
+                                                progressPercent={progressPercent}
+                                                loginGateway={loginGateway}
+                                                whoamiAccess={whoamiAccess}
+                                                toolActive={toolActive}
+                                                websocketActive={websocketActive}
+                                                streamId={streamId}
+                                                toolsLoading={toolsLoading}
+                                                toolsError={toolsError}
+                                                tools={tools?.tools}
+                                                availableTools={availableTools}
+                                                toolId={toolId}
+                                                setToolId={setToolId}
+                                                startStreamingWithDuration={startStreamingWithDuration}
+                                                abortStreaming={abortStreaming}
+                                                intakeLogs={intakeLogs}
+                                                assessmentLogs={assessmentLogs}
+                                                actionLogs={actionLogs}
+                                                globalLogs={globalLogs}
+                                                setIntakeLogs={setIntakeLogs}
+                                                setAssessmentLogs={setAssessmentLogs}
+                                                setActionLogs={setActionLogs}
+                                                setGlobalLogs={setGlobalLogs}
+                                            />
+                                        </ErrorBoundary>
+                                        
+                                    ) :
+                                    currentAppRoute === 'analytics' ? (
+                                        <ErrorBoundary
+                                            componentName='Analytics Component'
+                                            placeholder={
+                                                <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-4">
+                                                Failed to load Analytics.
+                                                </div>
+                                            }
+                                        >
+                                            {/* 🎈 two split chat rag interface with ability to provide feedback and upd on the already stored prior events in qdrant, fetch ND txn or tnx forwarded by judge agent */}
+                                            <>Analytics Component 🚧 JSentrix v2.0</>
+                                        </ErrorBoundary>
+                                    ) :
+                                    currentAppRoute === 'settings' ? (
+                                        <ErrorBoundary
+                                            componentName='Settings Component'
+                                            placeholder={
+                                                <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-4">
+                                                Failed to load Settings.
+                                                </div>
+                                            }
+                                        >
+                                            {/* 🎈 This component shud only be visible to the super admin not other users shud have interface to add , edit lower user role, email and permission also shud show existing user login time, duration , currently logged in or not for superadmin */}
+                                            <>Settings Component 🚧 JSentrix v2.0</>
+                                        </ErrorBoundary>
+                                    ) :
+                                    null
+                                }    
+                            </main>
                         </div>
-                    </ResizablePanel>
-                
-                </ResizablePanelGroup>
-                {/* End main vertical split */}
-            </div>
+                    </SidebarProvider>
+                )
+                :
+                (
+                    <ErrorBoundary
+                        componentName="Login Form"
+                        placeholder={
+                            <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
+                            <div className="text-center text-red-500 border border-red-400 rounded-md p-8 max-w-md w-full">
+                                Failed to load Login Form.
+                            </div>
+                            </div>
+                        }
+                    >
+                        <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
+                            <LoginGatewayStreamingHubForm />
+                        </div>
+                    </ErrorBoundary>
+                )
+            }
+            
         </React.Fragment>
         
     );
