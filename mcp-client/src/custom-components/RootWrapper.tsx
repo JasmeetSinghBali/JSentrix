@@ -20,6 +20,7 @@ import JsentrixDashboard from '@/routes/JsentrixDashboard';
 import { LoginGatewayStreamingHubForm } from './forms/LoginGatewayStreamingHubForm';
 import { invokeToolGateway } from '@/api/invokeToolGateway';
 import { listToolsGateway } from '@/api/listToolsGateway';
+import ErrorBoundary from '@/ErrorBoundry';
 
 
 // interface for a single tool object
@@ -634,50 +635,94 @@ export default React.memo((props: any) => {
                     <SidebarProvider open={openAppBar} onOpenChange={setOpenAppBar}>
                         {/* never smaller than 1600px and mx-auto does not stretch past 1920px and center with max-w-[1920px] */}
                         <div className="flex min-h-screen min-w-[1600px] max-w-[1920px] flex-col md:flex-row lg:gap-4 bg-background transition-all duration-200 ease-in-out">
-                            <AppSidebar/>
+                            <ErrorBoundary
+                                componentName="App Sidebar"
+                                placeholder={
+                                    <div 
+                                        className="h-full flex items-center justify-center bg-red-50 border-r border-red-300 text-red-700 text-center p-4"
+                                        style={{
+                                            minWidth: 80,
+                                            maxWidth: 320,
+                                            width: '100%'
+                                        }}
+                                    >
+                                     Failed to load App Sidebar.
+                                    </div>
+                                }
+                            >
+                                <AppSidebar/>
+                            </ErrorBoundary>
                             {/* main content never streches wider than 2xl screen size and always centers max-w-screen-2xl mx-auto and h-[700px] min-h-screen ensures 700px tall but always streches if screen is taller */}
                             <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-8 h-[700px] min-h-screen">
                                 {
                                     currentAppRoute === 'dashboard' ? (
-                                        <JsentrixDashboard
-                                            assessmentOptions={assessmentOptions}
-                                            assessmentType={assessmentType}
-                                            setAssessmentType={setAssessmentType}
-                                            cachingEnabled={cachingEnabled}
-                                            setCachingEnabled={setCachingEnabled}
-                                            resetSystem={resetSystem}
-                                            hideProgressBar={hideProgressBar}
-                                            progressPercent={progressPercent}
-                                            loginGateway={loginGateway}
-                                            whoamiAccess={whoamiAccess}
-                                            toolActive={toolActive}
-                                            websocketActive={websocketActive}
-                                            streamId={streamId}
-                                            toolsLoading={toolsLoading}
-                                            toolsError={toolsError}
-                                            tools={tools?.tools}
-                                            availableTools={availableTools}
-                                            toolId={toolId}
-                                            setToolId={setToolId}
-                                            startStreamingWithDuration={startStreamingWithDuration}
-                                            abortStreaming={abortStreaming}
-                                            intakeLogs={intakeLogs}
-                                            assessmentLogs={assessmentLogs}
-                                            actionLogs={actionLogs}
-                                            globalLogs={globalLogs}
-                                            setIntakeLogs={setIntakeLogs}
-                                            setAssessmentLogs={setAssessmentLogs}
-                                            setActionLogs={setActionLogs}
-                                            setGlobalLogs={setGlobalLogs}
-                                        />
+                                        <ErrorBoundary 
+                                            componentName='Jsentrix Dashboard' 
+                                            placeholder={
+                                                <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-4">
+                                                Failed to load Jsentrix Dashboard.
+                                                </div>
+                                            }
+                                        >
+                                            <JsentrixDashboard
+                                                assessmentOptions={assessmentOptions}
+                                                assessmentType={assessmentType}
+                                                setAssessmentType={setAssessmentType}
+                                                cachingEnabled={cachingEnabled}
+                                                setCachingEnabled={setCachingEnabled}
+                                                resetSystem={resetSystem}
+                                                hideProgressBar={hideProgressBar}
+                                                progressPercent={progressPercent}
+                                                loginGateway={loginGateway}
+                                                whoamiAccess={whoamiAccess}
+                                                toolActive={toolActive}
+                                                websocketActive={websocketActive}
+                                                streamId={streamId}
+                                                toolsLoading={toolsLoading}
+                                                toolsError={toolsError}
+                                                tools={tools?.tools}
+                                                availableTools={availableTools}
+                                                toolId={toolId}
+                                                setToolId={setToolId}
+                                                startStreamingWithDuration={startStreamingWithDuration}
+                                                abortStreaming={abortStreaming}
+                                                intakeLogs={intakeLogs}
+                                                assessmentLogs={assessmentLogs}
+                                                actionLogs={actionLogs}
+                                                globalLogs={globalLogs}
+                                                setIntakeLogs={setIntakeLogs}
+                                                setAssessmentLogs={setAssessmentLogs}
+                                                setActionLogs={setActionLogs}
+                                                setGlobalLogs={setGlobalLogs}
+                                            />
+                                        </ErrorBoundary>
+                                        
                                     ) :
                                     currentAppRoute === 'analytics' ? (
-                                        // 🎈 two split chat rag interface with ability to provide feedback and upd on the already stored prior events in qdrant, fetch ND txn or tnx forwarded by judge agent
-                                        <>Analytics Component 🚧 JSentrix v2.0</>
+                                        <ErrorBoundary
+                                            componentName='Analytics Component'
+                                            placeholder={
+                                                <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-4">
+                                                Failed to load Analytics.
+                                                </div>
+                                            }
+                                        >
+                                            {/* 🎈 two split chat rag interface with ability to provide feedback and upd on the already stored prior events in qdrant, fetch ND txn or tnx forwarded by judge agent */}
+                                            <>Analytics Component 🚧 JSentrix v2.0</>
+                                        </ErrorBoundary>
                                     ) :
                                     currentAppRoute === 'settings' ? (
-                                        // 🎈 This component shud only be visible to the super admin not other users shud have interface to add , edit lower user role, email and permission also shud show existing user login time, duration , currently logged in or not for superadmin
-                                        <>Settings Component 🚧 JSentrix v2.0</>
+                                        <ErrorBoundary
+                                            componentName='Settings Component'
+                                            placeholder={
+                                                <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-4">
+                                                Failed to load Settings.
+                                                </div>
+                                            }
+                                        >
+                                            {/* 🎈 This component shud only be visible to the super admin not other users shud have interface to add , edit lower user role, email and permission also shud show existing user login time, duration , currently logged in or not for superadmin */}
+                                            <>Settings Component 🚧 JSentrix v2.0</>
+                                        </ErrorBoundary>
                                     ) :
                                     null
                                 }    
@@ -687,9 +732,20 @@ export default React.memo((props: any) => {
                 )
                 :
                 (
-                    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
-                        <LoginGatewayStreamingHubForm />
-                    </div>
+                    <ErrorBoundary
+                        componentName="Login Form"
+                        placeholder={
+                            <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
+                            <div className="text-center text-red-500 border border-red-400 rounded-md p-8 max-w-md w-full">
+                                Failed to load Login Form.
+                            </div>
+                            </div>
+                        }
+                    >
+                        <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-black">
+                            <LoginGatewayStreamingHubForm />
+                        </div>
+                    </ErrorBoundary>
                 )
             }
             

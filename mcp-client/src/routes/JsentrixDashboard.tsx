@@ -30,6 +30,7 @@ import LogTerminal from '@/custom-components/LogTerminal';
 import { CustomSidebarTrigger } from '@/custom-components/AppSidebar';
 import Dropdown from '@/custom-components/Dropdown';
 import { Tool } from '@/custom-components/RootWrapper';
+import ErrorBoundary from '@/ErrorBoundry';
 
 interface JsentrixDashboardProps {
   assessmentOptions: any[];
@@ -94,6 +95,8 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
   setActionLogs,
   setGlobalLogs,
 }) => {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  //   throw new Error("Test error from Jsentrix Dashboard");
   return (
     <div className="flex-1 h-full min-w-[1600px] min-h-[700px] flex flex-col">
         <div className="w-full items-center transition-opacity duration-500 ease-in-out" style={{ opacity: hideProgressBar ? 0 : 1 }}>
@@ -163,14 +166,23 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                 
                             </div>
                         </div>
-                        {/* Dynamic System Vitals Section */}
-                        <VitalsPanel
-                            loginGateway={loginGateway}
-                            whoamiAccess={whoamiAccess}
-                            toolActive={toolActive}
-                            websocketActive={websocketActive}
-                            streamId={streamId}
-                        />
+                        <ErrorBoundary 
+                            componentName='Vitals Panel'
+                            placeholder={
+                                <div className="p-4 border border-dashed border-red-400 bg-red-50 text-red-700 text-sm rounded-md min-h-[150px] flex items-center justify-center">
+                                    Failed to load Vitals Panel.
+                                </div>
+                            }
+                        >
+                            {/* Dynamic System Vitals Section */}
+                            <VitalsPanel
+                                loginGateway={loginGateway}
+                                whoamiAccess={whoamiAccess}
+                                toolActive={toolActive}
+                                websocketActive={websocketActive}
+                                streamId={streamId}
+                            />
+                        </ErrorBoundary>
                         <div className='flex mr-2 items-center gap-5 mt-2'>
                             <Accordion
                                 type="single"
@@ -208,13 +220,23 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                                                 </div>
                                             ) :
                                             (
-                                                <ToolTabsPanel
-                                                    tools={availableTools}
-                                                    currentTool={toolId}
-                                                    onToolChange={setToolId}
-                                                    startStreaming={startStreamingWithDuration}
-                                                    abortStreaming={abortStreaming}
-                                                />
+                                                <ErrorBoundary
+                                                    componentName='Tool Tabs Panel'
+                                                    placeholder={
+                                                        <div className="h-full w-full flex items-center justify-center bg-red-50 border-2 border-red-300 rounded-md text-red-700 p-6 min-h-[300px]">
+                                                            Failed to load Tool Tabs Panel.
+                                                        </div>
+                                                    }
+                                                >
+                                                    <ToolTabsPanel
+                                                        tools={availableTools}
+                                                        currentTool={toolId}
+                                                        onToolChange={setToolId}
+                                                        startStreaming={startStreamingWithDuration}
+                                                        abortStreaming={abortStreaming}
+                                                    />
+                                                </ErrorBoundary>
+                                                
                                             )
                                         }
                                     </AccordionContent>
@@ -230,50 +252,86 @@ const JsentrixDashboard: React.FC<JsentrixDashboardProps> = ({
                     <ResizablePanel minSize={64} maxSize={74} defaultSize={70}>
                         {/* Only use grid when showing multiple logs */}
                         {assessmentType === "redistream" ? (
-                            <div className="grid grid-cols-1 p-2 h-full w-full">
-                                <LogTerminal
-                                    title="Global Event Log"
-                                    emoji="🌐"
-                                    logs={globalLogs}
-                                    onClear={() => setGlobalLogs([])}
-                                    bgColor="#101020"
-                                    textColor="#ffffff"
-                                    limit={300}
-                                    clearable
-                                />
+                            <div className="grid grid-cols-1 h-full w-full">
+                                <ErrorBoundary
+                                    componentName="Log Terminal- Global Event Log"
+                                    placeholder={
+                                        <div className="h-[80vh] w-full flex items-center justify-center bg-muted/80 border border-muted rounded-md text-red-700 p-6">
+                                        Failed to load Global Log Event Terminal.
+                                        </div>
+                                    }
+                                >
+                                    <LogTerminal
+                                        title="Global Event Log"
+                                        emoji="🌐"
+                                        logs={globalLogs}
+                                        onClear={() => setGlobalLogs([])}
+                                        bgColor="#101020"
+                                        textColor="#ffffff"
+                                        limit={300}
+                                        clearable
+                                    />
+                                </ErrorBoundary>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 lg:gap-6 p-2 h-full w-full">
-                                <LogTerminal
-                                    title="E-Intake"
-                                    emoji="🟢"
-                                    logs={intakeLogs}
-                                    onClear={() => setIntakeLogs([])}
-                                    bgColor="#102010"
-                                    textColor="#aaffaa"
-                                    limit={150}
-                                    clearable
-                                />
-                                <LogTerminal
-                                    title="E-Assess"
-                                    emoji="🟣"
-                                    logs={assessmentLogs}
-                                    onClear={() => setAssessmentLogs([])}
-                                    bgColor="#201020"
-                                    textColor="#ddaaff"
-                                    limit={150}
-                                    clearable
-                                />
-                                <LogTerminal
-                                    title="E-Action"
-                                    emoji="🔴"
-                                    logs={actionLogs}
-                                    onClear={()=>setActionLogs([])}
-                                    bgColor="#200010"
-                                    textColor="#ffaaaa"
-                                    limit={150}
-                                    clearable
-                                />
+                                <ErrorBoundary
+                                    componentName="Log Terminal- E-Intake Log"
+                                    placeholder={
+                                        <div className="h-[80vh] w-full flex items-center justify-center bg-muted/80 border border-muted rounded-md text-red-700 p-6">
+                                        Failed to load E-Intake Log Event Terminal.
+                                        </div>
+                                    }
+                                >
+                                    <LogTerminal
+                                        title="E-Intake"
+                                        emoji="🟢"
+                                        logs={intakeLogs}
+                                        onClear={() => setIntakeLogs([])}
+                                        bgColor="#102010"
+                                        textColor="#aaffaa"
+                                        limit={150}
+                                        clearable
+                                    />
+                                </ErrorBoundary>
+                                <ErrorBoundary
+                                    componentName="Log Terminal- E-Assess Log"
+                                    placeholder={
+                                        <div className="h-[80vh] w-full flex items-center justify-center bg-muted/80 border border-muted rounded-md text-red-700 p-6">
+                                        Failed to load E-Assess Log Event Terminal.
+                                        </div>
+                                    }
+                                >
+                                    <LogTerminal
+                                        title="E-Assess"
+                                        emoji="🟣"
+                                        logs={assessmentLogs}
+                                        onClear={() => setAssessmentLogs([])}
+                                        bgColor="#201020"
+                                        textColor="#ddaaff"
+                                        limit={150}
+                                        clearable
+                                    />
+                                </ErrorBoundary>
+                                <ErrorBoundary
+                                    componentName="Log Terminal- E-Action Log"
+                                    placeholder={
+                                        <div className="h-[80vh] w-full flex items-center justify-center bg-muted/80 border border-muted rounded-md text-red-700 p-6">
+                                        Failed to load E-Action Log Event Terminal.
+                                        </div>
+                                    }
+                                >
+                                    <LogTerminal
+                                        title="E-Action"
+                                        emoji="🔴"
+                                        logs={actionLogs}
+                                        onClear={()=>setActionLogs([])}
+                                        bgColor="#200010"
+                                        textColor="#ffaaaa"
+                                        limit={150}
+                                        clearable
+                                    />
+                                </ErrorBoundary>
                             </div>
                         )}
                     </ResizablePanel>

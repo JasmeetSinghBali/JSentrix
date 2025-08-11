@@ -65,6 +65,9 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
   startStreaming,
   abortStreaming,
 }) => {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from ToolTabsPanel");
+  
   const accessToken = useGatewayAuthStore((state)=>state.accessToken);
   const streamId = useStreamingStore((state)=>state.streamId);
   const streamCountdown = useStreamingStore((state)=>state.streamCountdown);

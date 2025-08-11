@@ -99,6 +99,8 @@ export function CustomSidebarTrigger({disabled}: CustomSidebarTriggerProps) {
 }
 
 export function AppSidebar() {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from AppSidebar");
   const todayDate = new Date();
   const streamId = useStreamingStore((state)=>state.streamId);
   

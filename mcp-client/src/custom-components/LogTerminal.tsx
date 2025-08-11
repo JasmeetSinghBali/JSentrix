@@ -29,6 +29,9 @@ const LogTerminal: React.FC<LogTerminalProps> = ({
   clearable = false,
   onClear,
 }) => {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from LogTerminal");
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const logRefs = useRef<(HTMLDivElement | null)[]>([])
 

@@ -49,6 +49,8 @@ export function LoginGatewayStreamingHubForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from LoginGatewayStreamingHubForm");
   
   const [email,setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");

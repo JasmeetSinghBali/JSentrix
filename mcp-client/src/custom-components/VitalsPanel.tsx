@@ -20,6 +20,9 @@ const VitalsPanel: React.FC<VitalsPanelProps> = ({
   websocketActive,
   streamId,
 }) => {
+  // 📌 Intentionally throw error to test ErrorBoundary
+  // throw new Error("Test error from VitalsPanel");
+
   return (
     <div className="mr-2 mb-2 p-3 rounded-md bg-muted/80 border border-muted">
       <div className="text-muted-foreground text-sm flex items-center gap-2">
