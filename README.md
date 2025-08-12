@@ -1,4 +1,4 @@
-# JSentrix
+# JSentrix (C) 2025 Jasmeet Singh Bali GPL V3
 # Autonomous Transaction Monitoring & Fraud Response System (Private, Multi-Agent, MCP&A2A-Compliant)
 
 ### 📌 Overview
@@ -9,6 +9,8 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 ---
 
 ## 🏭 Architecture
+
+![Architecture Diagram](nuances/jsentrix_v1_arch_diagram.png)
 
 - **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
 - **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
@@ -78,6 +80,7 @@ ollama run qwen3:1.7b
 # makes sure venv is activated and .env is set for each of the backend components
 # mcp_server
 python -m interface.mcp_server --http
+
 # gateway (super user is auto created everytime the gateway fastapi service startsup with mcp_server health check and accessibility)
 uv run ./src/main.py
 
@@ -167,7 +170,7 @@ docker system prune
 
 ---
 
-## 🔃 References
+## 🔃 Tech/Tools/Framework Doc References
 
 - [MCP Protocol](https://github.com/anthropics/mcp)
 - [Ollama](https://ollama.com/)
