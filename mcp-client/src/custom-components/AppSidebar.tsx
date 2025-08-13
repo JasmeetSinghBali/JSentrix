@@ -369,23 +369,36 @@ export function AppSidebar() {
         description="All about JSentrix system."
         content={
           <>
-            <p>This is the documentation section for JSentrix.</p>
+            <p>This is the core documentation section for JSentrix.</p>
             <ul className="list-disc list-inside text-sm text-muted-foreground">
-              <li>Setup & Installation</li>
-              <li>Agent API</li>
-              <li>Usage with LangChain</li>
+              <li>Core backend components and associated doc. links</li>
+              <li>Agents and Graph-Flows in different modes</li>
+              <li>Core features breakdown list JSentrix@v1.0.0 release onwards</li>
             </ul>
+            <h3>Core components and associated doc. links</h3>
             <p>
-              What is Lorem Ipsum?
-              Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-
-              Why do we use it?
-              It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-
-
-              Where does it come from?
-              Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.
+              Core backend components are:
+              1. MCP-Server access swagger docs at http://localhost:9001/docs
+              2. Gateway access swagger docs at http://localhost:8080/docs
+              3. Streaming-Hub swagger docs at http://localhost/swagger
             </p>
+            <h3>Agents and Graph-Flows in different modes</h3>
+            <p>
+              1. Default Mode A2A With Caching Disabled i.e Full Assessment Mode
+              2. Default Mode A2A With Caching Enabled i.e Quick Assessment Mode
+              3. Async Redis Streams with Caching Disabled
+              4. Async Redis Streams with Caching Enabled
+            </p>
+            <h3>Core features:</h3>
+            <ul>
+              <li>home brew dedicated triage agents(intake,assessment,action...) dedicated graph for each stream</li>
+              <li>configurable source, modes, stream settings and stream ingestion duration from UI</li>
+              <li>custom tweaked Langchain and Llamaindex retrievers with reranking, score and decay mechanism for robust RAG flows</li>
+              <li>stream timout post analysis and websocket connection management e2e</li>
+              <li>scalable and mutiple streaming-hub dockerized instances for efficient real time event dispatch and broadcast to concerned and connected mcp-client</li>
+              <li>group stream-id broadcasting agent events in realtime to joined mcp-clients under same group i.e stream-id </li>
+              <li>prior events storage of assessed events for future incoming events analysis in caching mode</li>
+            </ul>
           </>
         }
       />
@@ -400,8 +413,7 @@ export function AppSidebar() {
           <>
             <p>You can contact us via:</p>
             <ul className="list-disc list-inside text-sm text-muted-foreground">
-              <li>Email: support@jsentrix.dev</li>
-              <li>Discord: #jsentrix-support</li>
+              <li>Source-Github: <a href='https://github.com/JasmeetSinghBali/JSentrix'>JSentrix Github GPL-3.0 license Source Code</a></li>
             </ul>
           </>
         }

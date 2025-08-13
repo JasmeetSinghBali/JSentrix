@@ -14,7 +14,7 @@
   "keywords": [],
   "author": {
     "name": "JasmeetSinghBali",
-    "email": "jasmeetbali.dev.2021@gmail.com"
+    "email": ""
   },
   "license": "GPL-3.0-only",
   "devContentSecurityPolicy": "default-src 'self' 'unsafe-inline' data:; connect-src 'self' http://localhost:8080;",

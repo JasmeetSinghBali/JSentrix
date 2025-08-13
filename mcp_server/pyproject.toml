@@ -6,7 +6,7 @@ description = "jsentrix mcp_server"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
-    { name = "JasmeetSinghBali", email = "jasmeetbali.dev.2021@gmail.com" }
+    { name = "JasmeetSinghBali", email = "" }
 ]
 dependencies = [
     "anyio>=4.9.0",
