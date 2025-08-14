@@ -359,49 +359,114 @@ export function AppSidebar() {
       </Sidebar>
       
       {/* Docs Dialog */}
-      {/* 🎈 for docs expandable accordion like seprate sections with links to the appropriate sphinx/swagger docs shud be mentioned reff to Readme.md core 
-      also if possible giphy or demo videos of every flow like default + caching, default+non-caching, asyncredis+caching, 
-      which section does what, sitemap section  */}
       <DialogInfo
         open={openDialog === "Core Docs"}
         onOpenChange={(open) => setOpenDialog(open ? "Core Docs" : null)}
-        title="Documentation"
-        description="All about JSentrix system."
+        title="JSentrix Core Documentation"
+        description="Comprehensive guide to JSentrix system architecture, features, and operational modes."
         content={
           <>
-            <p>This is the core documentation section for JSentrix.</p>
-            <ul className="list-disc list-inside text-sm text-muted-foreground">
-              <li>Core backend components and associated doc. links</li>
-              <li>Agents and Graph-Flows in different modes</li>
-              <li>Core features breakdown list JSentrix@v1.0.0 release onwards</li>
-            </ul>
-            <h3>Core components and associated doc. links</h3>
-            <p>
-              Core backend components are:
-              1. MCP-Server access swagger docs at http://localhost:9001/docs
-              2. Gateway access swagger docs at http://localhost:8080/docs
-              3. Streaming-Hub swagger docs at http://localhost/swagger
-            </p>
-            <h3>Agents and Graph-Flows in different modes</h3>
-            <p>
-              1. Default Mode A2A With Caching Disabled i.e Full Assessment Mode
-              2. Default Mode A2A With Caching Enabled i.e Quick Assessment Mode
-              3. Async Redis Streams with Caching Disabled
-              4. Async Redis Streams with Caching Enabled
-            </p>
-            <h3>Core features:</h3>
-            <ul>
-              <li>home brew dedicated triage agents(intake,assessment,action...) dedicated graph for each stream</li>
-              <li>configurable source, modes, stream settings and stream ingestion duration from UI</li>
-              <li>custom tweaked Langchain and Llamaindex retrievers with reranking, score and decay mechanism for robust RAG flows</li>
-              <li>stream timout post analysis and websocket connection management e2e</li>
-              <li>scalable and mutiple streaming-hub dockerized instances for efficient real time event dispatch and broadcast to concerned and connected mcp-client</li>
-              <li>group stream-id broadcasting agent events in realtime to joined mcp-clients under same group i.e stream-id </li>
-              <li>prior events storage of assessed events for future incoming events analysis in caching mode</li>
-            </ul>
+            <section>
+              <p>
+                Welcome to the core documentation for <strong>JSentrix</strong>.  
+                This section provides an in-depth overview of the system’s backend 
+                architecture, supported agent modes, and major features from 
+                <strong>v1.0.0</strong> onwards.
+              </p>
+            </section>
+
+            <section>
+              <h2>Core Backend Components</h2>
+              <p>
+                The JSentrix system consists of several modular backend services.  
+                Each service exposes its own API documentation via Swagger UI:
+              </p>
+              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                <li>
+                  <strong>MCP Server</strong> — Access Swagger docs at  
+                  <code> http://localhost:9001/docs </code>
+                </li>
+                <li>
+                  <strong>Gateway Service</strong> — Access Swagger docs at  
+                  <code> http://localhost:8080/docs </code>
+                </li>
+                <li>
+                  <strong>Streaming Hub</strong> — Access Swagger docs at  
+                  <code> http://localhost/swagger </code>
+                </li>
+              </ol>
+            </section>
+
+            <section>
+              <h2>Agent Modes & Graph-Flows</h2>
+              <p>
+                JSentrix agents can operate in multiple modes depending on caching 
+                and streaming preferences:
+              </p>
+              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                <li>
+                  <strong>Default Mode — A2A (Caching Disabled):</strong>  
+                  Full Assessment Mode for thorough, fresh evaluations.
+                </li>
+                <li>
+                  <strong>Default Mode — A2A (Caching Enabled):</strong>  
+                  Quick Assessment Mode for faster responses using cached insights.
+                </li>
+                <li>
+                  <strong>Async Redis Streams (Caching Disabled):</strong>  
+                  Async stream txn's processing events without prior cache.
+                </li>
+                <li>
+                  <strong>Async Redis Streams (Caching Enabled):</strong>  
+                  Async stream txn's processing with stored event history.
+                </li>
+              </ol>
+            </section>
+
+            <section>
+              <h2>Core Features</h2>
+              <article>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  <li>
+                    <strong>Dedicated Triage Agents:</strong> Specialized agents for 
+                    intake, assessment, and action — each operating within its own 
+                    dedicated graph stream.
+                  </li>
+                  <li>
+                    <strong>Configurable UI Controls:</strong> Adjust data sources, 
+                    operation modes, stream settings, and ingestion durations directly 
+                    from the UI.
+                  </li>
+                  <li>
+                    <strong>Enhanced RAG Flows:</strong> Custom-tweaked LangChain and 
+                    LlamaIndex retrievers with re-ranking, scoring, and decay 
+                    mechanisms for robust retrieval-augmented generation.
+                  </li>
+                  <li>
+                    <strong>Stream Lifecycle Management:</strong> Automatic stream 
+                    timeouts post-analysis, with full end-to-end WebSocket connection 
+                    handling.
+                  </li>
+                  <li>
+                    <strong>Scalable Streaming Infrastructure:</strong> Multiple 
+                    dockerized streaming hub instances for efficient real-time event 
+                    dispatching and broadcasting to connected MCP clients.
+                  </li>
+                  <li>
+                    <strong>Group Stream Broadcasting:</strong> Event broadcasting to 
+                    all MCP clients subscribed under the same <code>stream-id</code>.
+                  </li>
+                  <li>
+                    <strong>Event History Caching:</strong> Stores prior assessed 
+                    events for comparative analysis in caching mode for future assessment txn's streams.
+                  </li>
+                </ul>
+              </article>
+            </section>
           </>
         }
       />
+
 
       {/* Contact Dialog */}
       <DialogInfo
@@ -413,7 +478,11 @@ export function AppSidebar() {
           <>
             <p>You can contact us via:</p>
             <ul className="list-disc list-inside text-sm text-muted-foreground">
-              <li>Source-Github: <a href='https://github.com/JasmeetSinghBali/JSentrix'>JSentrix Github GPL-3.0 license Source Code</a></li>
+              <li>Github: <a style={{
+                textDecoration: 'underline',
+                color: 'HighlightText'
+              }} href='https://github.com/JasmeetSinghBali/JSentrix'>JSentrix Github GPL-3.0 license Source Code</a></li>
+              <li>Email:<strong> jasmeetbali.dev.2021@gmail.com </strong></li>
             </ul>
           </>
         }

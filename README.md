@@ -8,9 +8,30 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ---
 
+## 🍿 Previews
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="nuances/JSentrix_Login_Preview_2025-08-14.gif" alt="Login Flow" width="400"/><br>
+      <em>🔑 Login Flow</em>
+    </td>
+    <td align="center" width="50%">
+      <img src="" alt="Process Flow" width="400"/><br>
+      <em>⚙️ Process Flow</em>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## 🏭 Architecture
 
-![Architecture Diagram](nuances/jsentrix_v1_arch_diagram.png)
+<p align="center">
+ <img src="nuances/jsentrix_v1_arch_diagram.png" alt="Architecture Diagram" width="700"/>
+</p>
+
+
 
 - **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
 - **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
@@ -87,6 +108,10 @@ uv run ./src/main.py
 # frontend electron app startup
 # mcp-client
 npm run start
+
+# login to mcp-client as superuser whatever email or password you set in gateway/.env make sure to restart gateway reff .example.env
+FIRST_SUPERUSER_EMAIL=
+FIRST_SUPERUSER_PASSWORD=
 
 #qwen3
 http://localhost:11434 # local api qwen3
