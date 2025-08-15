@@ -68,16 +68,16 @@ interface HelpMenuItemInterface {
 // Help Menu items.
 const HelpMenuitems: HelpMenuItemInterface[] = [
   {
-    title: "Version Docs",
-    icon: GitGraph,
-  },
-  {
-    title: "Core Docs",
+    title: "System",
     icon: SquareCode,
   },
   {
     title: "Contact",
     icon: BadgeInfo,
+  },
+  {
+    title: "Version History",
+    icon: GitGraph,
   },
 ];
 
@@ -121,7 +121,7 @@ export function AppSidebar() {
   const clearStreamId = useStreamingStore((state) => state.clearStreamId);
 
   // State to track which Help dialog is open
-  const [openDialog, setOpenDialog] = useState<"Core Docs" | "Version Docs" | "Contact" | null>(null);
+  const [openDialog, setOpenDialog] = useState<"System" | "Version History" | "Contact" | null>(null);
   const themeOptions: DropdownOption[] = [
       { label: "Default", value: "default" },
       { label: "Indie", value: "indie" },
@@ -241,7 +241,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {HelpMenuitems.map((item: HelpMenuItemInterface) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "Core Docs" | "Version Docs" | "Contact")}>    
+                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "System" | "Version History" | "Contact")}>    
                       <item.icon className='w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6'/>
                       <span className='text-sm md:text-base lg:text-lg'>{item.title}</span>
                     </SidebarMenuButton>
@@ -360,49 +360,66 @@ export function AppSidebar() {
       
       {/* Docs Dialog */}
       <DialogInfo
-        open={openDialog === "Core Docs"}
-        onOpenChange={(open) => setOpenDialog(open ? "Core Docs" : null)}
-        title="JSentrix Core Documentation"
-        description="Comprehensive guide to JSentrix system architecture, features, and operational modes."
+        open={openDialog === "System"}
+        onOpenChange={(open) => setOpenDialog(open ? "System" : null)}
+        title="JSentrix System"
+        description="Brief guide to JSentrix core backend components, features, and operational modes."
         content={
           <>
             <section>
               <p>
-                Welcome to the core documentation for <strong>JSentrix</strong>.  
-                This section provides an in-depth overview of the system’s backend 
-                architecture, supported agent modes, and major features from 
+                Welcome to the <strong>JSentrix</strong>.  
+                This section provides a brief overview of the system’s core backend 
+                components, supported agent modes, and major features from summary &nbsp; 
                 <strong>v1.0.0</strong> onwards.
               </p>
             </section>
 
             <section>
-              <h2>Core Backend Components</h2>
+              <h2 style={{
+                textDecorationLine: 'underline'
+              }}>Core Backend Components</h2>
+              <br/>
               <p>
                 The JSentrix system consists of several modular backend services.  
                 Each service exposes its own API documentation via Swagger UI:
               </p>
+              <br/>
               <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
                 <li>
-                  <strong>MCP Server</strong> — Access Swagger docs at  
-                  <code> http://localhost:9001/docs </code>
+                  <strong>MCP Server</strong> — Access Swagger doc at
+                  &nbsp; 
+                  <code style={{
+                    textDecorationLine: 'underline'
+                  }}>http://localhost:9001/docs</code>
                 </li>
                 <li>
-                  <strong>Gateway Service</strong> — Access Swagger docs at  
-                  <code> http://localhost:8080/docs </code>
+                  <strong>Gateway Service</strong> — Access Swagger doc at  
+                  &nbsp;
+                  <code style={{
+                    textDecorationLine: 'underline'
+                  }}>http://localhost:8080/docs</code>
                 </li>
                 <li>
-                  <strong>Streaming Hub</strong> — Access Swagger docs at  
-                  <code> http://localhost/swagger </code>
+                  <strong>Streaming Hub</strong> — Access Swagger doc at  
+                  &nbsp;
+                  <code style={{
+                    textDecorationLine: 'underline'
+                  }}>http://localhost/swagger</code>
                 </li>
               </ol>
             </section>
 
             <section>
-              <h2>Agent Modes & Graph-Flows</h2>
+              <h2 style={{
+                textDecorationLine: 'underline'
+              }}>Agent Modes & Graph-Flows</h2>
+              <br/>
               <p>
                 JSentrix agents can operate in multiple modes depending on caching 
                 and streaming preferences:
               </p>
+              <br/>
               <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
                 <li>
                   <strong>Default Mode — A2A (Caching Disabled):</strong>  
@@ -424,9 +441,12 @@ export function AppSidebar() {
             </section>
 
             <section>
-              <h2>Core Features</h2>
+              <h2 style={{
+                textDecorationLine: 'underline'
+              }}>Core Features</h2>
+              <br/>
               <article>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
                   <li>
                     <strong>Dedicated Triage Agents:</strong> Specialized agents for 
                     intake, assessment, and action — each operating within its own 
@@ -487,6 +507,73 @@ export function AppSidebar() {
           </>
         }
       />
+
+      {/* Version History Dialog */}
+      <DialogInfo
+        open={openDialog === "Version History"}
+        onOpenChange={(open) => setOpenDialog(open ? "Version History" : null)}
+        title="Version History"
+        description="Track changes and updates to JSentrix."
+        content={
+          <div className="relative pl-6 border-l border-muted-foreground/30 space-y-8">
+
+            {/* V1 Track */}
+            <div>
+              <h3 className="text-base font-semibold mb-3">🎯 JSentrix v1 Track</h3>
+              {[
+                "Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.",
+                "Setup custom neo4j, retriever interface for both llamaindex and langchain agent support",
+                "Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling",
+                "Optimize and expand retrieval interface with relationship traversal cypher utils",
+                "Custom flow setup including relevance decay score sort, summarization, memory aware querying",
+                "Add async support for retrievers, postprocessors, utils downstream pipelines",
+                "Sphinx doc and instrumentation with OpenTelemetry setup",
+                "Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agents",
+                "Setup support for jsonrpc2.0 between gateway and mcp_server with REST backward compatibility",
+                "Setup streaming and aborting tools for MCP server and its peripherals with Kafka and Redis pub/sub",
+                "Intake Agent setup with enriched txn data for the Assessment & Prioritization Agent",
+                "Setup Assessment Agent with separate e2e streaming logs",
+                "Add A2A comm workflow between Assessment & Action Agent via protocol inside mcp_server",
+                "Polish Electron panels, loader, toast, split UI, streaming mode support, bug fixes, sidebar, and snapshots",
+              ].map((milestone, i) => (
+                <div key={i} className="relative flex items-start gap-3">
+                  —
+                  {/* Circle */}
+                  <span className="absolute -left-[10px] top-1 w-3 h-3 rounded-full bg-green-500 border-2 border-background shadow-sm" />
+                  {/* Text */}
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <span className="font-medium">V1.{i + 1}</span> — {milestone}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* V2 Track */}
+            <div>
+              <h3 className="text-base font-semibold mb-3">🚀 JSentrix v2 Track</h3>
+              {[
+                "Setup Judge agent communication from Action Agent for ND txn flow, passing structured output to Gemini summarizer",
+                "Visual agent graph tool invocation with XY React Flow payload for agent logs",
+                "Implement RAG HyDE (Hypothetical Document Embeddings) strategy at Intake level",
+              ].map((milestone, i) => (
+                <div key={i} className="relative flex items-start gap-3">
+                  —
+                  {/* Circle */}
+                  <span className="absolute -left-[10px] top-1 w-3 h-3 rounded-full bg-yellow-500 border-2 border-background shadow-sm" />
+                  {/* Text */}
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <span className="font-medium">V2.{i + 15}</span> — {milestone}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        }
+      />
+
+
+
 
       {/* 🎈delete account placeholder sheet confirmation modal shud be reusable component setup for future instead of this */}
       <Sheet>

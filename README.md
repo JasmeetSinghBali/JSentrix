@@ -3,6 +3,7 @@
 
 ### 📌 Overview
 
+
 This project is a fully local, privacy-preserving, multi-agent system for real-time transaction monitoring and fraud response with approach rule based agentic graph system (AGS) built for use case with bank/fintech IT teams and can be further extended and inspired from to develop fully customizable multi agentic and multi modal flow in other domains.  
 It leverages the **Model Context Protocol (MCP)** for modular integrations, runs all AI models and data stores locally, and features an **Electron desktop app** (for IT staff) for monitoring.
 
@@ -10,28 +11,19 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ## 🍿 Previews
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="nuances/JSentrix_Login_Preview_2025-08-14.gif" alt="Login Flow" width="400"/><br>
-      <em>🔑 Login Flow</em>
-    </td>
-    <td align="center" width="50%">
-      <img src="" alt="Process Flow" width="400"/><br>
-      <em>⚙️ Process Flow</em>
-    </td>
-  </tr>
-</table>
+
+| Flow  | Preview                                                                                          |  
+|-------|--------------------------------------------------------------------------------------------------|  
+| 🔑 Login| <img src="nuances/JSentrix_Login_Preview_2025-08-14.gif" alt="Login Flow" width="680" height="340"/>        |
+| 1️⃣ A2A |  <div style="display:flex-column; align-items:center; gap:10px;">  <img src="nuances/Screenshot_2025-05-20_Jsentrix_optim_pipeline_node_relationships.png" alt="Clause Knowledge Graph" width="800"/> <div style="display:flex; align-items:center; gap:6px;"> <img src="nuances/anim_default_mode_selection_demo.gif" alt="Default Mode" width="200"/>  <img src="nuances/a2a_preview_demo.gif" alt="A2A demo preview" width="525"/></div> </div>                                                                                                    |
+| 2️⃣ A2A + MemoryCached| <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/a2a_cached_mode_selection_demo.gif" alt="Cached mode selection" width="300"/><img src="nuances/a2a_cached_preview_demo.gif" alt="A2A cached demo preview" width="800"/></div>                                                                                                 |
+
 
 ---
 
 ## 🏭 Architecture
 
-<p align="center">
- <img src="nuances/jsentrix_v1_arch_diagram.png" alt="Architecture Diagram" width="700"/>
-</p>
-
-
+![Architecture Diagram](nuances/jsentrix_v1_arch_diagram.png)
 
 - **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
 - **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
