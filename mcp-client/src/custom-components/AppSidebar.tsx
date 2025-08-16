@@ -115,6 +115,9 @@ export function AppSidebar() {
 
   const currentUser = useCurrentUserStore(state => state.user);
 
+  const ws_clientId = useWsAuthStore(state=>state.clientId);
+  const ws_token = useWsAuthStore(state=>state.token);
+
   const clearUser = useCurrentUserStore(state => state.clearUser);
   const clearGatewayTokens = useGatewayAuthStore(state=>state.clearTokens);
   const clearStreamingToken = useWsAuthStore(state=>state.clearAuth);
@@ -140,6 +143,13 @@ export function AppSidebar() {
       document.documentElement.classList.remove("theme-indie");
     }
   }, [darkModeEnabled, appThemeType]);
+
+  // logs wsauthstore tokens
+  useEffect(()=>{
+    console.log("WsAuthStore tokens AppSidebar:")
+    console.log(ws_clientId)
+    console.log(ws_token)
+  },[ws_clientId,ws_token])
 
   return (
     <React.Fragment>

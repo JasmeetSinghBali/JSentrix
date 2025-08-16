@@ -15,9 +15,9 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 | Flow  | Preview                                                                                          |  
 |-------|--------------------------------------------------------------------------------------------------|  
 | 🔑 Login| <img src="nuances/JSentrix_Login_Preview_2025-08-14.gif" alt="Login Flow" width="680" height="340"/>        |
-| 1️⃣ A2A |  <div style="display:flex-column; align-items:center; gap:10px;">  <img src="nuances/Screenshot_2025-05-20_Jsentrix_optim_pipeline_node_relationships.png" alt="Clause Knowledge Graph" width="800"/> <div style="display:flex; align-items:center; gap:6px;"> <img src="nuances/anim_default_mode_selection_demo.gif" alt="Default Mode" width="200"/>  <img src="nuances/a2a_preview_demo.gif" alt="A2A demo preview" width="525"/></div> </div>                                                                                                    |
-| 2️⃣ A2A + MemoryCached| <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/a2a_cached_mode_selection_demo.gif" alt="Cached mode selection" width="300"/><img src="nuances/a2a_cached_preview_demo.gif" alt="A2A cached demo preview" width="800"/></div>                                                                                                 |
-
+| 1️⃣ A2A |  <div style="display:flex-column; align-items:center; gap:10px;">  <img src="nuances/Screenshot_2025-05-20_Jsentrix_optim_pipeline_node_relationships.png" alt="Clause Knowledge Graph" width="680" hight="340" />  <img src="nuances/anim_default_mode_selection_demo.gif" alt="Default Mode" width="550" height="250" />  <img src="nuances/a2a_preview_demo.gif" alt="A2A demo preview" width="800"/></div>                                                                                                    |
+| 2️⃣ A2A + MemoryCached| <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/a2a_cached_mode_selection_demo.gif" alt="Cached mode selection" width="300"/><img src="" alt="A2A cached demo preview" width="800"/></div>                                                                                                 |
+| 3️⃣ Async Redis Stream | <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/asyncredis_mode_selection_demo.gif" alt="Async redis mode selection" width="300"/><img src="" alt="Async redis demo preview" width="800"/></div>
 
 ---
 
