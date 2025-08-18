@@ -9,21 +9,22 @@ It leverages the **Model Context Protocol (MCP)** for modular integrations, runs
 
 ---
 
+![Architecture Diagram](nuances/jsentrix_v1_arch_diagram.png)
+
 ## 🍿 Previews
 
 
 | Flow  | Preview                                                                                          |  
 |-------|--------------------------------------------------------------------------------------------------|  
 | 🔑 Login| <img src="nuances/JSentrix_Login_Preview_2025-08-14.gif" alt="Login Flow" width="680" height="340"/>        |
-| 1️⃣ A2A |  <div style="display:flex-column; align-items:center; gap:10px;">  <img src="nuances/Screenshot_2025-05-20_Jsentrix_optim_pipeline_node_relationships.png" alt="Clause Knowledge Graph" width="680" hight="340" />  <img src="nuances/anim_default_mode_selection_demo.gif" alt="Default Mode" width="550" height="250" />  <img src="nuances/a2a_preview_demo.gif" alt="A2A demo preview" width="800"/></div>                                                                                                    |
-| 2️⃣ A2A + MemoryCached| <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/a2a_cached_mode_selection_demo.gif" alt="Cached mode selection" width="300"/><img src="" alt="A2A cached demo preview" width="800"/></div>                                                                                                 |
-| 3️⃣ Async Redis Stream | <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/asyncredis_mode_selection_demo.gif" alt="Async redis mode selection" width="300"/><img src="" alt="Async redis demo preview" width="800"/></div>
+| 1️⃣ A2A |  <div style="display:flex-column; align-items:center; gap:10px;">  <img src="nuances/Screenshot_2025-05-20_Jsentrix_optim_pipeline_node_relationships.png" alt="Clause Knowledge Graph" width="680" hight="340" />  <img src="nuances/anim_default_mode_selection_demo.gif" alt="Default mode selection" width="550" height="250" /><img src="nuances/a2a_preview_demo.gif" alt="A2A demo preview 1" width="800"/>  <img src="nuances/A2A_Mode_Demo.gif" alt="A2A demo preview 2" width="800"/></div>                                                                                                    |
+| 2️⃣ A2A + MemoryCached| <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/a2a_cached_mode_selection_demo.gif" alt="Cached mode selection" width="550" height="250"/><img src="nuances/qdrant_memory_assesed_prior_events.png" alt="Prior assessed memory events qdrant" width="680" hight="340" /><img src="nuances/JSentrix_A2A_Caching_Mode_Demo.gif" alt="A2A cached demo preview" width="800"/></div>                                                                                                 |
+| 3️⃣ Async Redis Stream | <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/asyncredis_mode_selection_demo.gif" alt="Async redis mode selection" width="550" height="250"/><img src="" alt="Async redis demo preview" width="800"/></div>
 
 ---
 
 ## 🏭 Architecture
 
-![Architecture Diagram](nuances/jsentrix_v1_arch_diagram.png)
 
 - **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
 - **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
@@ -157,7 +158,7 @@ docker system prune
 | 11    | ~~Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent~~   |
 | 12    | ~~Setup Assessment Agent and its peripherals e2e logs shud be streamed for both intake and assessment agent seprately~~                                                                                             |
 | 13    | ~~Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui~~                                                                                                    |
-| 14    | polish Electron panels, loader, toast, split RootWrapper, vertical+horizontal split UI + streaming mode support and bug fixes + sidebar + add snapshot for v1 ui + recording for default,caching, async redisstream modes working under 1 min each mode video and add gifs and screenshots                                                                                           |
+| 14    | ~~polish Electron panels, loader, toast, split RootWrapper, vertical+horizontal split UI + streaming mode support and bug fixes + sidebar + add snapshot for v1 ui + recording for default,caching, async redisstream modes working under 1 min each mode video and add gifs and screenshots~~                                                                                           |
 ```bash
 ===== JSentrix v2.0 NOTE- to research on the 🎈 Abstracted Phases for Triage Flow current approach thoroughly before moving forward here tweak and finalize then move forward with below milestones====
 ```
