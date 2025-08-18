@@ -15,7 +15,7 @@ definitions:
 host: localhost:4001
 info:
   contact:
-    email: jasmeetbali.dev.2021@gmail.com
+    email: 
     name: Jasmeet Singh Bali
   description: Real-time log/event streaming microservice for MCP/Electron.
   title: Streaming Hub API

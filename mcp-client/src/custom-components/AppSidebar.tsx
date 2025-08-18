@@ -68,16 +68,16 @@ interface HelpMenuItemInterface {
 // Help Menu items.
 const HelpMenuitems: HelpMenuItemInterface[] = [
   {
-    title: "Version Docs",
-    icon: GitGraph,
-  },
-  {
-    title: "Core Docs",
+    title: "System",
     icon: SquareCode,
   },
   {
     title: "Contact",
     icon: BadgeInfo,
+  },
+  {
+    title: "Version History",
+    icon: GitGraph,
   },
 ];
 
@@ -115,13 +115,16 @@ export function AppSidebar() {
 
   const currentUser = useCurrentUserStore(state => state.user);
 
+  const ws_clientId = useWsAuthStore(state=>state.clientId);
+  const ws_token = useWsAuthStore(state=>state.token);
+
   const clearUser = useCurrentUserStore(state => state.clearUser);
   const clearGatewayTokens = useGatewayAuthStore(state=>state.clearTokens);
   const clearStreamingToken = useWsAuthStore(state=>state.clearAuth);
   const clearStreamId = useStreamingStore((state) => state.clearStreamId);
 
   // State to track which Help dialog is open
-  const [openDialog, setOpenDialog] = useState<"Core Docs" | "Version Docs" | "Contact" | null>(null);
+  const [openDialog, setOpenDialog] = useState<"System" | "Version History" | "Contact" | null>(null);
   const themeOptions: DropdownOption[] = [
       { label: "Default", value: "default" },
       { label: "Indie", value: "indie" },
@@ -140,6 +143,13 @@ export function AppSidebar() {
       document.documentElement.classList.remove("theme-indie");
     }
   }, [darkModeEnabled, appThemeType]);
+
+  // logs wsauthstore tokens
+  useEffect(()=>{
+    console.log("WsAuthStore tokens AppSidebar:")
+    console.log(ws_clientId)
+    console.log(ws_token)
+  },[ws_clientId,ws_token])
 
   return (
     <React.Fragment>
@@ -241,7 +251,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {HelpMenuitems.map((item: HelpMenuItemInterface) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "Core Docs" | "Version Docs" | "Contact")}>    
+                    <SidebarMenuButton disabled={!!streamId || false} onClick={() => setOpenDialog(item.title as "System" | "Version History" | "Contact")}>    
                       <item.icon className='w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6'/>
                       <span className='text-sm md:text-base lg:text-lg'>{item.title}</span>
                     </SidebarMenuButton>
@@ -359,36 +369,134 @@ export function AppSidebar() {
       </Sidebar>
       
       {/* Docs Dialog */}
-      {/* 🎈 for docs expandable accordion like seprate sections with links to the appropriate sphinx/swagger docs shud be mentioned reff to Readme.md core 
-      also if possible giphy or demo videos of every flow like default + caching, default+non-caching, asyncredis+caching, 
-      which section does what, sitemap section  */}
       <DialogInfo
-        open={openDialog === "Core Docs"}
-        onOpenChange={(open) => setOpenDialog(open ? "Core Docs" : null)}
-        title="Documentation"
-        description="All about JSentrix system."
+        open={openDialog === "System"}
+        onOpenChange={(open) => setOpenDialog(open ? "System" : null)}
+        title="JSentrix System"
+        description="Brief guide to JSentrix core backend components, features, and operational modes."
         content={
           <>
-            <p>This is the documentation section for JSentrix.</p>
-            <ul className="list-disc list-inside text-sm text-muted-foreground">
-              <li>Setup & Installation</li>
-              <li>Agent API</li>
-              <li>Usage with LangChain</li>
-            </ul>
-            <p>
-              What is Lorem Ipsum?
-              Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+            <section>
+              <p>
+                Welcome to the <strong>JSentrix</strong>.  
+                This section provides a brief overview of the system’s core backend 
+                components, supported agent modes, and major features from summary &nbsp; 
+                <strong>v1.0.0</strong> onwards.
+              </p>
+            </section>
 
-              Why do we use it?
-              It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
+            <section>
+              <h2 style={{
+                textDecorationLine: 'underline'
+              }}>Core Backend Components</h2>
+              <br/>
+              <p>
+                The JSentrix system consists of several modular backend services.  
+                Each service exposes its own API documentation via Swagger UI:
+              </p>
+              <br/>
+              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                <li>
+                  <strong>MCP Server</strong> — Access Swagger doc at
+                  &nbsp; 
+                  <code style={{
+                    textDecorationLine: 'underline'
+                  }}>http://localhost:9001/docs</code>
+                </li>
+                <li>
+                  <strong>Gateway Service</strong> — Access Swagger doc at  
+                  &nbsp;
+                  <code style={{
+                    textDecorationLine: 'underline'
+                  }}>http://localhost:8080/docs</code>
+                </li>
+                <li>
+                  <strong>Streaming Hub</strong> — Access Swagger doc at  
+                  &nbsp;
+                  <code style={{
+                    textDecorationLine: 'underline'
+                  }}>http://localhost/swagger</code>
+                </li>
+              </ol>
+            </section>
 
+            <section>
+              <h2 style={{
+                textDecorationLine: 'underline'
+              }}>Agent Modes & Graph-Flows</h2>
+              <br/>
+              <p>
+                JSentrix agents can operate in multiple modes depending on caching 
+                and streaming preferences:
+              </p>
+              <br/>
+              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                <li>
+                  <strong>Default Mode — A2A (Caching Disabled):</strong>  
+                  Full Assessment Mode for thorough, fresh evaluations.
+                </li>
+                <li>
+                  <strong>Default Mode — A2A (Caching Enabled):</strong>  
+                  Quick Assessment Mode for faster responses using cached insights.
+                </li>
+                <li>
+                  <strong>Async Redis Streams (Caching Disabled):</strong>  
+                  Async stream txn's processing events without prior cache.
+                </li>
+                <li>
+                  <strong>Async Redis Streams (Caching Enabled):</strong>  
+                  Async stream txn's processing with stored event history.
+                </li>
+              </ol>
+            </section>
 
-              Where does it come from?
-              Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.
-            </p>
+            <section>
+              <h2 style={{
+                textDecorationLine: 'underline'
+              }}>Core Features</h2>
+              <br/>
+              <article>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                  <li>
+                    <strong>Dedicated Triage Agents:</strong> Specialized agents for 
+                    intake, assessment, and action — each operating within its own 
+                    dedicated graph stream.
+                  </li>
+                  <li>
+                    <strong>Configurable UI Controls:</strong> Adjust data sources, 
+                    operation modes, stream settings, and ingestion durations directly 
+                    from the UI.
+                  </li>
+                  <li>
+                    <strong>Enhanced RAG Flows:</strong> Custom-tweaked LangChain and 
+                    LlamaIndex retrievers with re-ranking, scoring, and decay 
+                    mechanisms for robust retrieval-augmented generation.
+                  </li>
+                  <li>
+                    <strong>Stream Lifecycle Management:</strong> Automatic stream 
+                    timeouts post-analysis, with full end-to-end WebSocket connection 
+                    handling.
+                  </li>
+                  <li>
+                    <strong>Scalable Streaming Infrastructure:</strong> Multiple 
+                    dockerized streaming hub instances for efficient real-time event 
+                    dispatching and broadcasting to connected MCP clients.
+                  </li>
+                  <li>
+                    <strong>Group Stream Broadcasting:</strong> Event broadcasting to 
+                    all MCP clients subscribed under the same <code>stream-id</code>.
+                  </li>
+                  <li>
+                    <strong>Event History Caching:</strong> Stores prior assessed 
+                    events for comparative analysis in caching mode for future assessment txn's streams.
+                  </li>
+                </ul>
+              </article>
+            </section>
           </>
         }
       />
+
 
       {/* Contact Dialog */}
       <DialogInfo
@@ -400,12 +508,82 @@ export function AppSidebar() {
           <>
             <p>You can contact us via:</p>
             <ul className="list-disc list-inside text-sm text-muted-foreground">
-              <li>Email: support@jsentrix.dev</li>
-              <li>Discord: #jsentrix-support</li>
+              <li>Github: <a style={{
+                textDecoration: 'underline',
+                color: 'HighlightText'
+              }} href='https://github.com/JasmeetSinghBali/JSentrix'>JSentrix Github GPL-3.0 license Source Code</a></li>
+              <li>Email:<strong> jasmeetbali.dev.2021@gmail.com </strong></li>
             </ul>
           </>
         }
       />
+
+      {/* Version History Dialog */}
+      <DialogInfo
+        open={openDialog === "Version History"}
+        onOpenChange={(open) => setOpenDialog(open ? "Version History" : null)}
+        title="Version History"
+        description="Track changes and updates to JSentrix."
+        content={
+          <div className="relative pl-6 border-l border-muted-foreground/30 space-y-8">
+
+            {/* V1 Track */}
+            <div>
+              <h3 className="text-base font-semibold mb-3">🎯 JSentrix v1 Track</h3>
+              {[
+                "Scaffold Electron app (React/TypeScript), set up Python MCP server, connect via localhost.",
+                "Setup custom neo4j, retriever interface for both llamaindex and langchain agent support",
+                "Implement transaction ingestion tool (local DB/CSV/pdf) unstructure+langchain+docling",
+                "Optimize and expand retrieval interface with relationship traversal cypher utils",
+                "Custom flow setup including relevance decay score sort, summarization, memory aware querying",
+                "Add async support for retrievers, postprocessors, utils downstream pipelines",
+                "Sphinx doc and instrumentation with OpenTelemetry setup",
+                "Setup reusable BaseAgent class interface with mcp+a2a compatibility for across all agents",
+                "Setup support for jsonrpc2.0 between gateway and mcp_server with REST backward compatibility",
+                "Setup streaming and aborting tools for MCP server and its peripherals with Kafka and Redis pub/sub",
+                "Intake Agent setup with enriched txn data for the Assessment & Prioritization Agent",
+                "Setup Assessment Agent with separate e2e streaming logs",
+                "Add A2A comm workflow between Assessment & Action Agent via protocol inside mcp_server",
+                "Polish Electron panels, loader, toast, split UI, streaming mode support, bug fixes, sidebar, and snapshots",
+              ].map((milestone, i) => (
+                <div key={i} className="relative flex items-start gap-3">
+                  —
+                  {/* Circle */}
+                  <span className="absolute -left-[10px] top-1 w-3 h-3 rounded-full bg-green-500 border-2 border-background shadow-sm" />
+                  {/* Text */}
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <span className="font-medium">V1.{i + 1}</span> — {milestone}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* V2 Track */}
+            <div>
+              <h3 className="text-base font-semibold mb-3">🚀 JSentrix v2 Track</h3>
+              {[
+                "Setup Judge agent communication from Action Agent for ND txn flow, passing structured output to Gemini summarizer",
+                "Visual agent graph tool invocation with XY React Flow payload for agent logs",
+                "Implement RAG HyDE (Hypothetical Document Embeddings) strategy at Intake level",
+              ].map((milestone, i) => (
+                <div key={i} className="relative flex items-start gap-3">
+                  —
+                  {/* Circle */}
+                  <span className="absolute -left-[10px] top-1 w-3 h-3 rounded-full bg-yellow-500 border-2 border-background shadow-sm" />
+                  {/* Text */}
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <span className="font-medium">V2.{i + 15}</span> — {milestone}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        }
+      />
+
+
+
 
       {/* 🎈delete account placeholder sheet confirmation modal shud be reusable component setup for future instead of this */}
       <Sheet>

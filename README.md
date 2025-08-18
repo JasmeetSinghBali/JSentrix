@@ -1,14 +1,30 @@
-# JSentrix
+# JSentrix (C) 2025 Jasmeet Singh Bali GPL V3
 # Autonomous Transaction Monitoring & Fraud Response System (Private, Multi-Agent, MCP&A2A-Compliant)
 
 ### 📌 Overview
+
 
 This project is a fully local, privacy-preserving, multi-agent system for real-time transaction monitoring and fraud response with approach rule based agentic graph system (AGS) built for use case with bank/fintech IT teams and can be further extended and inspired from to develop fully customizable multi agentic and multi modal flow in other domains.  
 It leverages the **Model Context Protocol (MCP)** for modular integrations, runs all AI models and data stores locally, and features an **Electron desktop app** (for IT staff) for monitoring.
 
 ---
 
+![Architecture Diagram](nuances/jsentrix_v1_arch_diagram.png)
+
+## 🍿 Previews
+
+
+| Flow  | Preview                                                                                          |  
+|-------|--------------------------------------------------------------------------------------------------|  
+| 🔑 Login| <img src="nuances/JSentrix_Login_Preview_2025-08-14.gif" alt="Login Flow" width="680" height="340"/>        |
+| 1️⃣ A2A |  <div style="display:flex-column; align-items:center; gap:10px;">  <img src="nuances/Screenshot_2025-05-20_Jsentrix_optim_pipeline_node_relationships.png" alt="Clause Knowledge Graph" width="680" hight="340" />  <img src="nuances/anim_default_mode_selection_demo.gif" alt="Default mode selection" width="550" height="250" /><img src="nuances/a2a_preview_demo.gif" alt="A2A demo preview 1" width="800"/>  <img src="nuances/A2A_Mode_Demo.gif" alt="A2A demo preview 2" width="800"/></div>                                                                                                    |
+| 2️⃣ A2A + MemoryCached| <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/a2a_cached_mode_selection_demo.gif" alt="Cached mode selection" width="550" height="250"/><img src="nuances/qdrant_memory_assesed_prior_events.png" alt="Prior assessed memory events qdrant" width="680" hight="340" /><img src="nuances/JSentrix_A2A_Caching_Mode_Demo.gif" alt="A2A cached demo preview" width="800"/></div>                                                                                                 |
+| 3️⃣ Async Redis Stream | <div style="display:flex-column; align-items:center; gap:10px;"> <img src="nuances/asyncredis_mode_selection_demo.gif" alt="Async redis mode selection" width="550" height="250"/><img src="" alt="Async redis demo preview" width="800"/></div>
+
+---
+
 ## 🏭 Architecture
+
 
 - **Typescript Electron App(MCP-client):** Local desktop app for IT staff, with embedded MCP client for analysis and tasking dashboard for monitoring transactions, alerts, and agent actions.
 - **Python MCP Server(s):** fastMCP server wrapped by fastapi  that exposes tools and agents via MCP and A2A compliance agent-to-agent comms; handles transaction ingestion, agent orchestration, and local AI Triage Agent flow.
@@ -78,12 +94,17 @@ ollama run qwen3:1.7b
 # makes sure venv is activated and .env is set for each of the backend components
 # mcp_server
 python -m interface.mcp_server --http
+
 # gateway (super user is auto created everytime the gateway fastapi service startsup with mcp_server health check and accessibility)
 uv run ./src/main.py
 
 # frontend electron app startup
 # mcp-client
 npm run start
+
+# login to mcp-client as superuser whatever email or password you set in gateway/.env make sure to restart gateway reff .example.env
+FIRST_SUPERUSER_EMAIL=
+FIRST_SUPERUSER_PASSWORD=
 
 #qwen3
 http://localhost:11434 # local api qwen3
@@ -137,7 +158,7 @@ docker system prune
 | 11    | ~~Intake Agent setup with message input/output integ with prior memory event, enriched txn data to be passed to next phase as list of enriched transactions to the langchain Assessment & Prioritization Agent~~   |
 | 12    | ~~Setup Assessment Agent and its peripherals e2e logs shud be streamed for both intake and assessment agent seprately~~                                                                                             |
 | 13    | ~~Add A2A comm workflow i.e Assessment & Prioritization Agent comm with Analysis /Action Agent via a2a protocol internally inside the mcp_server with logs of action agent seprately streamed to ui~~                                                                                                    |
-| 14    | polish Electron panels, loader, toast, split RootWrapper, vertical+horizontal split UI + streaming mode support and bug fixes + sidebar + add snapshot for v1 ui + recording for default,caching, async redisstream modes working under 1 min each mode video and add gifs and screenshots                                                                                           |
+| 14    | ~~polish Electron panels, loader, toast, split RootWrapper, vertical+horizontal split UI + streaming mode support and bug fixes + sidebar + add snapshot for v1 ui + recording for default,caching, async redisstream modes working under 1 min each mode video and add gifs and screenshots~~                                                                                           |
 ```bash
 ===== JSentrix v2.0 NOTE- to research on the 🎈 Abstracted Phases for Triage Flow current approach thoroughly before moving forward here tweak and finalize then move forward with below milestones====
 ```
@@ -167,7 +188,7 @@ docker system prune
 
 ---
 
-## 🔃 References
+## 🔃 Tech/Tools/Framework Doc References
 
 - [MCP Protocol](https://github.com/anthropics/mcp)
 - [Ollama](https://ollama.com/)

@@ -21,6 +21,7 @@ import { LoginGatewayStreamingHubForm } from './forms/LoginGatewayStreamingHubFo
 import { invokeToolGateway } from '@/api/invokeToolGateway';
 import { listToolsGateway } from '@/api/listToolsGateway';
 import ErrorBoundary from '@/ErrorBoundry';
+import { loginStreamingHub } from '@/api/loginStreamingHub';
 
 
 // interface for a single tool object
@@ -151,7 +152,11 @@ export default React.memo((props: any) => {
     
     // Reset entire system (close web socket etc.)
     const resetSystem = (terminalLogs = false) => {
+        console.log("[resetSystem] Before clearStreamId, streamId is:", useStreamingStore.getState().streamId);
         clearStreamId();
+        console.log("[resetSystem] After clearStreamId, streamId is:", useStreamingStore.getState().streamId);
+        console.log("[resetSystem] Current clientId/token:", { clientId, token });
+
         setStreamCountdown(null);
         setWebsocketActive(false);
         const controller = useStreamingStore.getState().abortController;
@@ -192,7 +197,15 @@ export default React.memo((props: any) => {
     
     // --- WebSocket connect + reconnect logic ---
     const connectWebSocket = () => {
+        console.log("[connectWebSocket] Attempting", {
+            clientId,
+            token,
+            streamId,
+            websocketActive,
+        });
+
         if (!clientId || !token || !streamId) {
+            console.warn("[connectWebSocket] Missing ws params:", {clientId, token, streamId});
             return;
         }
 
@@ -267,6 +280,11 @@ export default React.memo((props: any) => {
                         }
                     );
                     resetSystem();
+                    
+                    console.log("[Zustand state] Streaming:", useStreamingStore.getState());
+                    console.log("[Zustand state] WSAuth:", useWsAuthStore.getState());
+                    console.log("[Zustand state] GatewayAuth:", useGatewayAuthStore.getState());
+
                     return;
                 }
 
@@ -314,6 +332,13 @@ export default React.memo((props: any) => {
         };
 
         ws.onerror = (err: any) => {
+            console.error("[DEBUG] WebSocket onerror:", err, {
+                clientId,
+                token,
+                streamId,
+                url: ws.url
+            });
+
             toast.error(
                 "[error-websocket]-ws.onerror",
                 {
@@ -324,6 +349,12 @@ export default React.memo((props: any) => {
         };
 
         ws.onclose = (event) => {
+            console.log("[DEBUG] WebSocket closed. Event:", event, "Reason(ref):", closeReasonRef.current, {
+                clientId,
+                token,
+                streamId
+            });
+
             const localReason = closeReasonRef.current;
             toast.warning(
                 "[ws.onclose]-Event",
@@ -336,6 +367,9 @@ export default React.memo((props: any) => {
             closeReasonRef.current = null; // reset for next ws connection
 
             if (event.code === 4001) {
+                console.log("[ws.onclose] 4001 detected - clearing wsAuth");
+                console.log("[ws.onclose] clientId/token at close:", { clientId, token });
+
                 // invalid token/session
                 useWsAuthStore.getState().clearAuth();
                 return;
@@ -344,6 +378,13 @@ export default React.memo((props: any) => {
             // Try reconnect if websocket was closed unexpectedly
             if (!signal.aborted) {
                 reconnectTimeoutRef.current = setTimeout(() => {
+                console.log("[DEBUG] About to open websocket. Params:", {
+                    clientId,
+                    token,
+                    streamId,
+                    url: `ws://localhost/ws?client_id=${encodeURIComponent(clientId)}&token=${encodeURIComponent(token)}&stream_id=${encodeURIComponent(streamId)}`
+                });
+
                 connectWebSocket();
                 toast.info(
                     "[reconnect-ws]-Event",
@@ -403,61 +444,86 @@ export default React.memo((props: any) => {
         }
 
         try {
-        const res = await invokeTool("streaminges", {
-            arguments: {
-            source: "faker",
-            config: { assessment_type: assessmentType, caching: cachingEnabled },
-            },
-        });
-
-        if (res?.result?.stream_id) {
-            setStreamId(res.result.stream_id);
-            setStreamCountdown(duration === "infinite" ? null : duration);
-
-            // Clear previous timers if any
-            if (abortTimeoutRef.current) {
-                clearTimeout(abortTimeoutRef.current);
-                abortTimeoutRef.current = null;
-            }
-            if (countdownIntervalRef.current) {
-                clearInterval(countdownIntervalRef.current);
-                countdownIntervalRef.current = null;
+            // --------- NEW: Get fresh clientId & token from streaming hub ---------
+            const session = await loginStreamingHub();
+            if (!session || !session.clientId || !session.token) {
+                toast.error("Failed to obtain fresh streaming hub session tokens");
+                return;
             }
 
-                // Setup countdown timer and abort mechanism if not infinite
-                if (duration !== "infinite") {
-                    countdownIntervalRef.current = setInterval(() => {
-                        // 📌 every tick, always update based on the most recent value of streamCountdown
-                        const curr = useStreamingStore.getState().streamCountdown;
-                        if (curr === null || curr <= 1) {
-                            clearInterval(countdownIntervalRef.current!);
-                            countdownIntervalRef.current = null;
-                            setStreamCountdown(null);
-                        } else {
-                            setStreamCountdown(curr - 1);
-                        }
-                    }, 1000);
+            // Sync fresh credentials into Zustand store
+            useWsAuthStore.getState().setAuth(session.clientId, session.token);
 
-                    abortTimeoutRef.current = setTimeout(async () => {
-                        toast.warning(
-                            "[trigger-autoabort]-Event",
-                            {
-                                description: `Auto aborting stream after stream-duration: ${duration}s`,
-                                position: 'top-center'
-                            }
-                        );
-                        const currCachingMode = useStreamingesConfigStore.getState().cachingEnabled
-                        await abortStreaming(currCachingMode || false); // Use abortStreaming handler to abort
-                    }, duration * 1000);
+            console.log("[startStreamingWithDuration] Fresh session tokens set", session);
+
+            // --------- Proceed with starting the streaming session---------
+            const res = await invokeTool("streaminges", {
+                arguments: {
+                    source: "faker",
+                    config: { 
+                        assessment_type: assessmentType, 
+                        caching: cachingEnabled 
+                    },
+                },
+            });
+
+            console.log("[startStreamingWithDuration] streamId response:", res?.result?.stream_id);
+            console.log("[startStreamingWithDuration] Auth state just after receiving:", {
+                accessToken,
+                clientId,
+                token,
+                streamId: res?.result?.stream_id,
+            });
+
+
+            if (res?.result?.stream_id) {
+                setStreamId(res.result.stream_id);
+                setStreamCountdown(duration === "infinite" ? null : duration);
+
+                // Clear previous timers if any
+                if (abortTimeoutRef.current) {
+                    clearTimeout(abortTimeoutRef.current);
+                    abortTimeoutRef.current = null;
                 }
-            } else {
-                toast.error(
-                    "[error-startStreamingWithDuration]-NoStreamIdReturned-streaminges",
-                        {
-                            position: 'top-center',
-                        }
-                );
-            }
+                if (countdownIntervalRef.current) {
+                    clearInterval(countdownIntervalRef.current);
+                    countdownIntervalRef.current = null;
+                }
+
+                    // Setup countdown timer and abort mechanism if not infinite
+                    if (duration !== "infinite") {
+                        countdownIntervalRef.current = setInterval(() => {
+                            // 📌 every tick, always update based on the most recent value of streamCountdown
+                            const curr = useStreamingStore.getState().streamCountdown;
+                            if (curr === null || curr <= 1) {
+                                clearInterval(countdownIntervalRef.current!);
+                                countdownIntervalRef.current = null;
+                                setStreamCountdown(null);
+                            } else {
+                                setStreamCountdown(curr - 1);
+                            }
+                        }, 1000);
+
+                        abortTimeoutRef.current = setTimeout(async () => {
+                            toast.warning(
+                                "[trigger-autoabort]-Event",
+                                {
+                                    description: `Auto aborting stream after stream-duration: ${duration}s`,
+                                    position: 'top-center'
+                                }
+                            );
+                            const currCachingMode = useStreamingesConfigStore.getState().cachingEnabled
+                            await abortStreaming(currCachingMode || false); // Use abortStreaming handler to abort
+                        }, duration * 1000);
+                    }
+                } else {
+                    toast.error(
+                        "[error-startStreamingWithDuration]-NoStreamIdReturned-streaminges",
+                            {
+                                position: 'top-center',
+                            }
+                    );
+                }
         } catch (err: any) {
             toast.error(
                 "[error-startStreamingWithDuration]-Event",
@@ -530,7 +596,8 @@ export default React.memo((props: any) => {
     // Keep websocket connected when clientId, token, streamId, or assessmentType changes
     useEffect(() => {
         if (clientId && token && streamId) {
-        connectWebSocket();
+            console.log("[useEffect-WebSocketDeps] Dependencies changed:", { clientId, token, streamId, assessmentType });
+            connectWebSocket();
         }
 
         return () => {

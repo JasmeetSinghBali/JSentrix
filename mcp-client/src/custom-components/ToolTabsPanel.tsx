@@ -46,6 +46,7 @@ interface ToolTabsPanelProps {
 
 const HIDE_INPUTS_FOR = ["streaminges", "abortinges"];
 const streamDurationOptions: DropdownOption[] = [
+  { label: "1 minute", value: "60" },
   { label: "2 minutes", value: "120" },
   { label: "5 minutes", value: "300" },
   { label: "Indefinite", value: "infinite" },
@@ -73,7 +74,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
   const streamCountdown = useStreamingStore((state)=>state.streamCountdown);
 
   const [inputValues, setInputValues] = useState<Record<string, Record<string, any>>>({});
-  const [streamDuration, setStreamDuration] = useState<number | "infinite">(120);
+  const [streamDuration, setStreamDuration] = useState<number | "infinite">(60);
 
   const [loadingTools, setLoadingTools] = useState<Record<string, boolean>>({});
 
@@ -157,7 +158,7 @@ const ToolTabsPanel: React.FC<ToolTabsPanelProps> = ({
   // Clear stream duration from UI when streamId disappears
   useEffect(() => {
     if (!streamId) {
-      setStreamDuration(120);
+      setStreamDuration(60);
     }
   }, [streamId]);
 

@@ -16,7 +16,7 @@ import { MaskContainer } from "@/components/ui/svg-mask-effect";
 import { ColourfulText } from "@/components/ui/colourful-text";
 import { motion } from "motion/react";
 import { Separator } from "@/components/ui/separator";
-import previewApp from "../../../../nuances/Screenshot_2025-08-01_default_dark_theme.png"
+import previewApp from "../../assets/JSentrix_Preview_home_screen_2025-08-14.gif"
 import { CurrentUser, useCurrentUserStore, useGatewayAuthStore, useWsAuthStore } from '@/shared/store';
 import { loginGateway, LoginGatewayTokenResponse } from '@/api/loginGateway';
 import { toast } from "sonner"
@@ -126,7 +126,6 @@ export function LoginGatewayStreamingHubForm({
           <div className="flex h-[40rem] w-full items-center justify-center overflow-hidden">
             <div className="h-screen w-full flex items-center justify-center relative overflow-hidden bg-black">
               <motion.img
-                  // 🎈 shud be giphy demo preview instead of the running stream in default a2a mode
                   src={previewApp}
                   className="h-full w-full object-contain absolute inset-0 [mask-image:radial-gradient(circle,transparent,black_80%)] pointer-events-none"
                   initial={{ opacity: 0 }}
